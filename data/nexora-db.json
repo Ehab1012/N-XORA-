@@ -1,0 +1,975 @@
+{
+  "users": [
+    {
+      "id": "usr_owner",
+      "email": "elena@nexora.internal",
+      "name": "Elena Vance",
+      "role": "owner",
+      "title": "Workspace Owner & Lead Architect",
+      "department": "Architecture & Zero-Trust Systems",
+      "location": "San Francisco, CA (PST / UTC-8)",
+      "bio": "Principal systems architect directing zero-trust operational protocols, cryptographic enclave verification, and distributed execution pipelines across engineering squads.",
+      "phone": "+1 (415) 890-2144",
+      "skills": [
+        "Zero-Trust Architecture",
+        "Distributed Systems",
+        "Rust",
+        "Cryptographic Enclaves",
+        "Go",
+        "Threat Modeling",
+        "High-Throughput Streaming"
+      ],
+      "githubHandle": "elenavance-arch",
+      "linkedinUrl": "https://linkedin.com/in/elena-vance-nexora",
+      "timezone": "America/Los_Angeles",
+      "statusMessage": "🟢 Directing Sprint 4 architecture and budget governance",
+      "createdAt": "2026-01-10T09:00:00.000Z",
+      "lastActiveAt": "2026-09-12T08:15:00.000Z"
+    },
+    {
+      "id": "usr_leader",
+      "email": "marcus@nexora.internal",
+      "name": "Marcus Chen",
+      "role": "leader",
+      "title": "Staff Engineering Leader",
+      "department": "Platform Engineering & Node Runtimes",
+      "location": "Seattle, WA (PST / UTC-8)",
+      "bio": "Platform squad leader managing edge proxies, high-concurrency node runtimes, and continuous integration pipelines for cryptographic deliverables.",
+      "phone": "+1 (206) 555-0192",
+      "skills": [
+        "Edge Networking",
+        "Kubernetes",
+        "gRPC",
+        "Cryptographic Proofs",
+        "C++",
+        "Go",
+        "CI/CD Pipelines"
+      ],
+      "githubHandle": "marcus-chen-ops",
+      "linkedinUrl": "https://linkedin.com/in/marcus-chen-platform",
+      "timezone": "America/Los_Angeles",
+      "statusMessage": "🟡 Reviewing cryptographic proof submissions",
+      "createdAt": "2026-01-15T10:30:00.000Z",
+      "lastActiveAt": "2026-09-12T08:20:00.000Z"
+    },
+    {
+      "id": "usr_coleader",
+      "email": "sarah@nexora.internal",
+      "name": "Sarah Jenkins",
+      "role": "co-leader",
+      "title": "Systems & Product Co-Leader",
+      "department": "Product Reliability & Compliance",
+      "location": "New York, NY (EST / UTC-5)",
+      "bio": "Orchestrating multi-team milestone velocity, regulatory compliance, client deliverable verification, and zero-downtime release cadences.",
+      "phone": "+1 (212) 555-0811",
+      "skills": [
+        "SRE & Reliability",
+        "Milestone Orchestration",
+        "Risk Assessment",
+        "TypeScript",
+        "Node.js",
+        "PostgreSQL",
+        "SOC2 Compliance"
+      ],
+      "githubHandle": "sjenkins-sec",
+      "linkedinUrl": "https://linkedin.com/in/sarah-jenkins-gov",
+      "timezone": "America/New_York",
+      "statusMessage": "🟢 Milestone 3 verification active",
+      "createdAt": "2026-02-01T11:00:00.000Z",
+      "lastActiveAt": "2026-09-12T07:55:00.000Z"
+    },
+    {
+      "id": "usr_member",
+      "email": "alex@nexora.internal",
+      "name": "Alex Rivera",
+      "role": "member",
+      "title": "Core Platform Engineer",
+      "department": "Infrastructure & Real-Time Sync",
+      "location": "Austin, TX (CST / UTC-6)",
+      "bio": "Specializing in WebSocket replication layers, event-driven microservices, Redis caching, and automated immutable audit trail generation.",
+      "phone": "+1 (512) 555-0374",
+      "skills": [
+        "WebSocket Sync",
+        "TypeScript",
+        "Redis",
+        "Docker",
+        "GraphQL",
+        "Event Sourcing",
+        "Vitest"
+      ],
+      "githubHandle": "arivera-eng",
+      "linkedinUrl": "https://linkedin.com/in/alex-rivera-sync",
+      "timezone": "America/Chicago",
+      "statusMessage": "🟢 Deep work on ledger synchronization",
+      "createdAt": "2026-02-15T08:15:00.000Z",
+      "lastActiveAt": "2026-09-12T08:30:00.000Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "ws_default",
+      "name": "Nexora Core Operations",
+      "slug": "nexora-core",
+      "ownerId": "usr_owner",
+      "createdAt": "2026-01-10T09:00:00.000Z",
+      "settings": {
+        "allowMemberInvites": true,
+        "requireProofApproval": true,
+        "emergencyRecoveryEmail": "security@nexora.internal",
+        "strictIdorChecks": true
+      }
+    }
+  ],
+  "workspaceMemberships": [
+    {
+      "id": "wm_1",
+      "workspaceId": "ws_default",
+      "userId": "usr_owner",
+      "role": "owner",
+      "joinedAt": "2026-01-10T09:00:00.000Z"
+    },
+    {
+      "id": "wm_2",
+      "workspaceId": "ws_default",
+      "userId": "usr_leader",
+      "role": "leader",
+      "joinedAt": "2026-01-15T10:30:00.000Z"
+    },
+    {
+      "id": "wm_3",
+      "workspaceId": "ws_default",
+      "userId": "usr_coleader",
+      "role": "co-leader",
+      "joinedAt": "2026-02-01T11:00:00.000Z"
+    },
+    {
+      "id": "wm_4",
+      "workspaceId": "ws_default",
+      "userId": "usr_member",
+      "role": "member",
+      "joinedAt": "2026-02-15T08:15:00.000Z"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team_platform",
+      "workspaceId": "ws_default",
+      "name": "Core Platform Engineering",
+      "description": "Zero-trust infrastructure, distributed consensus, and edge proxy gateways.",
+      "leaderId": "usr_leader",
+      "coLeaderId": "usr_coleader",
+      "memberIds": [
+        "usr_owner",
+        "usr_leader",
+        "usr_coleader",
+        "usr_member"
+      ],
+      "isArchived": false,
+      "createdAt": "2026-01-16T10:00:00.000Z"
+    },
+    {
+      "id": "team_product",
+      "workspaceId": "ws_default",
+      "name": "Product Architecture & UX",
+      "description": "Interface ergonomics, interaction workflows, and real-time collaboration engines.",
+      "leaderId": "usr_coleader",
+      "memberIds": [
+        "usr_owner",
+        "usr_coleader",
+        "usr_member"
+      ],
+      "isArchived": false,
+      "createdAt": "2026-02-05T14:00:00.000Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj_aurora",
+      "workspaceId": "ws_default",
+      "teamId": "team_platform",
+      "title": "Aurora Protocol v3 Deployment",
+      "description": "End-to-end cryptographic verification, peer discovery, and latency optimization.",
+      "objectives": [
+        "Cut cross-region handshakes below 12ms",
+        "Verify zero-knowledge proof validity in under 35ms",
+        "Complete end-to-end telemetry auditing"
+      ],
+      "status": "active",
+      "deadline": "2026-10-15T18:00:00.000Z",
+      "accentColor": "#8b5cf6",
+      "leaderId": "usr_leader",
+      "coLeaderId": "usr_coleader",
+      "visibility": "workspace",
+      "memberIds": [
+        "usr_owner",
+        "usr_leader",
+        "usr_coleader",
+        "usr_member"
+      ],
+      "budget": 85000,
+      "expenses": 32450,
+      "expenseItems": [
+        {
+          "id": "exp_1",
+          "projectId": "proj_aurora",
+          "title": "AWS High-Memory GPU Node Cluster",
+          "category": "component",
+          "cost": 14500,
+          "date": "2026-08-15",
+          "status": "bought",
+          "vendor": "Amazon Web Services",
+          "notes": "3x g5.2xlarge instances for distributed cryptographic verification benchmarks",
+          "createdAt": "2026-08-15T10:00:00.000Z"
+        },
+        {
+          "id": "exp_2",
+          "projectId": "proj_aurora",
+          "title": "Zero-Knowledge Cryptographic Audit",
+          "category": "service",
+          "cost": 12500,
+          "date": "2026-08-28",
+          "status": "completed",
+          "vendor": "Trail of Bits Security",
+          "notes": "Full penetration testing and formal circuit audit",
+          "createdAt": "2026-08-28T14:30:00.000Z"
+        },
+        {
+          "id": "exp_3",
+          "projectId": "proj_aurora",
+          "title": "Hardware Cryptographic Dongles (HSM YubiKeys)",
+          "category": "hardware",
+          "cost": 1850,
+          "date": "2026-09-02",
+          "status": "bought",
+          "vendor": "Yubico Enterprise",
+          "notes": "25 FIPS-compliant hardware security keys for engineering team",
+          "createdAt": "2026-09-02T09:15:00.000Z"
+        },
+        {
+          "id": "exp_4",
+          "projectId": "proj_aurora",
+          "title": "Cloudflare Zero Trust Edge Gateway Licenses",
+          "category": "software",
+          "cost": 3600,
+          "date": "2026-09-05",
+          "status": "bought",
+          "vendor": "Cloudflare",
+          "notes": "Annual edge routing and DNS packet filter subscription",
+          "createdAt": "2026-09-05T11:20:00.000Z"
+        }
+      ],
+      "createdAt": "2026-02-10T11:00:00.000Z",
+      "updatedAt": "2026-09-11T16:00:00.000Z"
+    },
+    {
+      "id": "proj_zerotrust",
+      "workspaceId": "ws_default",
+      "teamId": "team_platform",
+      "title": "Zero-Trust Mesh Gateway",
+      "description": "Identity-aware egress filtering, dynamic TLS certificate issuance, and session revocation.",
+      "objectives": [
+        "Enforce mutual TLS across all microservice ingress paths",
+        "Automate instant session kill switch across edge nodes"
+      ],
+      "status": "at_risk",
+      "deadline": "2026-09-20T23:59:59.000Z",
+      "accentColor": "#ec4899",
+      "leaderId": "usr_leader",
+      "visibility": "team_only",
+      "memberIds": [
+        "usr_leader",
+        "usr_member"
+      ],
+      "budget": 40000,
+      "expenses": 28200,
+      "expenseItems": [
+        {
+          "id": "exp_zt_1",
+          "projectId": "proj_zerotrust",
+          "title": "TLS Certificate Authority Appliance",
+          "category": "component",
+          "cost": 8200,
+          "date": "2026-08-10",
+          "status": "bought",
+          "vendor": "DigiCert Enterprise",
+          "notes": "Automated mTLS certificate issuing appliance",
+          "createdAt": "2026-08-10T12:00:00.000Z"
+        },
+        {
+          "id": "exp_zt_2",
+          "projectId": "proj_zerotrust",
+          "title": "External Network Penetration Assessment",
+          "category": "service",
+          "cost": 20000,
+          "date": "2026-08-22",
+          "status": "completed",
+          "vendor": "Mandiant Threat Labs",
+          "notes": "Red team egress evasion testing",
+          "createdAt": "2026-08-22T16:00:00.000Z"
+        }
+      ],
+      "createdAt": "2026-03-01T09:00:00.000Z",
+      "updatedAt": "2026-09-10T12:00:00.000Z"
+    },
+    {
+      "id": "proj_sync",
+      "workspaceId": "ws_default",
+      "teamId": "team_product",
+      "title": "CRDT Sync Engine & Offline State",
+      "description": "Conflict-free replicated data types for peer-to-peer workspace document collaboration.",
+      "objectives": [
+        "Support local indexedDB state with automatic background delta sync",
+        "Provide deterministic state convergence on network reconnect"
+      ],
+      "status": "planned",
+      "deadline": "2026-11-30T18:00:00.000Z",
+      "accentColor": "#14b8a6",
+      "leaderId": "usr_coleader",
+      "visibility": "workspace",
+      "memberIds": [
+        "usr_owner",
+        "usr_coleader",
+        "usr_member"
+      ],
+      "createdAt": "2026-04-12T14:30:00.000Z",
+      "updatedAt": "2026-09-08T10:00:00.000Z"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "ms_aurora_1",
+      "projectId": "proj_aurora",
+      "title": "M1: Cryptographic Handshake Specification",
+      "description": "Finalize RFC and establish formal verification lemmas with peer review.",
+      "dueDate": "2026-08-15T18:00:00.000Z",
+      "status": "completed",
+      "ownerId": "usr_leader",
+      "createdAt": "2026-02-12T10:00:00.000Z"
+    },
+    {
+      "id": "ms_aurora_2",
+      "projectId": "proj_aurora",
+      "title": "M2: Edge Node Benchmarking & Proof Verifier",
+      "description": "Deploy 50 simulated edge clusters and measure verified throughput under load.",
+      "dueDate": "2026-09-25T18:00:00.000Z",
+      "status": "in_progress",
+      "ownerId": "usr_member",
+      "createdAt": "2026-02-12T10:00:00.000Z"
+    },
+    {
+      "id": "ms_zt_1",
+      "projectId": "proj_zerotrust",
+      "title": "M1: Egress Policy Enforcement Engine",
+      "description": "Implement eBPF packet inspection rules for egress traffic filtering.",
+      "dueDate": "2026-09-18T18:00:00.000Z",
+      "status": "in_progress",
+      "ownerId": "usr_member",
+      "createdAt": "2026-03-05T10:00:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_aurora_101",
+      "projectId": "proj_aurora",
+      "title": "Implement Ed25519 signature batch verification in Rust core",
+      "description": "Optimize signature validation loop using SIMD vector instructions for 4x throughput boost.",
+      "assigneeId": "usr_member",
+      "creatorId": "usr_leader",
+      "status": "complete",
+      "priority": "high",
+      "dueDate": "2026-08-10T18:00:00.000Z",
+      "milestoneId": "ms_aurora_1",
+      "tags": [
+        "rust",
+        "crypto",
+        "performance"
+      ],
+      "checklist": [
+        {
+          "id": "cl_1",
+          "taskId": "task_aurora_101",
+          "title": "Write AVX2 assembly kernels",
+          "isCompleted": true,
+          "sortOrder": 0
+        },
+        {
+          "id": "cl_2",
+          "taskId": "task_aurora_101",
+          "title": "Validate differential test cases against reference vectors",
+          "isCompleted": true,
+          "sortOrder": 1
+        },
+        {
+          "id": "cl_3",
+          "taskId": "task_aurora_101",
+          "title": "Benchmark regression tests",
+          "isCompleted": true,
+          "sortOrder": 2
+        }
+      ],
+      "createdAt": "2026-02-15T11:00:00.000Z",
+      "updatedAt": "2026-08-09T17:30:00.000Z",
+      "completedAt": "2026-08-09T17:30:00.000Z",
+      "proofSubmittedId": "proof_101"
+    },
+    {
+      "id": "task_aurora_102",
+      "projectId": "proj_aurora",
+      "title": "Construct synthetic network partition test harness",
+      "description": "Chaos engineering suite simulating 30% packet loss and 200ms asymmetric jitter across nodes.",
+      "assigneeId": "usr_member",
+      "creatorId": "usr_leader",
+      "status": "in_review",
+      "priority": "high",
+      "dueDate": "2026-09-14T18:00:00.000Z",
+      "milestoneId": "ms_aurora_2",
+      "tags": [
+        "testing",
+        "chaos",
+        "edge"
+      ],
+      "checklist": [
+        {
+          "id": "cl_4",
+          "taskId": "task_aurora_102",
+          "title": "Write Toxiproxy toxic injections",
+          "isCompleted": true,
+          "sortOrder": 0
+        },
+        {
+          "id": "cl_5",
+          "taskId": "task_aurora_102",
+          "title": "Record deterministic split-brain recovery logs",
+          "isCompleted": true,
+          "sortOrder": 1
+        },
+        {
+          "id": "cl_6",
+          "taskId": "task_aurora_102",
+          "title": "Submit proof of verification run",
+          "isCompleted": true,
+          "sortOrder": 2
+        }
+      ],
+      "createdAt": "2026-08-20T10:00:00.000Z",
+      "updatedAt": "2026-09-11T15:20:00.000Z",
+      "proofSubmittedId": "proof_102"
+    },
+    {
+      "id": "task_aurora_103",
+      "projectId": "proj_aurora",
+      "title": "Formal security audit preparation and dependency SBOM",
+      "description": "Generate SPDX SBOM and run automated taint analysis across all third-party crates.",
+      "assigneeId": "usr_coleader",
+      "creatorId": "usr_owner",
+      "status": "in_progress",
+      "priority": "medium",
+      "dueDate": "2026-09-28T18:00:00.000Z",
+      "milestoneId": "ms_aurora_2",
+      "tags": [
+        "security",
+        "compliance",
+        "audit"
+      ],
+      "checklist": [
+        {
+          "id": "cl_7",
+          "taskId": "task_aurora_103",
+          "title": "Audit cargo-crev web of trust reviews",
+          "isCompleted": true,
+          "sortOrder": 0
+        },
+        {
+          "id": "cl_8",
+          "taskId": "task_aurora_103",
+          "title": "Package cryptographic proofs and threat models",
+          "isCompleted": false,
+          "sortOrder": 1
+        }
+      ],
+      "createdAt": "2026-08-25T14:00:00.000Z",
+      "updatedAt": "2026-09-10T16:00:00.000Z"
+    },
+    {
+      "id": "task_zt_201",
+      "projectId": "proj_zerotrust",
+      "title": "Debug eBPF socket filter tail call recursion limit",
+      "description": "Kernel 6.8 is rejecting the combined security filter program during high-volume ingress spikes.",
+      "assigneeId": "usr_member",
+      "creatorId": "usr_leader",
+      "status": "blocked",
+      "priority": "urgent",
+      "dueDate": "2026-09-12T18:00:00.000Z",
+      "milestoneId": "ms_zt_1",
+      "tags": [
+        "ebpf",
+        "kernel",
+        "urgent"
+      ],
+      "checklist": [
+        {
+          "id": "cl_9",
+          "taskId": "task_zt_201",
+          "title": "Inspect verifier log byte offsets",
+          "isCompleted": true,
+          "sortOrder": 0
+        },
+        {
+          "id": "cl_10",
+          "taskId": "task_zt_201",
+          "title": "Refactor BPF maps to eliminate recursive tail call",
+          "isCompleted": false,
+          "sortOrder": 1
+        }
+      ],
+      "createdAt": "2026-09-02T09:00:00.000Z",
+      "updatedAt": "2026-09-11T14:00:00.000Z"
+    },
+    {
+      "id": "task_zt_202",
+      "projectId": "proj_zerotrust",
+      "title": "Automated certificate renewal ACME challenge listener",
+      "description": "Implement ephemeral TLS-ALPN-01 listener responding directly from memory buffers.",
+      "assigneeId": "usr_leader",
+      "creatorId": "usr_leader",
+      "status": "todo",
+      "priority": "medium",
+      "dueDate": "2026-09-22T18:00:00.000Z",
+      "tags": [
+        "tls",
+        "acme",
+        "certs"
+      ],
+      "checklist": [],
+      "createdAt": "2026-09-05T11:00:00.000Z",
+      "updatedAt": "2026-09-05T11:00:00.000Z"
+    }
+  ],
+  "proofSubmissions": [
+    {
+      "id": "proof_101",
+      "taskId": "task_aurora_101",
+      "projectId": "proj_aurora",
+      "submittedById": "usr_member",
+      "explanation": "Completed SIMD optimization. Benchmark shows 4.2x throughput speedup (from 14,200 to 59,800 verifies/sec per thread). All 10,000 differential test vectors passed with 0 bit errors.",
+      "links": [
+        "https://github.com/nexora-internal/aurora-crypto/pull/88",
+        "https://bench.internal.nexora/aurora-simd-run-9882.html"
+      ],
+      "attachmentIds": [],
+      "status": "approved",
+      "reviewNote": "Verified test vectors and SIMD safety bounds. AVX2 fallback for non-AVX targets confirmed intact. Outstanding work.",
+      "reviewedById": "usr_leader",
+      "reviewedAt": "2026-08-09T18:00:00.000Z",
+      "createdAt": "2026-08-09T17:15:00.000Z",
+      "reviewHistory": [
+        {
+          "id": "prh_1",
+          "proofId": "proof_101",
+          "reviewerId": "usr_leader",
+          "action": "approved",
+          "reason": "Verified test vectors and SIMD safety bounds. Production ready.",
+          "createdAt": "2026-08-09T18:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "proof_102",
+      "taskId": "task_aurora_102",
+      "projectId": "proj_aurora",
+      "submittedById": "usr_member",
+      "explanation": "Chaos test harness completed. Executed 48-hour continuous cycle with simulated network partitions across 3 geographically split nodes. Cluster re-converged within 280ms of network healing without any split-brain state or corrupted journals.",
+      "links": [
+        "https://logs.internal.nexora/chaos-cluster-run-2918.json"
+      ],
+      "attachmentIds": [],
+      "status": "pending",
+      "createdAt": "2026-09-11T15:20:00.000Z",
+      "reviewHistory": []
+    }
+  ],
+  "resources": [
+    {
+      "id": "res_1",
+      "projectId": "proj_aurora",
+      "title": "Aurora Protocol Cryptographic RFC v3.4",
+      "description": "Formal mathematical specifications of state verification and consensus handshakes.",
+      "url": "https://docs.internal.nexora/rfc-aurora-3.4.pdf",
+      "category": "specification",
+      "createdById": "usr_leader",
+      "permissionScope": "workspace",
+      "createdAt": "2026-02-11T10:00:00.000Z",
+      "updatedAt": "2026-08-12T14:00:00.000Z"
+    },
+    {
+      "id": "res_2",
+      "projectId": "proj_aurora",
+      "title": "Edge Cluster Deployment Architecture Diagram",
+      "description": "Figma interactive component map for edge nodes, reverse proxies, and telemetry collectors.",
+      "url": "https://figma.com/file/aurora-architecture-v3",
+      "category": "design",
+      "createdById": "usr_coleader",
+      "permissionScope": "project_members",
+      "createdAt": "2026-03-01T15:00:00.000Z",
+      "updatedAt": "2026-03-01T15:00:00.000Z"
+    },
+    {
+      "id": "res_3",
+      "projectId": "proj_zerotrust",
+      "title": "Zero-Trust Gateway eBPF Memory Allocation Spec",
+      "description": "Strict kernel map size boundaries and ring buffer capacity guides.",
+      "url": "https://docs.internal.nexora/zt-ebpf-spec.md",
+      "category": "documentation",
+      "createdById": "usr_leader",
+      "permissionScope": "team",
+      "createdAt": "2026-03-10T12:00:00.000Z",
+      "updatedAt": "2026-03-10T12:00:00.000Z"
+    }
+  ],
+  "projectMessages": [
+    {
+      "id": "msg_1",
+      "projectId": "proj_aurora",
+      "senderId": "usr_leader",
+      "content": "Team, the SIMD verification benchmarks exceeded our targets. Great job Alex! Next focus is chaos resilience.",
+      "createdAt": "2026-08-10T09:15:00.000Z"
+    },
+    {
+      "id": "msg_2",
+      "projectId": "proj_aurora",
+      "senderId": "usr_member",
+      "content": "Thanks Marcus! I just submitted proof for the network partition test harness. Cluster converged reliably under 300ms.",
+      "replyToId": "msg_1",
+      "createdAt": "2026-09-11T15:25:00.000Z"
+    },
+    {
+      "id": "msg_3",
+      "projectId": "proj_aurora",
+      "senderId": "usr_coleader",
+      "content": "Reviewing the threat model and SBOM outputs this afternoon. Ready to sign off for the audit milestone.",
+      "createdAt": "2026-09-11T16:10:00.000Z"
+    },
+    {
+      "id": "msg_4",
+      "projectId": "proj_zerotrust",
+      "senderId": "usr_leader",
+      "content": "The eBPF kernel 6.8 recursion limit needs attention before tomorrow morning. Alex, please check the BPF map structure.",
+      "createdAt": "2026-09-11T14:15:00.000Z"
+    }
+  ],
+  "directMessages": [
+    {
+      "id": "dm_1",
+      "senderId": "usr_leader",
+      "receiverId": "usr_member",
+      "content": "Alex, when you review the eBPF socket filter, let us split the tail calls into a pinned hashmap instead of recursion.",
+      "isRead": true,
+      "createdAt": "2026-09-11T14:30:00.000Z"
+    },
+    {
+      "id": "dm_2",
+      "senderId": "usr_member",
+      "receiverId": "usr_leader",
+      "content": "Good plan Marcus, starting on that refactor now. Will push test branch in 30 minutes.",
+      "isRead": false,
+      "createdAt": "2026-09-11T14:35:00.000Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif_1",
+      "userId": "usr_leader",
+      "title": "Proof submitted for review",
+      "message": "Alex Rivera submitted completion proof for: Construct synthetic network partition test harness.",
+      "type": "proof_review",
+      "isRead": false,
+      "link": "/projects/proj_aurora?tab=proofs",
+      "createdAt": "2026-09-11T15:20:00.000Z"
+    },
+    {
+      "id": "notif_2",
+      "userId": "usr_member",
+      "title": "Urgent task assigned",
+      "message": "Marcus Chen flagged: Debug eBPF socket filter tail call recursion limit as urgent.",
+      "type": "overdue",
+      "isRead": true,
+      "link": "/projects/proj_zerotrust?tab=tasks",
+      "createdAt": "2026-09-11T14:05:00.000Z"
+    },
+    {
+      "id": "notif_3",
+      "userId": "usr_member",
+      "title": "Proof Approved",
+      "message": "Your proof for Ed25519 signature batch verification was approved (+40 pts).",
+      "type": "score",
+      "isRead": true,
+      "link": "/projects/proj_aurora?tab=proofs",
+      "createdAt": "2026-08-09T18:00:00.000Z"
+    }
+  ],
+  "notificationPreferences": {
+    "usr_owner": {
+      "userId": "usr_owner",
+      "deadlineReminders": true,
+      "overdueAlerts": true,
+      "proofReviewUpdates": true,
+      "directMessages": true,
+      "projectAnnouncements": true,
+      "weeklySummaries": true
+    },
+    "usr_leader": {
+      "userId": "usr_leader",
+      "deadlineReminders": true,
+      "overdueAlerts": true,
+      "proofReviewUpdates": true,
+      "directMessages": true,
+      "projectAnnouncements": true,
+      "weeklySummaries": true
+    },
+    "usr_coleader": {
+      "userId": "usr_coleader",
+      "deadlineReminders": true,
+      "overdueAlerts": true,
+      "proofReviewUpdates": true,
+      "directMessages": true,
+      "projectAnnouncements": true,
+      "weeklySummaries": false
+    },
+    "usr_member": {
+      "userId": "usr_member",
+      "deadlineReminders": false,
+      "overdueAlerts": true,
+      "proofReviewUpdates": true,
+      "directMessages": false,
+      "projectAnnouncements": true,
+      "weeklySummaries": false
+    }
+  },
+  "activityEvents": [
+    {
+      "id": "act_1",
+      "workspaceId": "ws_default",
+      "projectId": "proj_aurora",
+      "userId": "usr_member",
+      "action": "Submitted proof of work",
+      "entityType": "proof",
+      "entityId": "proof_102",
+      "details": "Proof submitted for \"Construct synthetic network partition test harness\"",
+      "createdAt": "2026-09-11T15:20:00.000Z"
+    },
+    {
+      "id": "act_2",
+      "workspaceId": "ws_default",
+      "projectId": "proj_zerotrust",
+      "userId": "usr_leader",
+      "action": "Updated task priority to urgent",
+      "entityType": "task",
+      "entityId": "task_zt_201",
+      "details": "Task flagged as urgent due to kernel 6.8 verifier failure",
+      "createdAt": "2026-09-11T14:05:00.000Z"
+    },
+    {
+      "id": "act_3",
+      "workspaceId": "ws_default",
+      "projectId": "proj_aurora",
+      "userId": "usr_leader",
+      "action": "Approved proof of work",
+      "entityType": "proof",
+      "entityId": "proof_101",
+      "details": "Proof verified and approved for Ed25519 SIMD batch validation",
+      "createdAt": "2026-08-09T18:00:00.000Z"
+    }
+  ],
+  "files": [
+    {
+      "id": "file_aurora_topo",
+      "name": "aurora-cluster-mesh-topology.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 18450,
+      "uploadedById": "usr_leader",
+      "uploadedByName": "Marcus Chen",
+      "projectId": "proj_aurora",
+      "category": "diagram",
+      "description": "Interactive architecture diagram illustrating multi-region edge gateways, consensus engine, and Raft storage ring.",
+      "tags": [
+        "architecture",
+        "topology",
+        "mesh",
+        "consensus"
+      ],
+      "dataUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgNDgwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYXVyb3JhQmciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDkwYjE2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzEyMTUyZCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgogICAgICA8cGF0aCBkPSJNIDMwIDAgTCAwIDAgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWMyMTQ0IiBzdHJva2Utd2lkdGg9IjAuNzUiLz4KICAgIDwvcGF0dGVybj4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI0ODAiIHJ4PSIxNiIgZmlsbD0idXJsKCNhdXJvcmFCZykiLz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjQ4MCIgcng9IjE2IiBmaWxsPSJ1cmwoI2dyaWQpIi8+CiAgPHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9Ijc5NiIgaGVpZ2h0PSI0NzYiIHJ4PSIxNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjUyYTU0IiBzdHJva2Utd2lkdGg9IjEuNSIvPgogIDxyZWN0IHg9IjI1IiB5PSIyNSIgd2lkdGg9Ijc1MCIgaGVpZ2h0PSI1MCIgcng9IjEwIiBmaWxsPSIjMTMxNjJkIiBzdHJva2U9IiMyODJkNWEiIHN0cm9rZS13aWR0aD0iMSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjEwIiBmaWxsPSIjN2MzYWVkIi8+CiAgPHRleHQgeD0iNzUiIHk9IjU1IiBmaWxsPSIjZjhmYWZjIiBmb250LWZhbWlseT0ic3lzdGVtLXVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE1IiBmb250LXdlaWdodD0iNzAwIj5BdXJvcmEgRGlzdHJpYnV0ZWQgQ29yZSBQcm90b2NvbCDigJQgTXVsdGktUmVnaW9uIE1lc2ggVG9wb2xvZ3k8L3RleHQ+CiAgPHJlY3QgeD0iNjcwIiB5PSIzOCIgd2lkdGg9Ijg1IiBoZWlnaHQ9IjI0IiByeD0iNiIgZmlsbD0iIzA2NGUzYiIgc3Ryb2tlPSIjMDU5NjY5IiBzdHJva2Utd2lkdGg9IjEiLz4KICA8dGV4dCB4PSI3MTIiIHk9IjU0IiBmaWxsPSIjNmVlN2I3IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjExIiBmb250LXdlaWdodD0iNjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5BQ1RJVkUgdjMuNDwvdGV4dD4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MCwgMTMwKSI+CiAgICA8cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjEzMCIgcng9IjEyIiBmaWxsPSIjMTUxOTM2IiBzdHJva2U9IiM2MzY2ZjEiIHN0cm9rZS13aWR0aD0iMiIvPgogICAgPHJlY3QgeD0iMTUiIHk9IjE1IiB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHJ4PSI4IiBmaWxsPSIjMzEyZTgxIi8+CiAgICA8dGV4dCB4PSIzMyIgeT0iMzgiIGZpbGw9IiNhNWI0ZmMiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5UTFM8L3RleHQ+CiAgICA8dGV4dCB4PSI2MCIgeT0iMzIiIGZpbGw9IiNlMmU4ZjAiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPkVkZ2UgR2F0ZXdheTwvdGV4dD4KICAgIDx0ZXh0IHg9IjYwIiB5PSI0OCIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+UmVnaW9uOiBVUy1FYXN0LTE8L3RleHQ+CiAgICA8bGluZSB4MT0iMTUiIHkxPSI2NSIgeDI9IjE2NSIgeTI9IjY1IiBzdHJva2U9IiMyNjJjNWIiIHN0cm9rZS13aWR0aD0iMSIvPgogICAgPHRleHQgeD0iMTUiIHk9Ijg1IiBmaWxsPSIjODE4Y2Y4IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj7igKIgbVRMUyAxLjMgSGFuZHNoYWtlPC90ZXh0PgogICAgPHRleHQgeD0iMTUiIHk9IjEwMiIgZmlsbD0iIzgxOGNmOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+4oCiIDEyMGsgcmVxL3MgY2FwYWNpdHk8L3RleHQ+CiAgICA8dGV4dCB4PSIxNSIgeT0iMTE5IiBmaWxsPSIjMzRkMzk5IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj7il48gU3RhdHVzOiBIZWFsdGh5PC90ZXh0PgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzMTAsIDEyMCkiPgogICAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIxNTAiIHJ4PSIxMiIgZmlsbD0iIzEzMjMzOCIgc3Ryb2tlPSIjMTRiOGE2IiBzdHJva2Utd2lkdGg9IjIuNSIvPgogICAgPHJlY3QgeD0iMTUiIHk9IjE1IiB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHJ4PSI4IiBmaWxsPSIjMTM0ZTRhIi8+CiAgICA8dGV4dCB4PSIzMyIgeT0iMzgiIGZpbGw9IiM1ZWVhZDQiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DUFU8L3RleHQ+CiAgICA8dGV4dCB4PSI2MCIgeT0iMzIiIGZpbGw9IiNmMGZkZmEiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPkNvbnNlbnN1cyBFbmdpbmU8L3RleHQ+CiAgICA8dGV4dCB4PSI2MCIgeT0iNDgiIGZpbGw9IiM1ZWVhZDQiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPkVkMjU1MTkgU0lNRCBCYXRjaDwvdGV4dD4KICAgIDxsaW5lIHgxPSIxNSIgeTE9IjY1IiB4Mj0iMTg1IiB5Mj0iNjUiIHN0cm9rZT0iIzFkNDg1MCIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICA8dGV4dCB4PSIxNSIgeT0iODUiIGZpbGw9IiMyZGQ0YmYiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKAoiA1OS44ayB2ZXJpZmllcy9zZWM8L3RleHQ+CiAgICA8dGV4dCB4PSIxNSIgeT0iMTAyIiBmaWxsPSIjMmRkNGJmIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj7igKIgMCBiaXQgZXJyb3IgZGlmZmVyZW50aWFsPC90ZXh0PgogICAgPHRleHQgeD0iMTUiIHk9IjEyMCIgZmlsbD0iIzJkZDRiZiIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+4oCiIDI4MG1zIGNvbnZlcmdlbmNlPC90ZXh0PgogICAgPHRleHQgeD0iMTUiIHk9IjEzNyIgZmlsbD0iIzM0ZDM5OSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+4pePIENvbnNlbnN1czogMTAwJSBPSzwvdGV4dD4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTgwLCAxMzApIj4KICAgIDxyZWN0IHdpZHRoPSIxNzAiIGhlaWdodD0iMTMwIiByeD0iMTIiIGZpbGw9IiMyNDE0MzgiIHN0cm9rZT0iI2MwODRmYyIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICA8cmVjdCB4PSIxNSIgeT0iMTUiIHdpZHRoPSIzNiIgaGVpZ2h0PSIzNiIgcng9IjgiIGZpbGw9IiM0YzFkOTUiLz4KICAgIDx0ZXh0IHg9IjMzIiB5PSIzOCIgZmlsbD0iI2U5ZDVmZiIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9ImJvbGQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxPRzwvdGV4dD4KICAgIDx0ZXh0IHg9IjYwIiB5PSIzMiIgZmlsbD0iI2ZhZjVmZiIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCI+U3RvcmFnZSBSaW5nPC90ZXh0PgogICAgPHRleHQgeD0iNjAiIHk9IjQ4IiBmaWxsPSIjZDhiNGZlIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj5SYWZ0IFNoYXJkcyAwLTE1PC90ZXh0PgogICAgPGxpbmUgeDE9IjE1IiB5MT0iNjUiIHgyPSIxNTUiIHkyPSI2NSIgc3Ryb2tlPSIjM2IxZDYzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgIDx0ZXh0IHg9IjE1IiB5PSI4NSIgZmlsbD0iI2MwODRmYyIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+4oCiIFplcm8tS25vd2xlZGdlIFByb29mczwvdGV4dD4KICAgIDx0ZXh0IHg9IjE1IiB5PSIxMDIiIGZpbGw9IiNjMDg0ZmMiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKAoiBUYW1wZXItUHJvb2YgQXVkaXQ8L3RleHQ+CiAgICA8dGV4dCB4PSIxNSIgeT0iMTE5IiBmaWxsPSIjMzRkMzk5IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj7il48gUmVwbGljYXRlZCB4MzwvdGV4dD4KICA8L2c+CiAgPHBhdGggZD0iTSAyNDAgMTk1IEwgMzEwIDE5NSIgc3Ryb2tlPSIjNjM2NmYxIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1kYXNoYXJyYXk9IjYgMyIvPgogIDxwYXRoIGQ9Ik0gNTEwIDE5NSBMIDU4MCAxOTUiIHN0cm9rZT0iIzE0YjhhNiIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjAsIDMxMCkiPgogICAgPHJlY3Qgd2lkdGg9IjY5MCIgaGVpZ2h0PSIxMzAiIHJ4PSIxMiIgZmlsbD0iIzBmMTEyNCIgc3Ryb2tlPSIjMjUyYTUyIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgIDx0ZXh0IHg9IjI1IiB5PSIzMiIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSIgZm9udC13ZWlnaHQ9IjYwMCI+TElWRSBURUxFTUVUUlkgTUVTSCBTVEFUVVM8L3RleHQ+CiAgICA8dGV4dCB4PSIyNSIgeT0iNjAiIGZpbGw9IiMzOGJkZjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPuKckyBVUy1FYXN0IEVkZ2U6IDQsMTIwIGFjdGl2ZSBnUlBDIGNvbm5lY3Rpb25zIChwOTkgbGF0ZW5jeTogMTJtcyk8L3RleHQ+CiAgICA8dGV4dCB4PSIyNSIgeT0iODQiIGZpbGw9IiMzNGQzOTkiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPuKckyBTSU1EIFZlcmlmaWVyIFRocmVhZCBQb29sOiAxNiBjb3JlcyAxMDAlIGhlYWx0aHksIDAgZHJvcHBlZCBwYWNrZXRzPC90ZXh0PgogICAgPHRleHQgeD0iMjUiIHk9IjEwOCIgZmlsbD0iI2E3OGJmYSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSI+4pyTIFJhZnQgSm91cm5hbDogQ29tbWl0dGVkIGF0IEJsb2NrICM0LDgxOSwyMDQg4oCiIFN0YXRlIEhhc2g6IDB4N2Y4YTllPC90ZXh0PgogIDwvZz4KPC9zdmc+",
+      "thumbnailUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgNDgwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYXVyb3JhQmciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDkwYjE2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzEyMTUyZCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgogICAgICA8cGF0aCBkPSJNIDMwIDAgTCAwIDAgMCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMWMyMTQ0IiBzdHJva2Utd2lkdGg9IjAuNzUiLz4KICAgIDwvcGF0dGVybj4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI0ODAiIHJ4PSIxNiIgZmlsbD0idXJsKCNhdXJvcmFCZykiLz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjQ4MCIgcng9IjE2IiBmaWxsPSJ1cmwoI2dyaWQpIi8+CiAgPHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9Ijc5NiIgaGVpZ2h0PSI0NzYiIHJ4PSIxNSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjUyYTU0IiBzdHJva2Utd2lkdGg9IjEuNSIvPgogIDxyZWN0IHg9IjI1IiB5PSIyNSIgd2lkdGg9Ijc1MCIgaGVpZ2h0PSI1MCIgcng9IjEwIiBmaWxsPSIjMTMxNjJkIiBzdHJva2U9IiMyODJkNWEiIHN0cm9rZS13aWR0aD0iMSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjEwIiBmaWxsPSIjN2MzYWVkIi8+CiAgPHRleHQgeD0iNzUiIHk9IjU1IiBmaWxsPSIjZjhmYWZjIiBmb250LWZhbWlseT0ic3lzdGVtLXVpLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE1IiBmb250LXdlaWdodD0iNzAwIj5BdXJvcmEgRGlzdHJpYnV0ZWQgQ29yZSBQcm90b2NvbCDigJQgTXVsdGktUmVnaW9uIE1lc2ggVG9wb2xvZ3k8L3RleHQ+CiAgPHJlY3QgeD0iNjcwIiB5PSIzOCIgd2lkdGg9Ijg1IiBoZWlnaHQ9IjI0IiByeD0iNiIgZmlsbD0iIzA2NGUzYiIgc3Ryb2tlPSIjMDU5NjY5IiBzdHJva2Utd2lkdGg9IjEiLz4KICA8dGV4dCB4PSI3MTIiIHk9IjU0IiBmaWxsPSIjNmVlN2I3IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjExIiBmb250LXdlaWdodD0iNjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5BQ1RJVkUgdjMuNDwvdGV4dD4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MCwgMTMwKSI+CiAgICA8cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjEzMCIgcng9IjEyIiBmaWxsPSIjMTUxOTM2IiBzdHJva2U9IiM2MzY2ZjEiIHN0cm9rZS13aWR0aD0iMiIvPgogICAgPHJlY3QgeD0iMTUiIHk9IjE1IiB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHJ4PSI4IiBmaWxsPSIjMzEyZTgxIi8+CiAgICA8dGV4dCB4PSIzMyIgeT0iMzgiIGZpbGw9IiNhNWI0ZmMiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5UTFM8L3RleHQ+CiAgICA8dGV4dCB4PSI2MCIgeT0iMzIiIGZpbGw9IiNlMmU4ZjAiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPkVkZ2UgR2F0ZXdheTwvdGV4dD4KICAgIDx0ZXh0IHg9IjYwIiB5PSI0OCIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+UmVnaW9uOiBVUy1FYXN0LTE8L3RleHQ+CiAgICA8bGluZSB4MT0iMTUiIHkxPSI2NSIgeDI9IjE2NSIgeTI9IjY1IiBzdHJva2U9IiMyNjJjNWIiIHN0cm9rZS13aWR0aD0iMSIvPgogICAgPHRleHQgeD0iMTUiIHk9Ijg1IiBmaWxsPSIjODE4Y2Y4IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj7igKIgbVRMUyAxLjMgSGFuZHNoYWtlPC90ZXh0PgogICAgPHRleHQgeD0iMTUiIHk9IjEwMiIgZmlsbD0iIzgxOGNmOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+4oCiIDEyMGsgcmVxL3MgY2FwYWNpdHk8L3RleHQ+CiAgICA8dGV4dCB4PSIxNSIgeT0iMTE5IiBmaWxsPSIjMzRkMzk5IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj7il48gU3RhdHVzOiBIZWFsdGh5PC90ZXh0PgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzMTAsIDEyMCkiPgogICAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIxNTAiIHJ4PSIxMiIgZmlsbD0iIzEzMjMzOCIgc3Ryb2tlPSIjMTRiOGE2IiBzdHJva2Utd2lkdGg9IjIuNSIvPgogICAgPHJlY3QgeD0iMTUiIHk9IjE1IiB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHJ4PSI4IiBmaWxsPSIjMTM0ZTRhIi8+CiAgICA8dGV4dCB4PSIzMyIgeT0iMzgiIGZpbGw9IiM1ZWVhZDQiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DUFU8L3RleHQ+CiAgICA8dGV4dCB4PSI2MCIgeT0iMzIiIGZpbGw9IiNmMGZkZmEiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPkNvbnNlbnN1cyBFbmdpbmU8L3RleHQ+CiAgICA8dGV4dCB4PSI2MCIgeT0iNDgiIGZpbGw9IiM1ZWVhZDQiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPkVkMjU1MTkgU0lNRCBCYXRjaDwvdGV4dD4KICAgIDxsaW5lIHgxPSIxNSIgeTE9IjY1IiB4Mj0iMTg1IiB5Mj0iNjUiIHN0cm9rZT0iIzFkNDg1MCIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICA8dGV4dCB4PSIxNSIgeT0iODUiIGZpbGw9IiMyZGQ0YmYiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKAoiA1OS44ayB2ZXJpZmllcy9zZWM8L3RleHQ+CiAgICA8dGV4dCB4PSIxNSIgeT0iMTAyIiBmaWxsPSIjMmRkNGJmIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj7igKIgMCBiaXQgZXJyb3IgZGlmZmVyZW50aWFsPC90ZXh0PgogICAgPHRleHQgeD0iMTUiIHk9IjEyMCIgZmlsbD0iIzJkZDRiZiIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+4oCiIDI4MG1zIGNvbnZlcmdlbmNlPC90ZXh0PgogICAgPHRleHQgeD0iMTUiIHk9IjEzNyIgZmlsbD0iIzM0ZDM5OSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+4pePIENvbnNlbnN1czogMTAwJSBPSzwvdGV4dD4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTgwLCAxMzApIj4KICAgIDxyZWN0IHdpZHRoPSIxNzAiIGhlaWdodD0iMTMwIiByeD0iMTIiIGZpbGw9IiMyNDE0MzgiIHN0cm9rZT0iI2MwODRmYyIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICA8cmVjdCB4PSIxNSIgeT0iMTUiIHdpZHRoPSIzNiIgaGVpZ2h0PSIzNiIgcng9IjgiIGZpbGw9IiM0YzFkOTUiLz4KICAgIDx0ZXh0IHg9IjMzIiB5PSIzOCIgZmlsbD0iI2U5ZDVmZiIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9ImJvbGQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkxPRzwvdGV4dD4KICAgIDx0ZXh0IHg9IjYwIiB5PSIzMiIgZmlsbD0iI2ZhZjVmZiIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCI+U3RvcmFnZSBSaW5nPC90ZXh0PgogICAgPHRleHQgeD0iNjAiIHk9IjQ4IiBmaWxsPSIjZDhiNGZlIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj5SYWZ0IFNoYXJkcyAwLTE1PC90ZXh0PgogICAgPGxpbmUgeDE9IjE1IiB5MT0iNjUiIHgyPSIxNTUiIHkyPSI2NSIgc3Ryb2tlPSIjM2IxZDYzIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgIDx0ZXh0IHg9IjE1IiB5PSI4NSIgZmlsbD0iI2MwODRmYyIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCI+4oCiIFplcm8tS25vd2xlZGdlIFByb29mczwvdGV4dD4KICAgIDx0ZXh0IHg9IjE1IiB5PSIxMDIiIGZpbGw9IiNjMDg0ZmMiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKAoiBUYW1wZXItUHJvb2YgQXVkaXQ8L3RleHQ+CiAgICA8dGV4dCB4PSIxNSIgeT0iMTE5IiBmaWxsPSIjMzRkMzk5IiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIj7il48gUmVwbGljYXRlZCB4MzwvdGV4dD4KICA8L2c+CiAgPHBhdGggZD0iTSAyNDAgMTk1IEwgMzEwIDE5NSIgc3Ryb2tlPSIjNjM2NmYxIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1kYXNoYXJyYXk9IjYgMyIvPgogIDxwYXRoIGQ9Ik0gNTEwIDE5NSBMIDU4MCAxOTUiIHN0cm9rZT0iIzE0YjhhNiIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjAsIDMxMCkiPgogICAgPHJlY3Qgd2lkdGg9IjY5MCIgaGVpZ2h0PSIxMzAiIHJ4PSIxMiIgZmlsbD0iIzBmMTEyNCIgc3Ryb2tlPSIjMjUyYTUyIiBzdHJva2Utd2lkdGg9IjEiLz4KICAgIDx0ZXh0IHg9IjI1IiB5PSIzMiIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSIgZm9udC13ZWlnaHQ9IjYwMCI+TElWRSBURUxFTUVUUlkgTUVTSCBTVEFUVVM8L3RleHQ+CiAgICA8dGV4dCB4PSIyNSIgeT0iNjAiIGZpbGw9IiMzOGJkZjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPuKckyBVUy1FYXN0IEVkZ2U6IDQsMTIwIGFjdGl2ZSBnUlBDIGNvbm5lY3Rpb25zIChwOTkgbGF0ZW5jeTogMTJtcyk8L3RleHQ+CiAgICA8dGV4dCB4PSIyNSIgeT0iODQiIGZpbGw9IiMzNGQzOTkiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPuKckyBTSU1EIFZlcmlmaWVyIFRocmVhZCBQb29sOiAxNiBjb3JlcyAxMDAlIGhlYWx0aHksIDAgZHJvcHBlZCBwYWNrZXRzPC90ZXh0PgogICAgPHRleHQgeD0iMjUiIHk9IjEwOCIgZmlsbD0iI2E3OGJmYSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSI+4pyTIFJhZnQgSm91cm5hbDogQ29tbWl0dGVkIGF0IEJsb2NrICM0LDgxOSwyMDQg4oCiIFN0YXRlIEhhc2g6IDB4N2Y4YTllPC90ZXh0PgogIDwvZz4KPC9zdmc+",
+      "createdAt": "2026-08-15T11:00:00.000Z"
+    },
+    {
+      "id": "file_aurora_simd",
+      "name": "simd-benchmark-vector-results.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 14200,
+      "uploadedById": "usr_member",
+      "uploadedByName": "Alex Rivera",
+      "projectId": "proj_aurora",
+      "category": "image",
+      "description": "Differential throughput graph: 4.2x speedup (14.2k to 59.8k op/s) on AVX-512 SIMD batch verification.",
+      "tags": [
+        "benchmark",
+        "simd",
+        "performance",
+        "ed25519"
+      ],
+      "dataUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgNDgwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iY2hhcnRCZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMwYjBkMWUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTQxODM4Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJiYXJCZWZvcmUiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzQ3NTU2OSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM5NGEzYjgiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJhckFmdGVyIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM4YjVjZjYiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDZiNmQ0Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjQ4MCIgcng9IjE2IiBmaWxsPSJ1cmwoI2NoYXJ0QmcpIiBzdHJva2U9IiMyMzI4NTAiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjQwIiB5PSI1NSIgZmlsbD0iI2Y4ZmFmYyIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCI+RWQyNTUxOSBTSU1EIE9wdGltaXphdGlvbiBCZW5jaG1hcmsgUmVzdWx0czwvdGV4dD4KICA8dGV4dCB4PSI0MCIgeT0iODAiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPlRocm91Z2hwdXQgY29tcGFyaXNvbjogU2NhbGFyIEltcGxlbWVudGF0aW9uIHZzLiBBVlgtNTEyIFNJTUQgQmF0Y2hpbmc8L3RleHQ+CiAgPGxpbmUgeDE9IjgwIiB5MT0iMTIwIiB4Mj0iODAiIHkyPSIzODAiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8bGluZSB4MT0iODAiIHkxPSIzODAiIHgyPSI3NDAiIHkyPSIzODAiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8bGluZSB4MT0iODAiIHkxPSIzMTUiIHgyPSI3NDAiIHkyPSIzMTUiIHN0cm9rZT0iIzFlMjkzYiIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtZGFzaGFycmF5PSI0IDIiLz4KICA8dGV4dCB4PSI2NSIgeT0iMzIwIiBmaWxsPSIjNjQ3NDhiIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjExIiB0ZXh0LWFuY2hvcj0iZW5kIj4xNWs8L3RleHQ+CiAgPGxpbmUgeDE9IjgwIiB5MT0iMjUwIiB4Mj0iNzQwIiB5Mj0iMjUwIiBzdHJva2U9IiMxZTI5M2IiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWRhc2hhcnJheT0iNCAyIi8+CiAgPHRleHQgeD0iNjUiIHk9IjI1NSIgZmlsbD0iIzY0NzQ4YiIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSIgdGV4dC1hbmNob3I9ImVuZCI+MzBrPC90ZXh0PgogIDxsaW5lIHgxPSI4MCIgeTE9IjE4NSIgeDI9Ijc0MCIgeTI9IjE4NSIgc3Ryb2tlPSIjMWUyOTNiIiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1kYXNoYXJyYXk9IjQgMiIvPgogIDx0ZXh0IHg9IjY1IiB5PSIxOTAiIGZpbGw9IiM2NDc0OGIiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiIHRleHQtYW5jaG9yPSJlbmQiPjQ1azwvdGV4dD4KICA8bGluZSB4MT0iODAiIHkxPSIxMjAiIHgyPSI3NDAiIHkyPSIxMjAiIHN0cm9rZT0iIzFlMjkzYiIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtZGFzaGFycmF5PSI0IDIiLz4KICA8dGV4dCB4PSI2NSIgeT0iMTI1IiBmaWxsPSIjNjQ3NDhiIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjExIiB0ZXh0LWFuY2hvcj0iZW5kIj42MGs8L3RleHQ+CiAgPHJlY3QgeD0iMTgwIiB5PSIzMTgiIHdpZHRoPSIxMzAiIGhlaWdodD0iNjIiIHJ4PSI2IiBmaWxsPSJ1cmwoI2JhckJlZm9yZSkiLz4KICA8dGV4dCB4PSIyNDUiIHk9IjMwNSIgZmlsbD0iI2NiZDVlMSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+MTQsMjAwPC90ZXh0PgogIDx0ZXh0IHg9IjI0NSIgeT0iNDEwIiBmaWxsPSIjOTRhM2I4IiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjEzIiBmb250LXdlaWdodD0iNjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5TY2FsYXIgQmFzZWxpbmU8L3RleHQ+CiAgPHJlY3QgeD0iNDQwIiB5PSIxMjEiIHdpZHRoPSIxMzAiIGhlaWdodD0iMjU5IiByeD0iNiIgZmlsbD0idXJsKCNiYXJBZnRlcikiLz4KICA8dGV4dCB4PSI1MDUiIHk9IjEwNSIgZmlsbD0iIzIyZDNlZSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9IjgwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+NTksODAwIG9wL3M8L3RleHQ+CiAgPHRleHQgeD0iNTA1IiB5PSI0MTAiIGZpbGw9IiNmMWY1ZjkiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTMiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFWWC01MTIgU0lNRCBCYXRjaDwvdGV4dD4KICA8cmVjdCB4PSI2MTAiIHk9IjE2MCIgd2lkdGg9IjEzMCIgaGVpZ2h0PSI3MCIgcng9IjEwIiBmaWxsPSIjMTMyZTI5IiBzdHJva2U9IiMxMGI5ODEiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPHRleHQgeD0iNjc1IiB5PSIxOTAiIGZpbGw9IiMzNGQzOTkiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSI4MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPis0MjElPC90ZXh0PgogIDx0ZXh0IHg9IjY3NSIgeT0iMjEyIiBmaWxsPSIjYTdmM2QwIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjExIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5UaHJvdWdocHV0IEdhaW48L3RleHQ+Cjwvc3ZnPg==",
+      "thumbnailUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgNDgwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iY2hhcnRCZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMwYjBkMWUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTQxODM4Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJiYXJCZWZvcmUiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzQ3NTU2OSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM5NGEzYjgiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImJhckFmdGVyIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM4YjVjZjYiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDZiNmQ0Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjQ4MCIgcng9IjE2IiBmaWxsPSJ1cmwoI2NoYXJ0QmcpIiBzdHJva2U9IiMyMzI4NTAiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjQwIiB5PSI1NSIgZmlsbD0iI2Y4ZmFmYyIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCI+RWQyNTUxOSBTSU1EIE9wdGltaXphdGlvbiBCZW5jaG1hcmsgUmVzdWx0czwvdGV4dD4KICA8dGV4dCB4PSI0MCIgeT0iODAiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPlRocm91Z2hwdXQgY29tcGFyaXNvbjogU2NhbGFyIEltcGxlbWVudGF0aW9uIHZzLiBBVlgtNTEyIFNJTUQgQmF0Y2hpbmc8L3RleHQ+CiAgPGxpbmUgeDE9IjgwIiB5MT0iMTIwIiB4Mj0iODAiIHkyPSIzODAiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8bGluZSB4MT0iODAiIHkxPSIzODAiIHgyPSI3NDAiIHkyPSIzODAiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8bGluZSB4MT0iODAiIHkxPSIzMTUiIHgyPSI3NDAiIHkyPSIzMTUiIHN0cm9rZT0iIzFlMjkzYiIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtZGFzaGFycmF5PSI0IDIiLz4KICA8dGV4dCB4PSI2NSIgeT0iMzIwIiBmaWxsPSIjNjQ3NDhiIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjExIiB0ZXh0LWFuY2hvcj0iZW5kIj4xNWs8L3RleHQ+CiAgPGxpbmUgeDE9IjgwIiB5MT0iMjUwIiB4Mj0iNzQwIiB5Mj0iMjUwIiBzdHJva2U9IiMxZTI5M2IiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWRhc2hhcnJheT0iNCAyIi8+CiAgPHRleHQgeD0iNjUiIHk9IjI1NSIgZmlsbD0iIzY0NzQ4YiIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSIgdGV4dC1hbmNob3I9ImVuZCI+MzBrPC90ZXh0PgogIDxsaW5lIHgxPSI4MCIgeTE9IjE4NSIgeDI9Ijc0MCIgeTI9IjE4NSIgc3Ryb2tlPSIjMWUyOTNiIiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1kYXNoYXJyYXk9IjQgMiIvPgogIDx0ZXh0IHg9IjY1IiB5PSIxOTAiIGZpbGw9IiM2NDc0OGIiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiIHRleHQtYW5jaG9yPSJlbmQiPjQ1azwvdGV4dD4KICA8bGluZSB4MT0iODAiIHkxPSIxMjAiIHgyPSI3NDAiIHkyPSIxMjAiIHN0cm9rZT0iIzFlMjkzYiIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtZGFzaGFycmF5PSI0IDIiLz4KICA8dGV4dCB4PSI2NSIgeT0iMTI1IiBmaWxsPSIjNjQ3NDhiIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjExIiB0ZXh0LWFuY2hvcj0iZW5kIj42MGs8L3RleHQ+CiAgPHJlY3QgeD0iMTgwIiB5PSIzMTgiIHdpZHRoPSIxMzAiIGhlaWdodD0iNjIiIHJ4PSI2IiBmaWxsPSJ1cmwoI2JhckJlZm9yZSkiLz4KICA8dGV4dCB4PSIyNDUiIHk9IjMwNSIgZmlsbD0iI2NiZDVlMSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+MTQsMjAwPC90ZXh0PgogIDx0ZXh0IHg9IjI0NSIgeT0iNDEwIiBmaWxsPSIjOTRhM2I4IiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjEzIiBmb250LXdlaWdodD0iNjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5TY2FsYXIgQmFzZWxpbmU8L3RleHQ+CiAgPHJlY3QgeD0iNDQwIiB5PSIxMjEiIHdpZHRoPSIxMzAiIGhlaWdodD0iMjU5IiByeD0iNiIgZmlsbD0idXJsKCNiYXJBZnRlcikiLz4KICA8dGV4dCB4PSI1MDUiIHk9IjEwNSIgZmlsbD0iIzIyZDNlZSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9IjgwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+NTksODAwIG9wL3M8L3RleHQ+CiAgPHRleHQgeD0iNTA1IiB5PSI0MTAiIGZpbGw9IiNmMWY1ZjkiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTMiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFWWC01MTIgU0lNRCBCYXRjaDwvdGV4dD4KICA8cmVjdCB4PSI2MTAiIHk9IjE2MCIgd2lkdGg9IjEzMCIgaGVpZ2h0PSI3MCIgcng9IjEwIiBmaWxsPSIjMTMyZTI5IiBzdHJva2U9IiMxMGI5ODEiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPHRleHQgeD0iNjc1IiB5PSIxOTAiIGZpbGw9IiMzNGQzOTkiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSI4MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPis0MjElPC90ZXh0PgogIDx0ZXh0IHg9IjY3NSIgeT0iMjEyIiBmaWxsPSIjYTdmM2QwIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjExIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5UaHJvdWdocHV0IEdhaW48L3RleHQ+Cjwvc3ZnPg==",
+      "createdAt": "2026-08-09T17:30:00.000Z"
+    },
+    {
+      "id": "file_aurora_rfc",
+      "name": "Aurora-Protocol-RFC-v3.4-Draft.pdf",
+      "mimeType": "application/pdf",
+      "sizeBytes": 2458000,
+      "uploadedById": "usr_leader",
+      "uploadedByName": "Marcus Chen",
+      "projectId": "proj_aurora",
+      "category": "document",
+      "description": "Technical whitepaper and formal mathematical specification of Aurora state verification and consensus handshakes.",
+      "tags": [
+        "spec",
+        "rfc",
+        "whitepaper",
+        "crypto"
+      ],
+      "dataUrl": "https://docs.internal.nexora/rfc-aurora-3.4.pdf",
+      "createdAt": "2026-08-12T14:00:00.000Z"
+    },
+    {
+      "id": "file_aurora_telemetry",
+      "name": "chaos-cluster-telemetry-run2918.json",
+      "mimeType": "application/json",
+      "sizeBytes": 45200,
+      "uploadedById": "usr_member",
+      "uploadedByName": "Alex Rivera",
+      "projectId": "proj_aurora",
+      "category": "code",
+      "description": "Full 48-hour continuous cycle telemetry output during simulated split-brain network partitions.",
+      "tags": [
+        "chaos",
+        "telemetry",
+        "logs",
+        "partition-test"
+      ],
+      "dataUrl": "data:application/json;base64,eyJyZXN1bHQiOiAiY2x1c3Rlcl9jb252ZXJnZWRfb2siLCAibGF0ZW5jeSI6IDI4MCwgInBhcnRpdGlvbnNfcmVzb2x2ZWQiOiAxMiwgImRyb3BwZWRfcGFja2V0cyI6IDAsICJqZXR0eSI6ICJvazIifQ==",
+      "createdAt": "2026-09-11T15:18:00.000Z"
+    },
+    {
+      "id": "file_aurora_video",
+      "name": "chaos-partition-healing-demo.mp4",
+      "mimeType": "video/mp4",
+      "sizeBytes": 12400000,
+      "uploadedById": "usr_member",
+      "uploadedByName": "Alex Rivera",
+      "projectId": "proj_aurora",
+      "category": "video",
+      "description": "2-minute screen recording demonstrating split-brain network recovery and Raft journal resynchronization.",
+      "tags": [
+        "demo",
+        "chaos",
+        "screencast",
+        "healing"
+      ],
+      "dataUrl": "https://storage.internal.nexora/media/aurora-chaos-demo.mp4",
+      "createdAt": "2026-09-11T15:30:00.000Z"
+    },
+    {
+      "id": "file_aurora_audit",
+      "name": "cryptographic-audit-verification-seal.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 12900,
+      "uploadedById": "usr_owner",
+      "uploadedByName": "Elena Vance",
+      "projectId": "proj_aurora",
+      "category": "image",
+      "description": "Official verified Nexora Cryptographic Security Seal for zero-defect SIMD implementation batch.",
+      "tags": [
+        "audit",
+        "security",
+        "certificate",
+        "seal"
+      ],
+      "dataUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDAgNjAwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ic2VhbEJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBmMTcyYSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxZTFiNGIiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImdvbGQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmJiZjI0Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iNTAlIiBzdG9wLWNvbG9yPSIjZjU5ZTBiIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2Q5NzcwNiIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPGNpcmNsZSBjeD0iMzAwIiBjeT0iMzAwIiByPSIyNzAiIGZpbGw9InVybCgjc2VhbEJnKSIgc3Ryb2tlPSJ1cmwoI2dvbGQpIiBzdHJva2Utd2lkdGg9IjgiLz4KICA8Y2lyY2xlIGN4PSIzMDAiIGN5PSIzMDAiIHI9IjI0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzczMGEzIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1kYXNoYXJyYXk9IjggNCIvPgogIDxwYXRoIGQ9Ik0gMzAwIDEzMCBMIDM5MCAxNzAgTCAzOTAgMjgwIEMgMzkwIDM2MCAzMDAgNDIwIDMwMCA0MjAgQyAzMDAgNDIwIDIxMCAzNjAgMjEwIDI4MCBMIDIxMCAxNzAgWiIgZmlsbD0iIzFlMWI0YiIgc3Ryb2tlPSJ1cmwoI2dvbGQpIiBzdHJva2Utd2lkdGg9IjUiLz4KICA8cGF0aCBkPSJNIDI2MCAyNzAgTCAyOTAgMzAwIEwgMzQ1IDI0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzRkMzk5IiBzdHJva2Utd2lkdGg9IjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDx0ZXh0IHg9IjMwMCIgeT0iNDcwIiBmaWxsPSIjZjhmYWZjIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjIyIiBmb250LXdlaWdodD0iODAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBsZXR0ZXItc3BhY2luZz0iMiI+Q1JZUFRPR1JBUEhJQyBBVURJVCBQQVNTRUQ8L3RleHQ+CiAgPHRleHQgeD0iMzAwIiB5PSI1MDAiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTMiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5leG9yYSBTZWN1cml0eSBHcm91cCDigKIgQ2VydGlmaWVkIFplcm8tRGVmZWN0IEJhdGNoPC90ZXh0Pgo8L3N2Zz4=",
+      "thumbnailUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDAgNjAwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ic2VhbEJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBmMTcyYSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxZTFiNGIiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImdvbGQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmJiZjI0Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iNTAlIiBzdG9wLWNvbG9yPSIjZjU5ZTBiIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2Q5NzcwNiIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPGNpcmNsZSBjeD0iMzAwIiBjeT0iMzAwIiByPSIyNzAiIGZpbGw9InVybCgjc2VhbEJnKSIgc3Ryb2tlPSJ1cmwoI2dvbGQpIiBzdHJva2Utd2lkdGg9IjgiLz4KICA8Y2lyY2xlIGN4PSIzMDAiIGN5PSIzMDAiIHI9IjI0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzczMGEzIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1kYXNoYXJyYXk9IjggNCIvPgogIDxwYXRoIGQ9Ik0gMzAwIDEzMCBMIDM5MCAxNzAgTCAzOTAgMjgwIEMgMzkwIDM2MCAzMDAgNDIwIDMwMCA0MjAgQyAzMDAgNDIwIDIxMCAzNjAgMjEwIDI4MCBMIDIxMCAxNzAgWiIgZmlsbD0iIzFlMWI0YiIgc3Ryb2tlPSJ1cmwoI2dvbGQpIiBzdHJva2Utd2lkdGg9IjUiLz4KICA8cGF0aCBkPSJNIDI2MCAyNzAgTCAyOTAgMzAwIEwgMzQ1IDI0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzRkMzk5IiBzdHJva2Utd2lkdGg9IjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDx0ZXh0IHg9IjMwMCIgeT0iNDcwIiBmaWxsPSIjZjhmYWZjIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjIyIiBmb250LXdlaWdodD0iODAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBsZXR0ZXItc3BhY2luZz0iMiI+Q1JZUFRPR1JBUEhJQyBBVURJVCBQQVNTRUQ8L3RleHQ+CiAgPHRleHQgeD0iMzAwIiB5PSI1MDAiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTMiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5leG9yYSBTZWN1cml0eSBHcm91cCDigKIgQ2VydGlmaWVkIFplcm8tRGVmZWN0IEJhdGNoPC90ZXh0Pgo8L3N2Zz4=",
+      "createdAt": "2026-08-10T12:00:00.000Z"
+    },
+    {
+      "id": "file_zt_ebpf_spec",
+      "name": "Zero-Trust-Gateway-eBPF-Memory-Spec.pdf",
+      "mimeType": "application/pdf",
+      "sizeBytes": 1850000,
+      "uploadedById": "usr_leader",
+      "uploadedByName": "Marcus Chen",
+      "projectId": "proj_zerotrust",
+      "category": "document",
+      "description": "Strict kernel map size boundaries, ring buffer quotas, and verifier tail-call recursion limits.",
+      "tags": [
+        "spec",
+        "ebpf",
+        "kernel",
+        "memory"
+      ],
+      "dataUrl": "https://docs.internal.nexora/zt-ebpf-spec.md",
+      "createdAt": "2026-09-10T12:00:00.000Z"
+    },
+    {
+      "id": "file_zt_flow",
+      "name": "ebpf-packet-filter-architecture.svg",
+      "mimeType": "image/svg+xml",
+      "sizeBytes": 16800,
+      "uploadedById": "usr_leader",
+      "uploadedByName": "Marcus Chen",
+      "projectId": "proj_zerotrust",
+      "category": "diagram",
+      "description": "eBPF kernel socket filter hook flow and memory allocation diagram for zero-trust traffic interception.",
+      "tags": [
+        "architecture",
+        "ebpf",
+        "networking",
+        "diagram"
+      ],
+      "dataUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgNDgwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ienRCZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMwYTBmMWQiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTExODI3Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjQ4MCIgcng9IjE2IiBmaWxsPSJ1cmwoI3p0QmcpIiBzdHJva2U9IiMxZTI5M2IiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjM1IiB5PSI1MCIgZmlsbD0iI2Y4ZmFmYyIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCI+WmVyby1UcnVzdCBHYXRld2F5IGVCUEYgUGFja2V0IEZpbHRlcmluZyBGbG93PC90ZXh0PgogIDx0ZXh0IHg9IjM1IiB5PSI3MiIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSI+S2VybmVsIFNvY2tldCBGaWx0ZXIgSG9va3MgJmFtcDsgQlBGIE1hcCBNZW1vcnkgQWxsb2NhdGlvbjwvdGV4dD4KICAKICA8cmVjdCB4PSI0MCIgeT0iMTEwIiB3aWR0aD0iMTYwIiBoZWlnaHQ9IjEyMCIgcng9IjEwIiBmaWxsPSIjMWUyOTNiIiBzdHJva2U9IiMzYjgyZjYiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjEyMCIgeT0iMTQ1IiBmaWxsPSIjNjBhNWZhIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjEzIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5OZXR3b3JrIEluZ3Jlc3M8L3RleHQ+CiAgPHRleHQgeD0iMTIwIiB5PSIxNjgiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlhEUCBIb29rIC8gUmF3IE5JQzwvdGV4dD4KICA8dGV4dCB4PSIxMjAiIHk9IjE5NSIgZmlsbD0iIzM4YmRmOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+MTBHYkUgU0ZQKzwvdGV4dD4KICAKICA8cGF0aCBkPSJNIDIwMCAxNzAgTCAyODAgMTcwIiBzdHJva2U9IiMzYjgyZjYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWRhc2hhcnJheT0iNiAzIi8+CiAgCiAgPHJlY3QgeD0iMjgwIiB5PSI5NSIgd2lkdGg9IjIzMCIgaGVpZ2h0PSIxNTAiIHJ4PSIxMiIgZmlsbD0iIzE0MjczOCIgc3Ryb2tlPSIjMDZiNmQ0IiBzdHJva2Utd2lkdGg9IjIiLz4KICA8dGV4dCB4PSIzOTUiIHk9IjEzMCIgZmlsbD0iIzIyZDNlZSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+ZUJQRiBQb2xpY3kgVmVyaWZpZXI8L3RleHQ+CiAgPHRleHQgeD0iMzk1IiB5PSIxNTIiIGZpbGw9IiM2N2U4ZjkiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlRhaWwgQ2FsbCBEZXB0aCAmbHQ7IDMyPC90ZXh0PgogIDxsaW5lIHgxPSIzMDAiIHkxPSIxNjgiIHgyPSI0OTAiIHkyPSIxNjgiIHN0cm9rZT0iIzE2NGU2MyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPHRleHQgeD0iMzAwIiB5PSIxOTAiIGZpbGw9IiNhNWYzZmMiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKAoiBIYXNobWFwOiAxLDAwMCwwMDAgcnVsZXM8L3RleHQ+CiAgPHRleHQgeD0iMzAwIiB5PSIyMTAiIGZpbGw9IiNhNWYzZmMiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKAoiBSaW5nIGJ1ZmZlcjogNjRNQiB6ZXJvLWNvcHk8L3RleHQ+CiAgPHRleHQgeD0iMzAwIiB5PSIyMzAiIGZpbGw9IiMzNGQzOTkiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKckyBLZXJuZWwgdmVyaWZpZWQ6IDAgcGFuaWNzPC90ZXh0PgogIAogIDxwYXRoIGQ9Ik0gNTEwIDE3MCBMIDU5MCAxNzAiIHN0cm9rZT0iIzA2YjZkNCIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgCiAgPHJlY3QgeD0iNTkwIiB5PSIxMTAiIHdpZHRoPSIxNzAiIGhlaWdodD0iMTIwIiByeD0iMTAiIGZpbGw9IiMxYzE5MTciIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPHRleHQgeD0iNjc1IiB5PSIxNDUiIGZpbGw9IiNmY2QzNGQiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTMiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNlY3VyZSBTZXJ2aWNlIE1lc2g8L3RleHQ+CiAgPHRleHQgeD0iNjc1IiB5PSIxNjgiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkF1dGhvcml6ZWQgUG9kIEVudm95PC90ZXh0PgogIDx0ZXh0IHg9IjY3NSIgeT0iMTk1IiBmaWxsPSIjMTBiOTgxIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5aZXJvIExhdGVuY3kgQnlwYXNzPC90ZXh0PgogIAogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQwLCAyODApIj4KICAgIDxyZWN0IHdpZHRoPSI3MjAiIGhlaWdodD0iMTYwIiByeD0iMTIiIGZpbGw9IiMwZjE3MmEiIHN0cm9rZT0iIzFlMjkzYiIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICA8dGV4dCB4PSIyNSIgeT0iMzIiIGZpbGw9IiNlMmU4ZjAiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTMiIGZvbnQtd2VpZ2h0PSI3MDAiPk1lbW9yeSBBbGxvY2F0aW9uICZhbXA7IFBlcmZvcm1hbmNlIFNhZmV0eSBCb3VuZHM8L3RleHQ+CiAgICA8dGV4dCB4PSIyNSIgeT0iNjAiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPlRvdGFsIFJlc2lkZW50IFNldCBTaXplOiA4NC4yIE1CIChCb3VuZDogMTI4IE1CIG1heCBxdW90YSk8L3RleHQ+CiAgICA8dGV4dCB4PSIyNSIgeT0iODUiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPlBlci1wYWNrZXQgSW5zcGVjdGlvbiBPdmVyaGVhZDogMTQyIG5hbm9zZWNvbmRzIChwOTkpPC90ZXh0PgogICAgPHRleHQgeD0iMjUiIHk9IjExMCIgZmlsbD0iIzM0ZDM5OSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSI+QWN0aXZlIEZpcmV3YWxsIFJ1bGVzOiAxNDgsOTIwIHRlbmFudC1zY29wZWQgY3J5cHRvZ3JhcGhpYyBBQ0xzPC90ZXh0PgogICAgPHRleHQgeD0iMjUiIHk9IjEzNSIgZmlsbD0iIzM4YmRmOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSI+UmVhbC10aW1lIFRlbGVtZXRyeTogRXhwb3J0ZWQgdmlhIGVCUEYgcGVyZiBldmVudCBidWZmZXIgdG8gUHJvbWV0aGV1czwvdGV4dD4KICA8L2c+Cjwvc3ZnPg==",
+      "thumbnailUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgNDgwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0ienRCZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMwYTBmMWQiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTExODI3Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjQ4MCIgcng9IjE2IiBmaWxsPSJ1cmwoI3p0QmcpIiBzdHJva2U9IiMxZTI5M2IiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjM1IiB5PSI1MCIgZmlsbD0iI2Y4ZmFmYyIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCI+WmVyby1UcnVzdCBHYXRld2F5IGVCUEYgUGFja2V0IEZpbHRlcmluZyBGbG93PC90ZXh0PgogIDx0ZXh0IHg9IjM1IiB5PSI3MiIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSI+S2VybmVsIFNvY2tldCBGaWx0ZXIgSG9va3MgJmFtcDsgQlBGIE1hcCBNZW1vcnkgQWxsb2NhdGlvbjwvdGV4dD4KICAKICA8cmVjdCB4PSI0MCIgeT0iMTEwIiB3aWR0aD0iMTYwIiBoZWlnaHQ9IjEyMCIgcng9IjEwIiBmaWxsPSIjMWUyOTNiIiBzdHJva2U9IiMzYjgyZjYiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjEyMCIgeT0iMTQ1IiBmaWxsPSIjNjBhNWZhIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjEzIiBmb250LXdlaWdodD0iNzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5OZXR3b3JrIEluZ3Jlc3M8L3RleHQ+CiAgPHRleHQgeD0iMTIwIiB5PSIxNjgiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlhEUCBIb29rIC8gUmF3IE5JQzwvdGV4dD4KICA8dGV4dCB4PSIxMjAiIHk9IjE5NSIgZmlsbD0iIzM4YmRmOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+MTBHYkUgU0ZQKzwvdGV4dD4KICAKICA8cGF0aCBkPSJNIDIwMCAxNzAgTCAyODAgMTcwIiBzdHJva2U9IiMzYjgyZjYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWRhc2hhcnJheT0iNiAzIi8+CiAgCiAgPHJlY3QgeD0iMjgwIiB5PSI5NSIgd2lkdGg9IjIzMCIgaGVpZ2h0PSIxNTAiIHJ4PSIxMiIgZmlsbD0iIzE0MjczOCIgc3Ryb2tlPSIjMDZiNmQ0IiBzdHJva2Utd2lkdGg9IjIiLz4KICA8dGV4dCB4PSIzOTUiIHk9IjEzMCIgZmlsbD0iIzIyZDNlZSIgZm9udC1mYW1pbHk9InN5c3RlbS11aSIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+ZUJQRiBQb2xpY3kgVmVyaWZpZXI8L3RleHQ+CiAgPHRleHQgeD0iMzk1IiB5PSIxNTIiIGZpbGw9IiM2N2U4ZjkiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlRhaWwgQ2FsbCBEZXB0aCAmbHQ7IDMyPC90ZXh0PgogIDxsaW5lIHgxPSIzMDAiIHkxPSIxNjgiIHgyPSI0OTAiIHkyPSIxNjgiIHN0cm9rZT0iIzE2NGU2MyIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPHRleHQgeD0iMzAwIiB5PSIxOTAiIGZpbGw9IiNhNWYzZmMiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKAoiBIYXNobWFwOiAxLDAwMCwwMDAgcnVsZXM8L3RleHQ+CiAgPHRleHQgeD0iMzAwIiB5PSIyMTAiIGZpbGw9IiNhNWYzZmMiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKAoiBSaW5nIGJ1ZmZlcjogNjRNQiB6ZXJvLWNvcHk8L3RleHQ+CiAgPHRleHQgeD0iMzAwIiB5PSIyMzAiIGZpbGw9IiMzNGQzOTkiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiPuKckyBLZXJuZWwgdmVyaWZpZWQ6IDAgcGFuaWNzPC90ZXh0PgogIAogIDxwYXRoIGQ9Ik0gNTEwIDE3MCBMIDU5MCAxNzAiIHN0cm9rZT0iIzA2YjZkNCIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgCiAgPHJlY3QgeD0iNTkwIiB5PSIxMTAiIHdpZHRoPSIxNzAiIGhlaWdodD0iMTIwIiByeD0iMTAiIGZpbGw9IiMxYzE5MTciIHN0cm9rZT0iI2Y1OWUwYiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPHRleHQgeD0iNjc1IiB5PSIxNDUiIGZpbGw9IiNmY2QzNGQiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTMiIGZvbnQtd2VpZ2h0PSI3MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNlY3VyZSBTZXJ2aWNlIE1lc2g8L3RleHQ+CiAgPHRleHQgeD0iNjc1IiB5PSIxNjgiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkF1dGhvcml6ZWQgUG9kIEVudm95PC90ZXh0PgogIDx0ZXh0IHg9IjY3NSIgeT0iMTk1IiBmaWxsPSIjMTBiOTgxIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjEwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5aZXJvIExhdGVuY3kgQnlwYXNzPC90ZXh0PgogIAogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQwLCAyODApIj4KICAgIDxyZWN0IHdpZHRoPSI3MjAiIGhlaWdodD0iMTYwIiByeD0iMTIiIGZpbGw9IiMwZjE3MmEiIHN0cm9rZT0iIzFlMjkzYiIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgICA8dGV4dCB4PSIyNSIgeT0iMzIiIGZpbGw9IiNlMmU4ZjAiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTMiIGZvbnQtd2VpZ2h0PSI3MDAiPk1lbW9yeSBBbGxvY2F0aW9uICZhbXA7IFBlcmZvcm1hbmNlIFNhZmV0eSBCb3VuZHM8L3RleHQ+CiAgICA8dGV4dCB4PSIyNSIgeT0iNjAiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPlRvdGFsIFJlc2lkZW50IFNldCBTaXplOiA4NC4yIE1CIChCb3VuZDogMTI4IE1CIG1heCBxdW90YSk8L3RleHQ+CiAgICA8dGV4dCB4PSIyNSIgeT0iODUiIGZpbGw9IiM5NGEzYjgiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMTEiPlBlci1wYWNrZXQgSW5zcGVjdGlvbiBPdmVyaGVhZDogMTQyIG5hbm9zZWNvbmRzIChwOTkpPC90ZXh0PgogICAgPHRleHQgeD0iMjUiIHk9IjExMCIgZmlsbD0iIzM0ZDM5OSIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSI+QWN0aXZlIEZpcmV3YWxsIFJ1bGVzOiAxNDgsOTIwIHRlbmFudC1zY29wZWQgY3J5cHRvZ3JhcGhpYyBBQ0xzPC90ZXh0PgogICAgPHRleHQgeD0iMjUiIHk9IjEzNSIgZmlsbD0iIzM4YmRmOCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxMSI+UmVhbC10aW1lIFRlbGVtZXRyeTogRXhwb3J0ZWQgdmlhIGVCUEYgcGVyZiBldmVudCBidWZmZXIgdG8gUHJvbWV0aGV1czwvdGV4dD4KICA8L2c+Cjwvc3ZnPg==",
+      "createdAt": "2026-09-10T14:30:00.000Z"
+    }
+  ],
+  "onboarding": {
+    "usr_owner": {
+      "userId": "usr_owner",
+      "hasCompleted": true,
+      "dismissed": false,
+      "step": "completed",
+      "invitedTeammates": [
+        "marcus@nexora.internal",
+        "sarah@nexora.internal",
+        "alex@nexora.internal"
+      ]
+    },
+    "usr_leader": {
+      "userId": "usr_leader",
+      "hasCompleted": true,
+      "dismissed": false,
+      "step": "completed",
+      "invitedTeammates": []
+    },
+    "usr_member": {
+      "userId": "usr_member",
+      "hasCompleted": true,
+      "dismissed": false,
+      "step": "completed",
+      "invitedTeammates": []
+    }
+  },
+  "sessions": {
+    "sess_owner": {
+      "userId": "usr_owner",
+      "workspaceId": "ws_default",
+      "expiresAt": 1791825410348
+    }
+  }
+}

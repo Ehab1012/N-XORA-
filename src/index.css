@@ -1,0 +1,252 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sharp: 'Orbitron', sans-serif;
+
+    /* Default Theme: Neural Nexus (AI Android aesthetic) */
+    --canvas-bg: #050814;
+    --surface-header: rgba(8, 12, 28, 0.88);
+    --surface-panel: rgba(10, 16, 36, 0.78);
+    --surface-subtle: rgba(12, 19, 42, 0.65);
+    --surface-card: #090e24;
+    --border-color: #1a2344;
+    --border-highlight: rgba(59, 130, 246, 0.45);
+    --accent-glow: rgba(59, 130, 246, 0.22);
+    --accent-secondary-glow: rgba(217, 70, 239, 0.22);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  /* Neural Nexus Theme (AI Android) */
+  :root.theme-neural-nexus {
+    --canvas-bg: #050814;
+    --surface-header: rgba(8, 12, 28, 0.88);
+    --surface-panel: rgba(10, 16, 36, 0.78);
+    --surface-subtle: rgba(12, 19, 42, 0.65);
+    --surface-card: #090e24;
+    --border-color: #1a2344;
+    --border-highlight: rgba(59, 130, 246, 0.45);
+    --accent-glow: rgba(59, 130, 246, 0.22);
+    --accent-secondary-glow: rgba(217, 70, 239, 0.22);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  /* Electric Cyan Theme */
+  :root.theme-electric-cyan {
+    --canvas-bg: #070d18;
+    --surface-header: rgba(9, 17, 32, 0.9);
+    --surface-panel: rgba(13, 23, 44, 0.75);
+    --surface-subtle: rgba(10, 18, 35, 0.6);
+    --surface-card: #0c1830;
+    --border-color: #1a2a4c;
+    --border-highlight: rgba(6, 182, 212, 0.4);
+    --accent-glow: rgba(6, 182, 212, 0.15);
+    --accent-secondary-glow: rgba(59, 130, 246, 0.15);
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+  }
+
+  /* Cyber Violet Theme */
+  :root.theme-cyber-violet {
+    --canvas-bg: #0b0c14;
+    --surface-header: rgba(12, 14, 26, 0.9);
+    --surface-panel: rgba(18, 19, 36, 0.75);
+    --surface-subtle: rgba(14, 16, 28, 0.6);
+    --surface-card: #121426;
+    --border-color: #202442;
+    --border-highlight: rgba(168, 85, 247, 0.4);
+    --accent-glow: rgba(168, 85, 247, 0.15);
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+  }
+
+  /* Emerald Onyx Theme */
+  :root.theme-emerald-matrix {
+    --canvas-bg: #06110c;
+    --surface-header: rgba(7, 21, 15, 0.9);
+    --surface-panel: rgba(11, 31, 22, 0.75);
+    --surface-subtle: rgba(9, 24, 17, 0.6);
+    --surface-card: #0a2318;
+    --border-color: #163d2b;
+    --border-highlight: rgba(16, 185, 129, 0.4);
+    --accent-glow: rgba(16, 185, 129, 0.15);
+    --text-main: #f0fdf4;
+    --text-muted: #86efac;
+  }
+
+  /* Solar Amber Theme */
+  :root.theme-solar-amber {
+    --canvas-bg: #110c07;
+    --surface-header: rgba(22, 15, 8, 0.9);
+    --surface-panel: rgba(33, 22, 12, 0.75);
+    --surface-subtle: rgba(26, 18, 10, 0.6);
+    --surface-card: #24170d;
+    --border-color: #452d1b;
+    --border-highlight: rgba(245, 158, 11, 0.45);
+    --accent-glow: rgba(245, 158, 11, 0.15);
+    --text-main: #fef3c7;
+    --text-muted: #fde68a;
+  }
+
+  /* Crimson Ruby Theme */
+  :root.theme-crimson-ruby {
+    --canvas-bg: #12070b;
+    --surface-header: rgba(24, 9, 15, 0.9);
+    --surface-panel: rgba(35, 13, 21, 0.75);
+    --surface-subtle: rgba(28, 10, 17, 0.6);
+    --surface-card: #280e18;
+    --border-color: #4a1c2d;
+    --border-highlight: rgba(244, 63, 94, 0.45);
+    --accent-glow: rgba(244, 63, 94, 0.15);
+    --text-main: #ffe4e6;
+    --text-muted: #fda4af;
+  }
+
+  /* Arctic Titanium (Clean Light Theme) */
+  :root.theme-arctic-light {
+    --canvas-bg: #f8fafc;
+    --surface-header: rgba(255, 255, 255, 0.95);
+    --surface-panel: rgba(255, 255, 255, 0.9);
+    --surface-subtle: rgba(241, 245, 249, 0.85);
+    --surface-card: #ffffff;
+    --border-color: #e2e8f0;
+    --border-highlight: rgba(99, 102, 241, 0.4);
+    --accent-glow: rgba(99, 102, 241, 0.08);
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--canvas-bg);
+    color: var(--text-main);
+    overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+
+  .font-sharp {
+    font-family: var(--font-sharp);
+    letter-spacing: 0.05em;
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--canvas-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-highlight);
+}
+
+/* Glass panel effects based on active theme */
+.glass-panel {
+  background: var(--surface-panel);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+}
+
+.glass-panel-subtle {
+  background: var(--surface-subtle);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+}
+
+.glass-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+}
+
+.glass-card-hover {
+  transition: all 0.2s ease;
+}
+.glass-card-hover:hover {
+  border-color: var(--border-highlight);
+  box-shadow: 0 8px 24px -6px var(--accent-glow);
+}
+
+/* Atmospheric dual-glow background matching the futuristic AI android design */
+.nebula-glow {
+  background: 
+    radial-gradient(ellipse 65% 50% at 15% 10%, rgba(37, 99, 235, 0.32) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 45% at 85% 85%, rgba(217, 70, 239, 0.25) 0%, transparent 60%),
+    radial-gradient(circle at 50% 50%, var(--accent-glow) 0%, transparent 70%);
+}
+
+.android-frame-border {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 0 0 1px rgba(59, 130, 246, 0.15),
+    0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+
+.glow-btn-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  box-shadow: 0 0 20px -3px rgba(37, 99, 235, 0.5);
+  transition: all 0.2s ease;
+}
+.glow-btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  box-shadow: 0 0 25px -1px rgba(37, 99, 235, 0.7);
+}
+
+/* Specific adjustments for Light Mode readability */
+:root.theme-arctic-light .text-slate-100,
+:root.theme-arctic-light .text-slate-200,
+:root.theme-arctic-light .text-slate-300 {
+  color: #1e293b !important;
+}
+
+:root.theme-arctic-light .text-slate-400 {
+  color: #64748b !important;
+}
+
+:root.theme-arctic-light .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+:root.theme-arctic-light .bg-\[\#0b0c14\],
+:root.theme-arctic-light .bg-\[\#0c0e1a\],
+:root.theme-arctic-light .bg-\[\#090a14\],
+:root.theme-arctic-light .bg-\[\#0d0f1c\],
+:root.theme-arctic-light .bg-\[\#0e101c\] {
+  background-color: #ffffff !important;
+}
+
+:root.theme-arctic-light .bg-\[\#121426\],
+:root.theme-arctic-light .bg-\[\#14162a\],
+:root.theme-arctic-light .bg-\[\#181b30\],
+:root.theme-arctic-light .bg-\[\#1a1d36\] {
+  background-color: #f1f5f9 !important;
+}
+
+:root.theme-arctic-light .border-\[\#1c1f38\],
+:root.theme-arctic-light .border-\[\#202442\],
+:root.theme-arctic-light .border-\[\#232742\],
+:root.theme-arctic-light .border-\[\#232748\],
+:root.theme-arctic-light .border-\[\#222544\],
+:root.theme-arctic-light .border-\[\#1f223f\] {
+  border-color: #e2e8f0 !important;
+}
+
