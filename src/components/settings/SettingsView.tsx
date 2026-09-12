@@ -434,15 +434,15 @@ export function SettingsView() {
         </div>
       </div>
 
-      {/* Reset to Factory Defaults */}
+      {/* Reset to Empty Workspace */}
       <div className="p-5 rounded-2xl bg-rose-950/20 border border-rose-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h4 className="text-sm font-semibold text-rose-300 flex items-center gap-1.5">
             <AlertTriangle className="w-4 h-4" />
-            <span>Reset Demo Seed Data</span>
+            <span>Empty Workspace / Reset All Data</span>
           </h4>
           <p className="text-xs text-rose-400/80 mt-0.5">
-            Restore all users, projects, tasks, milestones, proofs, and mock messages to pristine default states.
+            Wipe all projects, tasks, milestones, proofs, and messages to start with a clean empty state.
           </p>
         </div>
 
@@ -450,7 +450,7 @@ export function SettingsView() {
           onClick={() => setIsResetConfirmOpen(true)}
           className="px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-medium transition-colors shrink-0"
         >
-          Reset Data
+          Clear Workspace Data
         </button>
       </div>
 

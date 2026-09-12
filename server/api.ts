@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request } from 'express';
 import { db, DatabaseSchema } from './db.js';
 import { chatWithGemini } from './gemini.js';
 import {
@@ -12,7 +12,7 @@ import {
 } from './auth.js';
 import { calculateProjectAnalytics, generateProjectMarkdownReport, calculateUserOverallScore } from './analytics.js';
 import { ROLES, PRODUCT_NAME } from '../shared/const.js';
-import { UserRole, TaskStatus, Task } from '../shared/types.js';
+import { UserRole, TaskStatus, Task, ProjectInvitation } from '../shared/types.js';
 import { realtimeHub } from './realtime.js';
 
 export const apiRouter = Router();
@@ -219,14 +219,29 @@ apiRouter.post('/auth/login', rateLimit(10, 60000), (req: AuthenticatedRequest, 
     return;
   }
 
+  const cleanEmail = email.trim().toLowerCase();
   const data = db.getRawData();
-  const user = data.users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+  const user = data.users.find((u) => u.email.toLowerCase() === cleanEmail);
   if (!user) {
-    res.status(404).json({ error: 'User not found with this email' });
+    res.status(404).json({ error: 'No account found with this email. Please sign up to create your account.' });
     return;
   }
 
-  const token = createSession(user.id, 'ws_default');
+  const workspace = data.workspaces[0] || {
+    id: 'ws_default',
+    name: 'Nexora Workspace',
+    slug: 'nexora-workspace',
+    ownerId: user.id,
+    createdAt: new Date().toISOString(),
+    settings: {
+      allowMemberInvites: true,
+      requireProofApproval: true,
+      emergencyRecoveryEmail: user.email,
+      strictIdorChecks: true,
+    },
+  };
+
+  const token = createSession(user.id, workspace.id);
   res.cookie('nexora_session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -235,15 +250,103 @@ apiRouter.post('/auth/login', rateLimit(10, 60000), (req: AuthenticatedRequest, 
   });
 
   logActivity({
-    workspaceId: 'ws_default',
+    workspaceId: workspace.id,
     userId: user.id,
     action: 'Signed in',
     entityType: 'auth',
     entityId: user.id,
-    details: `User signed in via email credential (${user.email})`,
+    details: `User signed in (${user.email})`,
   });
 
-  res.json({ token, user, workspace: data.workspaces[0], role: user.role });
+  res.json({ token, user, workspace, role: user.role });
+});
+
+apiRouter.post('/auth/register', rateLimit(10, 60000), (req: AuthenticatedRequest, res: Response) => {
+  const { name, email, role, title, department } = req.body;
+  if (!name || !email) {
+    res.status(400).json({ error: 'Name and email are required' });
+    return;
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanName = name.trim();
+
+  let data = db.getRawData();
+  const existing = data.users.find((u) => u.email.toLowerCase() === cleanEmail);
+  if (existing) {
+    res.status(400).json({ error: 'An account with this email already exists. Please sign in.' });
+    return;
+  }
+
+  const isFirstUser = data.users.length === 0;
+  const userRole: UserRole = isFirstUser ? 'owner' : (role || 'member');
+
+  const newUser = {
+    id: 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+    email: cleanEmail,
+    name: cleanName,
+    role: userRole,
+    title: title?.trim() || (userRole === 'owner' ? 'Workspace Owner' : 'Engineering Contributor'),
+    department: department?.trim() || 'Core Engineering',
+    location: 'Remote',
+    bio: 'Active member of Nexora Workspace',
+    skills: ['Collaboration', 'Project Management'],
+    createdAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+  };
+
+  db.mutate((d) => {
+    d.users.push(newUser);
+    let ws = d.workspaces[0];
+    if (!ws) {
+      ws = {
+        id: 'ws_default',
+        name: 'Nexora Workspace',
+        slug: 'nexora-workspace',
+        ownerId: newUser.id,
+        createdAt: new Date().toISOString(),
+        settings: {
+          allowMemberInvites: true,
+          requireProofApproval: true,
+          emergencyRecoveryEmail: cleanEmail,
+          strictIdorChecks: true,
+        },
+      };
+      d.workspaces.push(ws);
+    } else if (isFirstUser) {
+      ws.ownerId = newUser.id;
+    }
+
+    d.workspaceMemberships.push({
+      id: 'wm_' + Date.now().toString(36),
+      workspaceId: ws.id,
+      userId: newUser.id,
+      role: userRole,
+      joinedAt: new Date().toISOString(),
+    });
+  });
+
+  data = db.getRawData();
+  const workspace = data.workspaces[0];
+  const token = createSession(newUser.id, workspace.id);
+
+  res.cookie('nexora_session', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  });
+
+  logActivity({
+    workspaceId: workspace.id,
+    userId: newUser.id,
+    action: 'Registered new account',
+    entityType: 'auth',
+    entityId: newUser.id,
+    details: `Created new user account (${newUser.email}) as ${userRole}`,
+  });
+
+  res.json({ token, user: newUser, workspace, role: userRole });
 });
 
 // OAuth 2.0 Simulation with state verification & CSRF defense
@@ -721,6 +824,67 @@ apiRouter.patch(
     });
   }
 );
+
+apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const currentUserId = req.user!.id;
+  const currentRole = req.role!;
+
+  if (currentUserId === id) {
+    res.status(403).json({ error: 'You cannot delete your own account.' });
+    return;
+  }
+
+  const data = db.getRawData();
+  const targetUser = data.users.find((u) => u.id === id);
+  if (!targetUser) {
+    res.status(404).json({ error: 'Member not found' });
+    return;
+  }
+
+  if (targetUser.role === ROLES.OWNER && currentRole !== ROLES.OWNER) {
+    res.status(403).json({ error: 'Cannot delete workspace owner.' });
+    return;
+  }
+
+  const deleted = db.mutate((d) => {
+    const idx = d.users.findIndex((u) => u.id === id);
+    if (idx === -1) return null;
+    const removed = d.users.splice(idx, 1)[0];
+
+    // Clean up team rosters
+    for (const t of d.teams) {
+      t.memberIds = t.memberIds.filter((m) => m !== id);
+      if (t.leaderId === id) t.leaderId = '';
+      if (t.coLeaderId === id) t.coLeaderId = '';
+    }
+
+    // Clean up project memberships
+    for (const p of d.projects) {
+      p.memberIds = p.memberIds.filter((m) => m !== id);
+      if (p.leaderId === id) p.leaderId = '';
+      if (p.coLeaderId === id) p.coLeaderId = '';
+    }
+
+    return removed;
+  });
+
+  if (!deleted) {
+    res.status(404).json({ error: 'Member not found' });
+    return;
+  }
+
+  logActivity({
+    workspaceId: req.workspace!.id,
+    userId: currentUserId,
+    action: 'Deleted Member',
+    entityType: 'setting',
+    entityId: id,
+    details: `${req.user!.name} deleted member ${targetUser.name} (${targetUser.email}) from the system`,
+  });
+
+  res.json({ success: true, deletedId: id });
+});
 
 apiRouter.delete('/teams/:id/members/:userId', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id, userId } = req.params;
@@ -2179,10 +2343,10 @@ apiRouter.get('/messages/project/:projectId', requireAuth, (req: AuthenticatedRe
 
 apiRouter.post('/messages/project/:projectId', requireAuth, rateLimit(30, 60000), (req: AuthenticatedRequest, res: Response) => {
   const { projectId } = req.params;
-  const { content, replyToId } = req.body;
+  const { content, replyToId, audioUrl } = req.body;
 
-  if (!content || !content.trim()) {
-    res.status(400).json({ error: 'Message content is required' });
+  if ((!content || !content.trim()) && !audioUrl) {
+    res.status(400).json({ error: 'Message content or audio is required' });
     return;
   }
 
@@ -2191,7 +2355,8 @@ apiRouter.post('/messages/project/:projectId', requireAuth, rateLimit(30, 60000)
       id: 'msg_' + Date.now().toString(36),
       projectId,
       senderId: req.user!.id,
-      content: content.trim(),
+      content: content?.trim() || 'Voice Message',
+      audioUrl: audioUrl || undefined,
       replyToId: replyToId || undefined,
       createdAt: new Date().toISOString(),
     };
@@ -2200,6 +2365,66 @@ apiRouter.post('/messages/project/:projectId', requireAuth, rateLimit(30, 60000)
   });
 
   res.status(201).json(newMsg);
+});
+
+apiRouter.put('/messages/project/:projectId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { messageId } = req.params;
+  const { content } = req.body;
+  const userId = req.user!.id;
+
+  if (!content || !content.trim()) {
+    res.status(400).json({ error: 'Message content is required' });
+    return;
+  }
+
+  const updated = db.mutate((data) => {
+    const msg = data.projectMessages.find(m => m.id === messageId);
+    if (!msg) return null;
+    const authorId = msg.senderId || (msg as any).userId;
+    if (authorId !== userId) return 'unauthorized';
+    
+    msg.content = content.trim();
+    msg.isEdited = true;
+    return msg;
+  });
+
+  if (updated === 'unauthorized') {
+    res.status(403).json({ error: 'Cannot edit someone else\'s message' });
+    return;
+  }
+  if (!updated) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  res.json(updated);
+});
+
+apiRouter.delete('/messages/project/:projectId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { messageId } = req.params;
+  const userId = req.user!.id;
+
+  const result = db.mutate((data) => {
+    const idx = data.projectMessages.findIndex(m => m.id === messageId);
+    if (idx === -1) return null;
+    const msg = data.projectMessages[idx];
+    const authorId = msg.senderId || (msg as any).userId;
+    if (authorId !== userId) return 'unauthorized';
+    
+    data.projectMessages.splice(idx, 1);
+    return true;
+  });
+
+  if (result === 'unauthorized') {
+    res.status(403).json({ error: 'Cannot delete someone else\'s message' });
+    return;
+  }
+  if (!result) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  res.json({ success: true });
 });
 
 apiRouter.get('/messages/direct/:otherUserId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
@@ -2218,10 +2443,10 @@ apiRouter.get('/messages/direct/:otherUserId', requireAuth, (req: AuthenticatedR
 
 apiRouter.post('/messages/direct/:otherUserId', requireAuth, rateLimit(30, 60000), (req: AuthenticatedRequest, res: Response) => {
   const { otherUserId } = req.params;
-  const { content } = req.body;
+  const { content, audioUrl } = req.body;
 
-  if (!content || !content.trim()) {
-    res.status(400).json({ error: 'Message content cannot be empty' });
+  if ((!content || !content.trim()) && !audioUrl) {
+    res.status(400).json({ error: 'Message content or audio cannot be empty' });
     return;
   }
 
@@ -2230,7 +2455,8 @@ apiRouter.post('/messages/direct/:otherUserId', requireAuth, rateLimit(30, 60000
       id: 'dm_' + Date.now().toString(36),
       senderId: req.user!.id,
       receiverId: otherUserId,
-      content: content.trim(),
+      content: content?.trim() || 'Voice Message',
+      audioUrl: audioUrl || undefined,
       isRead: false,
       createdAt: new Date().toISOString(),
     };
@@ -2252,6 +2478,66 @@ apiRouter.post('/messages/direct/:otherUserId', requireAuth, rateLimit(30, 60000
   });
 
   res.status(201).json(newMsg);
+});
+
+apiRouter.put('/messages/direct/:otherUserId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { messageId } = req.params;
+  const { content } = req.body;
+  const userId = req.user!.id;
+
+  if (!content || !content.trim()) {
+    res.status(400).json({ error: 'Message content is required' });
+    return;
+  }
+
+  const updated = db.mutate((data) => {
+    const msg = data.directMessages.find(m => m.id === messageId);
+    if (!msg) return null;
+    const authorId = msg.senderId || (msg as any).userId;
+    if (authorId !== userId) return 'unauthorized';
+    
+    msg.content = content.trim();
+    msg.isEdited = true;
+    return msg;
+  });
+
+  if (updated === 'unauthorized') {
+    res.status(403).json({ error: 'Cannot edit someone else\'s message' });
+    return;
+  }
+  if (!updated) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  res.json(updated);
+});
+
+apiRouter.delete('/messages/direct/:otherUserId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { messageId } = req.params;
+  const userId = req.user!.id;
+
+  const result = db.mutate((data) => {
+    const idx = data.directMessages.findIndex(m => m.id === messageId);
+    if (idx === -1) return null;
+    const msg = data.directMessages[idx];
+    const authorId = msg.senderId || (msg as any).userId;
+    if (authorId !== userId) return 'unauthorized';
+    
+    data.directMessages.splice(idx, 1);
+    return true;
+  });
+
+  if (result === 'unauthorized') {
+    res.status(403).json({ error: 'Cannot delete someone else\'s message' });
+    return;
+  }
+  if (!result) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  res.json({ success: true });
 });
 
 // ----------------------------------------------------
@@ -2638,6 +2924,319 @@ apiRouter.get('/files/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
   }
 
   res.json(file);
+});
+
+// ----------------------------------------------------
+// Project Team Invitation Module
+// ----------------------------------------------------
+
+// Create Team Invitation(s) for a Project
+apiRouter.post('/projects/:projectId/invitations', requireAuth, rateLimit(20, 60000), (req: AuthenticatedRequest, res: Response) => {
+  const { projectId } = req.params;
+  const { email, emails, role = 'member', customNote, expiresInDays = 7 } = req.body;
+  const user = req.user!;
+  const userRole = req.role!;
+
+  const data = db.getRawData();
+  const proj = data.projects.find((p) => p.id === projectId);
+  if (!proj) {
+    res.status(404).json({ error: 'Project not found' });
+    return;
+  }
+
+  // Permission check: workspace owner, team leader, project leader/co-leader, or member if allowed
+  const isLeader = proj.leaderId === user.id || proj.coLeaderId === user.id;
+  const isWorkspaceOwner = userRole === 'owner';
+  const allowMemberInvites = data.workspaces[0]?.settings?.allowMemberInvites ?? true;
+
+  if (!isLeader && !isWorkspaceOwner && !allowMemberInvites) {
+    res.status(403).json({ error: 'Only project leaders or workspace owners can issue project invitations' });
+    return;
+  }
+
+  // Parse email list
+  const targetEmails: string[] = [];
+  if (Array.isArray(emails) && emails.length > 0) {
+    emails.forEach((e: string) => {
+      const clean = e.trim().toLowerCase();
+      if (clean && !targetEmails.includes(clean)) targetEmails.push(clean);
+    });
+  } else if (email && typeof email === 'string' && email.trim()) {
+    targetEmails.push(email.trim().toLowerCase());
+  }
+
+  const createdInvitations: ProjectInvitation[] = [];
+  const expiresAt = expiresInDays > 0 
+    ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
+    : undefined;
+
+  db.mutate((d) => {
+    // If targetEmails is empty, create a single shareable link invite
+    const inviteList = targetEmails.length > 0 ? targetEmails : [undefined];
+
+    for (const targetEmail of inviteList) {
+      const token = 'inv_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+      const inv: ProjectInvitation = {
+        id: 'inv_id_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+        token,
+        projectId,
+        projectTitle: proj.title,
+        workspaceId: proj.workspaceId,
+        invitedByUserId: user.id,
+        invitedByUserName: user.name,
+        invitedByUserEmail: user.email,
+        email: targetEmail,
+        role: role as UserRole,
+        status: 'pending',
+        customNote: customNote ? customNote.trim() : undefined,
+        expiresAt,
+        createdAt: new Date().toISOString(),
+      };
+      d.projectInvitations.unshift(inv);
+      createdInvitations.push(inv);
+
+      // If target user exists in workspace, notify them immediately
+      if (targetEmail) {
+        const existingUser = d.users.find((u) => u.email.toLowerCase() === targetEmail);
+        if (existingUser) {
+          d.notifications.unshift({
+            id: 'notif_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+            userId: existingUser.id,
+            title: `Invitation to Join Project "${proj.title}"`,
+            message: `${user.name} invited you to join "${proj.title}" as a ${role}.`,
+            type: 'mention',
+            isRead: false,
+            link: `#invite/${token}`,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+  });
+
+  logActivity({
+    workspaceId: proj.workspaceId,
+    projectId,
+    userId: user.id,
+    action: 'Created project invitations',
+    entityType: 'project',
+    entityId: projectId,
+    details: `Issued ${createdInvitations.length} invitation(s) for ${proj.title} (Role: ${role})`,
+  });
+
+  const primaryToken = createdInvitations[0]?.token;
+  res.json({
+    invitations: createdInvitations,
+    primaryToken,
+    shareableUrl: `${req.protocol}://${req.get('host')}/#invite/${primaryToken}`,
+  });
+});
+
+// Get all invitations for a project
+apiRouter.get('/projects/:projectId/invitations', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { projectId } = req.params;
+  const data = db.getRawData();
+  const proj = data.projects.find((p) => p.id === projectId);
+  if (!proj) {
+    res.status(404).json({ error: 'Project not found' });
+    return;
+  }
+
+  const projectInvitations = data.projectInvitations
+    .filter((inv) => inv.projectId === projectId)
+    .map((inv) => {
+      // Check if expired
+      if (inv.status === 'pending' && inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
+        return { ...inv, status: 'expired' as const };
+      }
+      return inv;
+    });
+
+  res.json({ invitations: projectInvitations });
+});
+
+// Revoke a project invitation
+apiRouter.delete('/projects/:projectId/invitations/:invitationId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { projectId, invitationId } = req.params;
+  const user = req.user!;
+  
+  let revoked = false;
+  db.mutate((d) => {
+    const inv = d.projectInvitations.find((i) => i.id === invitationId && i.projectId === projectId);
+    if (inv) {
+      inv.status = 'revoked';
+      revoked = true;
+    }
+  });
+
+  if (!revoked) {
+    res.status(404).json({ error: 'Invitation not found' });
+    return;
+  }
+
+  logActivity({
+    workspaceId: req.workspace!.id,
+    projectId,
+    userId: user.id,
+    action: 'Revoked project invitation',
+    entityType: 'project',
+    entityId: projectId,
+    details: `Revoked invitation ID: ${invitationId}`,
+  });
+
+  res.json({ success: true });
+});
+
+// Get public/authenticated details of an invitation by token
+apiRouter.get('/invitations/:token', (req: Request, res: Response) => {
+  const { token } = req.params;
+  const data = db.getRawData();
+  const inv = data.projectInvitations.find((i) => i.token === token);
+
+  if (!inv) {
+    res.status(404).json({ error: 'Invitation not found or link has expired' });
+    return;
+  }
+
+  const proj = data.projects.find((p) => p.id === inv.projectId);
+  if (!proj) {
+    res.status(404).json({ error: 'Project no longer exists' });
+    return;
+  }
+
+  const inviter = data.users.find((u) => u.id === inv.invitedByUserId);
+  const isExpired = inv.expiresAt && new Date(inv.expiresAt) < new Date();
+  const effectiveStatus = (inv.status === 'pending' && isExpired) ? 'expired' : inv.status;
+
+  res.json({
+    invitation: { ...inv, status: effectiveStatus },
+    project: {
+      id: proj.id,
+      title: proj.title,
+      description: proj.description,
+      status: proj.status,
+      accentColor: proj.accentColor,
+      memberCount: proj.memberIds.length,
+      deadline: proj.deadline,
+    },
+    inviter: inviter ? {
+      name: inviter.name,
+      email: inviter.email,
+      role: inviter.role,
+      title: inviter.title,
+    } : { name: inv.invitedByUserName || 'Project Leader' },
+  });
+});
+
+// Accept an invitation
+apiRouter.post('/invitations/:token/accept', requireAuth, rateLimit(15, 60000), (req: AuthenticatedRequest, res: Response) => {
+  const { token } = req.params;
+  const user = req.user!;
+
+  const data = db.getRawData();
+  const inv = data.projectInvitations.find((i) => i.token === token);
+
+  if (!inv) {
+    res.status(404).json({ error: 'Invitation link is invalid' });
+    return;
+  }
+
+  if (inv.status === 'revoked') {
+    res.status(400).json({ error: 'This invitation has been revoked by the project leader' });
+    return;
+  }
+
+  if (inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
+    res.status(400).json({ error: 'This invitation link has expired' });
+    return;
+  }
+
+  const proj = data.projects.find((p) => p.id === inv.projectId);
+  if (!proj) {
+    res.status(404).json({ error: 'Associated project was not found' });
+    return;
+  }
+
+  // Verify email match if invite was sent to a specific email
+  if (inv.email && inv.email.toLowerCase() !== user.email.toLowerCase()) {
+    res.status(400).json({
+      error: `This invitation was issued specifically for ${inv.email}. You are currently signed in as ${user.email}.`
+    });
+    return;
+  }
+
+  db.mutate((d) => {
+    // 1. Add user to project memberIds if not present
+    const projectInDb = d.projects.find((p) => p.id === proj.id);
+    if (projectInDb) {
+      if (!projectInDb.memberIds.includes(user.id)) {
+        projectInDb.memberIds.push(user.id);
+      }
+      if (inv.role === 'co-leader' && !projectInDb.coLeaderId) {
+        projectInDb.coLeaderId = user.id;
+      }
+    }
+
+    // 2. Add user to associated team if applicable
+    if (proj.teamId) {
+      const teamInDb = d.teams.find((t) => t.id === proj.teamId);
+      if (teamInDb && !teamInDb.memberIds.includes(user.id)) {
+        teamInDb.memberIds.push(user.id);
+      }
+    }
+
+    // 3. Update invitation record
+    const invInDb = d.projectInvitations.find((i) => i.token === token);
+    if (invInDb) {
+      invInDb.status = 'accepted';
+      invInDb.acceptedByUserId = user.id;
+      invInDb.acceptedAt = new Date().toISOString();
+    }
+
+    // 4. Send notification to project leader
+    if (proj.leaderId) {
+      d.notifications.unshift({
+        id: 'notif_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+        userId: proj.leaderId,
+        title: 'New Member Joined Project',
+        message: `${user.name} accepted the invitation and joined "${proj.title}" as ${inv.role}.`,
+        type: 'mention',
+        isRead: false,
+        link: `project/${proj.id}`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  });
+
+  logActivity({
+    workspaceId: proj.workspaceId,
+    projectId: proj.id,
+    userId: user.id,
+    action: 'Accepted project invitation',
+    entityType: 'project',
+    entityId: proj.id,
+    details: `${user.name} joined project "${proj.title}" via invitation`,
+  });
+
+  // Broadcast real-time update
+  realtimeHub.broadcast(proj.id, {
+    id: `rt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    type: 'project:member_assigned',
+    projectId: proj.id,
+    title: 'New Member Joined Project',
+    message: `${user.name} joined the project team!`,
+    memberId: user.id,
+    memberName: user.name,
+    actorName: user.name,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.json({
+    success: true,
+    projectId: proj.id,
+    projectTitle: proj.title,
+    message: `You have successfully joined ${proj.title}!`,
+  });
 });
 
 // ----------------------------------------------------

@@ -246,7 +246,9 @@ export interface ProjectMessage {
   projectId: string;
   senderId: string;
   content: string;
+  audioUrl?: string;
   replyToId?: string;
+  isEdited?: boolean;
   createdAt: string;
 }
 
@@ -255,6 +257,8 @@ export interface DirectMessage {
   senderId: string;
   receiverId: string;
   content: string;
+  audioUrl?: string;
+  isEdited?: boolean;
   isRead: boolean;
   createdAt: string;
 }
@@ -378,6 +382,27 @@ export type RealtimeEventType =
   | 'task:status_changed'
   | 'task:member_assigned'
   | 'milestone:status_changed';
+
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
+
+export interface ProjectInvitation {
+  id: string;
+  token: string;
+  projectId: string;
+  projectTitle?: string;
+  workspaceId: string;
+  invitedByUserId: string;
+  invitedByUserName?: string;
+  invitedByUserEmail?: string;
+  email?: string;
+  role: UserRole;
+  status: InvitationStatus;
+  customNote?: string;
+  expiresAt?: string;
+  acceptedByUserId?: string;
+  acceptedAt?: string;
+  createdAt: string;
+}
 
 export interface RealtimeEventPayload {
   id: string;

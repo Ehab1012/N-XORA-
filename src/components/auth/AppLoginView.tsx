@@ -1,32 +1,74 @@
 import React, { useState } from 'react';
-import { Cpu, ArrowRight, UserCheck, Lock, Sparkles } from 'lucide-react';
-import { PRODUCT_NAME, PRODUCT_STYLIZED_NAME } from '../../../shared/const.js';
+import { Cpu, ArrowRight, Lock, UserPlus, LogIn, AlertCircle, ShieldCheck } from 'lucide-react';
+import { PRODUCT_NAME } from '../../../shared/const.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { RoleBadge } from '../common/Badges.js';
+import { UserRole } from '../../../shared/types.js';
 
 interface AppLoginViewProps {
   onSignedIn?: () => void;
 }
 
 export function AppLoginView({ onSignedIn }: AppLoginViewProps) {
-  const { availableUsers, login } = useAuth();
-  const [customEmail, setCustomEmail] = useState('');
+  const { availableUsers, login, register } = useAuth();
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
+  
+  // Sign-in state
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInError, setSignInError] = useState<string | null>(null);
+
+  // Sign-up state
+  const [fullName, setFullName] = useState('');
+  const [signUpEmail, setSignUpEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('member');
+  const [signUpError, setSignUpError] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
+
+  // Check for invite token in hash or localStorage
+  const pendingToken = typeof window !== 'undefined'
+    ? (window.location.hash.includes('invite/') ? window.location.hash.split('invite/')[1]?.split('?')[0] : localStorage.getItem('pending_invite_token'))
+    : null;
 
   const handleSelectUser = async (email: string) => {
     setLoading(true);
+    setSignInError(null);
     try {
       await login(email);
       if (onSignedIn) onSignedIn();
+    } catch (err: any) {
+      setSignInError(err.message || 'Failed to sign in. Please verify your email or create a new account.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCustomSubmit = async (e: React.FormEvent) => {
+  const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customEmail.trim()) return;
-    await handleSelectUser(customEmail.trim());
+    if (!signInEmail.trim()) return;
+    await handleSelectUser(signInEmail.trim());
+  };
+
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim() || !signUpEmail.trim() || !password.trim()) return;
+    setLoading(true);
+    setSignUpError(null);
+
+    try {
+      await register({
+        name: fullName.trim(),
+        email: signUpEmail.trim(),
+        role: selectedRole,
+        password: password,
+      });
+      if (onSignedIn) onSignedIn();
+    } catch (err: any) {
+      setSignUpError(err.message || 'Failed to create account. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,84 +79,173 @@ export function AppLoginView({ onSignedIn }: AppLoginViewProps) {
       <div className="w-full max-w-md relative z-10 glass-panel border border-[#1f223f] p-6 sm:p-8 rounded-3xl shadow-2xl shadow-black/80 space-y-6">
         {/* App Logo & Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-xl shadow-purple-900/40 mb-2">
+          <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-xl shadow-purple-900/40 mb-1">
             <Cpu className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-sharp font-bold tracking-tight text-white">
             {PRODUCT_NAME}
           </h1>
           <p className="text-xs text-slate-400 font-mono">
-            Zero-Trust Engineering & Milestone Workspace
+            Engineering & Project Workspace Platform
           </p>
         </div>
 
-        {/* 1-Click Profile Launch */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
-            <span>Select Active Workspace Identity</span>
-            <span className="text-purple-400">1-Click Launch</span>
+        {pendingToken && (
+          <div className="p-3.5 rounded-2xl bg-purple-950/70 border border-purple-500/40 text-purple-200 text-xs flex items-center gap-2.5 animate-in fade-in">
+            <UserPlus className="w-4 h-4 text-purple-400 shrink-0" />
+            <span>Project Invitation Detected! Sign in or create an account to join the team.</span>
           </div>
+        )}
 
-          <div className="space-y-2">
-            {availableUsers.map((u) => (
-              <button
-                key={u.id}
-                onClick={() => handleSelectUser(u.email)}
-                disabled={loading}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#0e101f] border border-[#202446] hover:border-purple-500/50 hover:bg-[#151833] transition-all duration-200 text-left group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-purple-950/80 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-sm group-hover:scale-105 transition-transform">
-                    {u.name[0]}
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-slate-200 group-hover:text-purple-200 transition-colors">
-                      {u.name}
-                    </div>
-                    <div className="text-[11px] text-slate-500 font-mono">
-                      {u.email}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <RoleBadge role={u.role} />
-                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
-                </div>
-              </button>
-            ))}
-          </div>
+        {/* Tab Selector: Sign In vs Sign Up */}
+        <div className="flex bg-[#0c0e1e] p-1 rounded-2xl border border-[#1e2245]">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('signin');
+              setSignInError(null);
+            }}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+              activeTab === 'signin'
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Sign In</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('signup');
+              setSignUpError(null);
+            }}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+              activeTab === 'signup'
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Create Account</span>
+          </button>
         </div>
 
-        {/* Or enter custom email */}
-        <div className="pt-2 border-t border-[#1a1d35]">
-          <form onSubmit={handleCustomSubmit} className="space-y-3">
-            <label className="block text-[11px] font-mono text-slate-400">
-              Or Connect Custom Account
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                required
-                placeholder="developer@team.internal"
-                value={customEmail}
-                onChange={(e) => setCustomEmail(e.target.value)}
-                className="flex-1 px-3.5 py-2 rounded-xl bg-[#090a14] border border-[#232746] text-slate-200 placeholder-slate-600 text-xs focus:border-purple-500 focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={loading || !customEmail.trim()}
-                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
-              >
-                {loading ? 'Starting...' : 'Launch'}
-              </button>
+        {activeTab === 'signin' ? (
+          <div className="space-y-4">
+            {signInError && (
+              <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span>{signInError}</span>
+              </div>
+            )}
+
+            {/* Sign in with Email Form */}
+            <form onSubmit={handleSignInSubmit} className="space-y-3 pt-1">
+              <label className="block text-[11px] font-mono text-slate-400">
+                Account Email Address
+              </label>
+              <div className="space-y-2">
+                <input
+                  type="email"
+                  required
+                  placeholder="name@company.com"
+                  value={signInEmail}
+                  onChange={(e) => setSignInEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#090a14] border border-[#232746] text-slate-200 placeholder-slate-600 text-xs focus:border-purple-500 focus:outline-none"
+                />
+                <input
+                  type="password"
+                  required
+                  placeholder="Password"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#090a14] border border-[#232746] text-slate-200 placeholder-slate-600 text-xs focus:border-purple-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !signInEmail.trim()}
+                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30"
+                >
+                  <span>{loading ? 'Authenticating...' : 'Sign In'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          /* Sign Up Form */
+          <form onSubmit={handleSignUpSubmit} className="space-y-4">
+            {signUpError && (
+              <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span>{signUpError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-mono text-slate-400 mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Alex Rivera"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#090a14] border border-[#232746] text-slate-200 placeholder-slate-600 text-xs focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono text-slate-400 mb-1">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="alex@nexora.internal"
+                  value={signUpEmail}
+                  onChange={(e) => setSignUpEmail(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#090a14] border border-[#232746] text-slate-200 placeholder-slate-600 text-xs focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono text-slate-400 mb-1">Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Create a password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#090a14] border border-[#232746] text-slate-200 placeholder-slate-600 text-xs focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono text-slate-400 mb-1">Workspace Role</label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#090a14] border border-[#232746] text-slate-200 text-xs focus:border-purple-500 focus:outline-none"
+                >
+                  <option value="leader">Team Leader</option>
+                  <option value="co-leader">Co-Leader</option>
+                  <option value="member">Team Member / Contributor</option>
+                </select>
+              </div>
             </div>
+
+            <button
+              type="submit"
+              disabled={loading || !fullName.trim() || !signUpEmail.trim() || !password.trim()}
+              className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30"
+            >
+              <span>{loading ? 'Creating Account...' : 'Create Account & Enter'}</span>
+              <ShieldCheck className="w-4 h-4" />
+            </button>
           </form>
-        </div>
+        )}
 
         <div className="text-center text-[10px] font-mono text-slate-500 flex items-center justify-center gap-1.5 pt-2">
           <Lock className="w-3 h-3 text-purple-400" />
-          <span>Local session verified via AES-encrypted cookie</span>
+          <span>Local session verified via secure HTTP cookie</span>
         </div>
       </div>
     </div>

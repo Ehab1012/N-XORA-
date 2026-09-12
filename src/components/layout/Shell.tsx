@@ -70,9 +70,9 @@ export function Shell({
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--canvas-bg)] text-slate-100 flex flex-col nebula-glow transition-colors duration-300">
+    <div className="min-h-[100dvh] bg-[var(--canvas-bg)] text-slate-100 flex flex-col nebula-glow transition-colors duration-300">
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-30 h-16 border-b border-[var(--border-color)] bg-[var(--surface-header)] backdrop-blur-md px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 transition-colors">
+      <header className="sticky top-0 z-50 h-16 border-b border-[var(--border-color)] bg-[var(--surface-header)] backdrop-blur-md px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 transition-colors">
         {/* Left branding & Workspace status */}
         <div className="flex items-center gap-2 sm:gap-3.5 shrink-0 min-w-0">
           <button
@@ -169,58 +169,6 @@ export function Shell({
                     );
                   })}
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Quick RBAC Role Tester Dropdown */}
-          <div className="relative">
-            <button
-              id="role-switcher-btn"
-              onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-              className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 h-9 rounded-xl bg-[#121426] border border-[#222646] hover:border-purple-500/50 hover:bg-[#181b34] text-xs text-slate-200 transition-all shadow-sm"
-              title="Test permissions by switching roles"
-            >
-              <span className="hidden lg:inline text-slate-400 font-mono text-[11px]">Role:</span>
-              <RoleBadge role={role || 'member'} />
-              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
-            </button>
-
-            {roleMenuOpen && (
-              <div className="absolute right-0 mt-2 w-64 glass-panel rounded-xl shadow-2xl border border-purple-500/20 p-2 z-50 animate-in fade-in zoom-in-95">
-                <div className="px-2 py-1.5 border-b border-[#202444] mb-1.5">
-                  <span className="text-[11px] font-mono text-purple-400 uppercase tracking-wider">
-                    Switch Test Role Profile
-                  </span>
-                </div>
-                {(availableUsers.length > 0
-                  ? availableUsers
-                  : [
-                      { id: 'usr_owner', name: 'Elena Vance', role: 'owner' as const, title: 'Workspace Owner' },
-                      { id: 'usr_leader', name: 'Marcus Chen', role: 'leader' as const, title: 'Engineering Leader' },
-                      { id: 'usr_coleader', name: 'Sarah Jenkins', role: 'co-leader' as const, title: 'Product Co-Leader' },
-                      { id: 'usr_member', name: 'Alex Rivera', role: 'member' as const, title: 'Core Member' },
-                    ]
-                ).map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => {
-                      switchRole(u.id);
-                      setRoleMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors ${
-                      user?.id === u.id
-                        ? 'bg-purple-950/60 text-purple-200 font-semibold border border-purple-500/30'
-                        : 'hover:bg-[#1a1d36] text-slate-300'
-                    }`}
-                  >
-                    <div>
-                      <div>{u.name}</div>
-                      <div className="text-[10px] text-slate-500">{u.title}</div>
-                    </div>
-                    <RoleBadge role={u.role} />
-                  </button>
-                ))}
               </div>
             )}
           </div>

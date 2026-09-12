@@ -68,6 +68,7 @@ import { ProjectPDFExport } from './ProjectPDFExport.js';
 import { Modal } from '../common/Modal.js';
 import { MemberProfileModal } from '../profile/MemberProfileModal.js';
 import { ToastContainer } from '../common/Toast.js';
+import { TeamInvitationModal } from '../invitations/TeamInvitationModal.js';
 import { useProjectRealtime } from '../../hooks/useProjectRealtime.js';
 import { TASK_STATUSES, TaskStatus, TASK_PRIORITIES, TaskPriority, PROJECT_STATUSES, ProjectStatus } from '../../../shared/const.js';
 
@@ -104,6 +105,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isCreateMilestoneOpen, setIsCreateMilestoneOpen] = useState(false);
   const [isAssignMemberOpen, setIsAssignMemberOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [selectedUserToAssign, setSelectedUserToAssign] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
@@ -689,6 +691,16 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
               </button>
             </div>
           </div>
+
+          <button
+            id="invite-members-header-btn"
+            onClick={() => setIsInviteModalOpen(true)}
+            className="px-3 py-2 rounded-lg bg-gradient-to-r from-purple-600/90 to-indigo-600/90 border border-purple-500/50 hover:border-purple-400 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-purple-950/40"
+            title="Generate unique invite links or email invitations"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Invite Members</span>
+          </button>
 
           {isLeaderOrOwner && (
             <button
@@ -2183,6 +2195,16 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           tasks={tasks} 
           milestones={milestones} 
           onComplete={() => setIsExporting(false)} 
+        />
+      )}
+
+      {/* Team Invitation Modal */}
+      {project && (
+        <TeamInvitationModal
+          project={project}
+          isOpen={isInviteModalOpen}
+          onClose={() => setIsInviteModalOpen(false)}
+          onInvitationCreated={fetchData}
         />
       )}
     </div>

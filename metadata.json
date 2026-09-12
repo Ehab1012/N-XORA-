@@ -1,6 +1,6 @@
 {
   "name": "NΞXORA",
   "description": "Secure collaboration workspace for coordinated project work, role-aware access, proof of work, and accountability.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

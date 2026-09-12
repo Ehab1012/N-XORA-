@@ -21,7 +21,7 @@ import {
   Trophy,
   Crown,
 } from 'lucide-react';
-import { Team, User, Project } from '../../../shared/types.js';
+import { Team, User, Project, UserRole } from '../../../shared/types.js';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { RoleBadge } from '../common/Badges.js';
@@ -94,13 +94,13 @@ export function TeamsView({
     setIsProfileModalOpen(true);
   };
 
-  const handlePromoteToLeader = async (targetUser: User) => {
+  const handleChangeRole = async (targetUser: User, newRole: UserRole) => {
     if (!canManage) return;
     try {
-      const res = await api.updateUserRank(targetUser.id, 'leader');
-      setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? { ...u, role: 'leader' } : u)));
+      const res = await api.updateUserRank(targetUser.id, newRole);
+      setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? { ...u, role: newRole } : u)));
     } catch (err: any) {
-      alert(err.message || 'Failed to promote member to leader');
+      alert(err.message || `Failed to change role to ${newRole}`);
     }
   };
 
@@ -534,15 +534,16 @@ export function TeamsView({
                           <MessageSquare className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {canManage && member.role === 'member' && !isCurrentUser && (
-                        <button
-                          onClick={() => handlePromoteToLeader(member)}
-                          title="Promote Member to Leader"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-medium transition-colors"
+                      {canManage && !isCurrentUser && member.role !== 'owner' && (
+                        <select
+                          value={member.role}
+                          onChange={(e) => handleChangeRole(member, e.target.value as any)}
+                          className="bg-[#14162a] hover:bg-[#1a1d36] border border-[#232746] hover:border-purple-500/50 rounded-lg py-1 px-2 text-[11px] font-medium text-slate-300 focus:outline-none focus:border-purple-500 cursor-pointer transition-colors"
                         >
-                          <Crown className="w-3 h-3 text-amber-400" />
-                          <span>Promote</span>
-                        </button>
+                          <option value="member">Member</option>
+                          <option value="co-leader">Co-Leader</option>
+                          <option value="leader">Leader</option>
+                        </select>
                       )}
                       <button
                         onClick={() => handleOpenProfile(member.id)}

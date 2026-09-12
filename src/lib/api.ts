@@ -19,6 +19,7 @@ import {
   UserRole,
   RealtimeEventPayload,
   StoredFile,
+  ProjectInvitation,
 } from '../../shared/types.js';
 
 class ApiError extends Error {
@@ -79,6 +80,15 @@ export const api = {
     const res = await request<{ token: string; user: User; workspace: Workspace; role: UserRole }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    });
+    localStorage.setItem('nexora_token', res.token);
+    return res;
+  },
+
+  async register(payload: { name: string; email: string; title?: string; role?: UserRole; department?: string; password?: string }): Promise<{ token: string; user: User; workspace: Workspace; role: UserRole }> {
+    const res = await request<{ token: string; user: User; workspace: Workspace; role: UserRole }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
     localStorage.setItem('nexora_token', res.token);
     return res;
@@ -357,10 +367,23 @@ export const api = {
     return request(`/api/messages/project/${projectId}`);
   },
 
-  async postProjectMessage(projectId: string, content: string, replyToId?: string): Promise<ProjectMessage> {
+  async postProjectMessage(projectId: string, content: string, replyToId?: string, audioUrl?: string): Promise<ProjectMessage> {
     return request(`/api/messages/project/${projectId}`, {
       method: 'POST',
-      body: JSON.stringify({ content, replyToId }),
+      body: JSON.stringify({ content, replyToId, audioUrl }),
+    });
+  },
+
+  async editProjectMessage(projectId: string, messageId: string, content: string): Promise<ProjectMessage> {
+    return request(`/api/messages/project/${projectId}/${messageId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  async deleteProjectMessage(projectId: string, messageId: string): Promise<void> {
+    return request(`/api/messages/project/${projectId}/${messageId}`, {
+      method: 'DELETE',
     });
   },
 
@@ -368,10 +391,23 @@ export const api = {
     return request(`/api/messages/direct/${otherUserId}`);
   },
 
-  async sendDirectMessage(otherUserId: string, content: string): Promise<DirectMessage> {
+  async sendDirectMessage(otherUserId: string, content: string, audioUrl?: string): Promise<DirectMessage> {
     return request(`/api/messages/direct/${otherUserId}`, {
       method: 'POST',
+      body: JSON.stringify({ content, audioUrl }),
+    });
+  },
+
+  async editDirectMessage(otherUserId: string, messageId: string, content: string): Promise<DirectMessage> {
+    return request(`/api/messages/direct/${otherUserId}/${messageId}`, {
+      method: 'PUT',
       body: JSON.stringify({ content }),
+    });
+  },
+
+  async deleteDirectMessage(otherUserId: string, messageId: string): Promise<void> {
+    return request(`/api/messages/direct/${otherUserId}/${messageId}`, {
+      method: 'DELETE',
     });
   },
 
@@ -490,6 +526,11 @@ export const api = {
       body: JSON.stringify({ role }),
     });
   },
+  async deleteUser(userId: string): Promise<{ success: boolean; deletedId: string }> {
+    return request(`/api/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
 
   // Audit
   async getAuditLogs(): Promise<ActivityEvent[]> {
@@ -506,6 +547,41 @@ export const api = {
     return request('/api/ai/chat', {
       method: 'POST',
       body: JSON.stringify(params),
+    });
+  },
+
+  // Project Team Invitation Module
+  async createProjectInvitations(
+    projectId: string,
+    payload: { email?: string; emails?: string[]; role?: UserRole; customNote?: string; expiresInDays?: number }
+  ): Promise<{ invitations: ProjectInvitation[]; primaryToken: string; shareableUrl: string }> {
+    return request(`/api/projects/${projectId}/invitations`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getProjectInvitations(projectId: string): Promise<{ invitations: ProjectInvitation[] }> {
+    return request(`/api/projects/${projectId}/invitations`);
+  },
+
+  async revokeProjectInvitation(projectId: string, invitationId: string): Promise<{ success: boolean }> {
+    return request(`/api/projects/${projectId}/invitations/${invitationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getInvitationByToken(token: string): Promise<{
+    invitation: ProjectInvitation;
+    project: { id: string; title: string; description: string; status: string; accentColor: string; memberCount: number; deadline: string };
+    inviter: { name: string; email?: string; role?: string; title?: string };
+  }> {
+    return request(`/api/invitations/${token}`);
+  },
+
+  async acceptProjectInvitation(token: string): Promise<{ success: boolean; projectId: string; projectTitle: string; message: string }> {
+    return request(`/api/invitations/${token}/accept`, {
+      method: 'POST',
     });
   },
 };

@@ -63,7 +63,8 @@ export function BottomNavBar({
     <nav
       id="bottom-app-bar"
       aria-label="App Bottom Navigation"
-      className="fixed bottom-0 sm:bottom-4 left-0 sm:left-1/2 sm:-translate-x-1/2 right-0 sm:right-auto z-40 w-full sm:w-auto sm:min-w-[420px] bg-[var(--surface-panel)] backdrop-blur-2xl border-t sm:border border-[var(--border-color)] px-2 sm:px-4 py-1.5 sm:py-2 sm:rounded-2xl shadow-2xl shadow-black/90 transition-all"
+      className="fixed bottom-0 sm:bottom-4 left-0 sm:left-1/2 sm:-translate-x-1/2 right-0 sm:right-auto z-40 w-full sm:w-auto sm:min-w-[420px] bg-[var(--surface-panel)] backdrop-blur-2xl border-t sm:border border-[var(--border-color)] px-2 sm:px-4 pt-1.5 sm:py-2 sm:rounded-2xl shadow-2xl shadow-black/90 transition-all"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
     >
       <div className="flex items-center justify-around gap-1 sm:gap-2">
         {tabs.map((tab) => {

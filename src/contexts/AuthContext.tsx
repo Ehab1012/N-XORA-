@@ -11,6 +11,7 @@ interface AuthContextType {
   notifications: NotificationItem[];
   unreadCount: number;
   login: (email: string) => Promise<void>;
+  register: (payload: { name: string; email: string; title?: string; role?: UserRole; department?: string; password?: string }) => Promise<void>;
   simulateOAuth: (provider: string, userId?: string) => Promise<void>;
   switchRole: (targetUserId: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -48,13 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole(res.role || 'member');
         if (res.availableUsers) setAvailableUsers(res.availableUsers);
       } else {
-        // Auto-initialize with default workspace identity for instant app access
-        const loginRes = await api.login('elena@nexora.internal');
-        setUser(loginRes.user);
-        setWorkspace(loginRes.workspace);
-        setRole(loginRes.role);
-        const meAfter = await api.getMe();
-        if (meAfter.availableUsers) setAvailableUsers(meAfter.availableUsers);
+        setUser(null);
+        setWorkspace(null);
+        setRole(null);
+        if (res.availableUsers) setAvailableUsers(res.availableUsers);
       }
     } catch (err) {
       console.warn('Session verification failed:', err);
@@ -82,6 +80,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const res = await api.login(email);
+      setUser(res.user);
+      setWorkspace(res.workspace);
+      setRole(res.role);
+      await refreshMe();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const register = async (payload: { name: string; email: string; title?: string; role?: UserRole; department?: string; password?: string }) => {
+    setLoading(true);
+    try {
+      const res = await api.register(payload);
       setUser(res.user);
       setWorkspace(res.workspace);
       setRole(res.role);
@@ -145,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         notifications,
         unreadCount,
         login,
+        register,
         simulateOAuth,
         switchRole,
         logout,

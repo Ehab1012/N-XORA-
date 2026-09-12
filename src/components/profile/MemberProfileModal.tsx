@@ -7,7 +7,7 @@ import {
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { RoleBadge, StatusBadge, PriorityBadge } from '../common/Badges.js';
-import { Modal } from '../common/Modal.js';
+import { Modal, ConfirmModal } from '../common/Modal.js';
 import {
   Mail,
   MapPin,
@@ -39,6 +39,7 @@ import {
   User as UserIcon,
   Camera,
   Image as ImageIcon,
+  Trash2,
 } from 'lucide-react';
 import { AvatarPickerModal } from './AvatarPickerModal.js';
 
@@ -84,6 +85,9 @@ export function MemberProfileModal({
   const [newSkillInput, setNewSkillInput] = useState('');
   const [changingRank, setChangingRank] = useState(false);
   const [rankSuccessMsg, setRankSuccessMsg] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isConfirmStep2Open, setIsConfirmStep2Open] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(false);
 
   const fetchProfile = async (id: string) => {
     setLoading(true);
@@ -130,6 +134,7 @@ export function MemberProfileModal({
   const canEdit = isSelf;
   const isLeaderOrOwner = currentRole === 'leader' || currentRole === 'owner';
   const canChangeRank = isLeaderOrOwner && !isSelf && user?.role !== 'owner';
+  const canDeleteMember = isLeaderOrOwner && !isSelf && user?.role !== 'owner';
 
   const handleCopyEmail = (emailStr: string) => {
     navigator.clipboard.writeText(emailStr);
@@ -148,6 +153,24 @@ export function MemberProfileModal({
 
   const handleRemoveSkill = (skillToRemove: string) => {
     setEditSkills(editSkills.filter((s) => s !== skillToRemove));
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userId) return;
+    setDeletingUser(true);
+    try {
+      await api.deleteUser(userId);
+      setIsConfirmStep2Open(false);
+      onClose();
+      if (onProfileUpdated && user) {
+        onProfileUpdated({ ...user, id: 'deleted_' + userId });
+      }
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete member');
+    } finally {
+      setDeletingUser(false);
+    }
   };
 
   const handleChangeRank = async (newRole: UserRole) => {
@@ -369,6 +392,16 @@ export function MemberProfileModal({
                   >
                     <Edit3 className="w-3.5 h-3.5 text-purple-400" />
                     <span>{isEditing ? 'View Profile' : 'Edit Profile'}</span>
+                  </button>
+                )}
+                {canDeleteMember && (
+                  <button
+                    onClick={() => setIsDeleteModalOpen(true)}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/50 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-medium transition-colors"
+                    title="Delete member from system (Leader / Co-Leader / Owner action)"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Member</span>
                   </button>
                 )}
               </div>
@@ -1203,6 +1236,31 @@ export function MemberProfileModal({
           }}
         />
       )}
+
+      {/* Step 1: Initial Deletion Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          setIsDeleteModalOpen(false);
+          setIsConfirmStep2Open(true);
+        }}
+        title="Delete Member"
+        message={`Are you sure you want to remove ${user?.name || 'this member'} from the system? This will unassign them from all squads and project scopes. Proceed to security verification?`}
+        confirmLabel="Continue to Verification"
+        destructive={true}
+      />
+
+      {/* Step 2: Second-Step Security Verification Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isConfirmStep2Open}
+        onClose={() => setIsConfirmStep2Open(false)}
+        onConfirm={handleConfirmDelete}
+        title="Security Verification: Confirm Permanent Deletion"
+        message={`FINAL WARNING: You are about to permanently delete ${user?.name || 'this member'} (${user?.email}). This leader/co-leader action cannot be undone. Click Confirm to execute.`}
+        confirmLabel={deletingUser ? 'Deleting...' : 'Yes, Permanently Delete Member'}
+        destructive={true}
+      />
     </Modal>
   );
 }

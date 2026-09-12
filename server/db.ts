@@ -17,6 +17,7 @@ import {
   ActivityEvent,
   StoredFile,
   OnboardingState,
+  ProjectInvitation,
 } from '../shared/types.js';
 import { SEED_PROJECT_FILES } from './seedFiles.js';
 
@@ -38,6 +39,7 @@ export interface DatabaseSchema {
   files: StoredFile[];
   onboarding: Record<string, OnboardingState>;
   sessions: Record<string, { userId: string; workspaceId: string; expiresAt: number }>;
+  projectInvitations: ProjectInvitation[];
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -99,24 +101,6 @@ const INITIAL_DATA: DatabaseSchema = {
       createdAt: '2026-02-01T11:00:00.000Z',
       lastActiveAt: '2026-09-12T07:55:00.000Z',
     },
-    {
-      id: 'usr_member',
-      email: 'alex@nexora.internal',
-      name: 'Alex Rivera',
-      role: 'member',
-      title: 'Core Platform Engineer',
-      department: 'Infrastructure & Real-Time Sync',
-      location: 'Austin, TX (CST / UTC-6)',
-      bio: 'Specializing in WebSocket replication layers, event-driven microservices, Redis caching, and automated immutable audit trail generation.',
-      phone: '+1 (512) 555-0374',
-      skills: ['WebSocket Sync', 'TypeScript', 'Redis', 'Docker', 'GraphQL', 'Event Sourcing', 'Vitest'],
-      githubHandle: 'arivera-eng',
-      linkedinUrl: 'https://linkedin.com/in/alex-rivera-sync',
-      timezone: 'America/Chicago',
-      statusMessage: '🟢 Deep work on ledger synchronization',
-      createdAt: '2026-02-15T08:15:00.000Z',
-      lastActiveAt: '2026-09-12T08:30:00.000Z',
-    },
   ],
   workspaces: [
     {
@@ -137,7 +121,6 @@ const INITIAL_DATA: DatabaseSchema = {
     { id: 'wm_1', workspaceId: 'ws_default', userId: 'usr_owner', role: 'owner', joinedAt: '2026-01-10T09:00:00.000Z' },
     { id: 'wm_2', workspaceId: 'ws_default', userId: 'usr_leader', role: 'leader', joinedAt: '2026-01-15T10:30:00.000Z' },
     { id: 'wm_3', workspaceId: 'ws_default', userId: 'usr_coleader', role: 'co-leader', joinedAt: '2026-02-01T11:00:00.000Z' },
-    { id: 'wm_4', workspaceId: 'ws_default', userId: 'usr_member', role: 'member', joinedAt: '2026-02-15T08:15:00.000Z' },
   ],
   teams: [
     {
@@ -762,6 +745,7 @@ const INITIAL_DATA: DatabaseSchema = {
     // Seed default session for instant preview/testing
     sess_owner: { userId: 'usr_owner', workspaceId: 'ws_default', expiresAt: Date.now() + 86400000 * 30 },
   },
+  projectInvitations: [],
 };
 
 class DatabaseManager {
@@ -779,46 +763,101 @@ class DatabaseManager {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         const parsed = JSON.parse(raw);
-        // Ensure all top-level keys exist and projects have expenseItems initialized
-        const loadedProjects = (parsed.projects || INITIAL_DATA.projects).map((p: Project) => {
-          const seed = INITIAL_DATA.projects.find((initP) => initP.id === p.id);
-          return {
-            ...p,
-            budget: p.budget !== undefined ? p.budget : seed?.budget,
-            expenses: p.expenses !== undefined ? p.expenses : seed?.expenses,
-            expenseItems: p.expenseItems && p.expenseItems.length > 0 ? p.expenseItems : (seed?.expenseItems || []),
-          };
-        });
+        
+        const loadedProjects = (parsed.projects || []).map((p: Project) => ({
+          ...p,
+          expenseItems: p.expenseItems || [],
+        }));
 
-        // Ensure users have full profile details populated
-        const loadedUsers = (parsed.users || INITIAL_DATA.users).map((u: User) => {
-          const seedUser = INITIAL_DATA.users.find((su) => su.id === u.id);
-          return {
-            ...(seedUser || {}),
-            ...u,
-            skills: u.skills && u.skills.length > 0 ? u.skills : (seedUser?.skills || ['General Engineering']),
-            department: u.department || seedUser?.department || 'Core Engineering',
-            location: u.location || seedUser?.location || 'Remote',
-            bio: u.bio || seedUser?.bio || '',
-            githubHandle: u.githubHandle || seedUser?.githubHandle || '',
-            timezone: u.timezone || seedUser?.timezone || 'UTC',
-            statusMessage: u.statusMessage || seedUser?.statusMessage || '🟢 Active in Workspace',
-          };
-        });
+        const loadedUsers = (parsed.users || []).map((u: User) => ({
+          ...u,
+          skills: u.skills || ['General Engineering'],
+          department: u.department || 'Core Engineering',
+          location: u.location || 'Remote',
+          bio: u.bio || '',
+          githubHandle: u.githubHandle || '',
+          timezone: u.timezone || 'UTC',
+          statusMessage: u.statusMessage || '🟢 Active in Workspace',
+        }));
+
+        const loadedWorkspaces = parsed.workspaces && parsed.workspaces.length > 0
+          ? parsed.workspaces
+          : [
+              {
+                id: 'ws_default',
+                name: 'Nexora Workspace',
+                slug: 'nexora-workspace',
+                ownerId: '',
+                createdAt: new Date().toISOString(),
+                settings: {
+                  allowMemberInvites: true,
+                  requireProofApproval: true,
+                  emergencyRecoveryEmail: '',
+                  strictIdorChecks: true,
+                },
+              },
+            ];
 
         return {
-          ...INITIAL_DATA,
-          ...parsed,
           users: loadedUsers,
+          workspaces: loadedWorkspaces,
+          workspaceMemberships: parsed.workspaceMemberships || [],
+          teams: parsed.teams || [],
           projects: loadedProjects,
-          sessions: { ...INITIAL_DATA.sessions, ...(parsed.sessions || {}) },
+          tasks: parsed.tasks || [],
+          milestones: parsed.milestones || [],
+          proofSubmissions: parsed.proofSubmissions || [],
+          resources: parsed.resources || [],
+          projectMessages: parsed.projectMessages || [],
+          directMessages: parsed.directMessages || [],
+          notifications: parsed.notifications || [],
+          notificationPreferences: parsed.notificationPreferences || {},
+          activityEvents: parsed.activityEvents || [],
+          files: parsed.files || [],
+          onboarding: parsed.onboarding || {},
+          sessions: parsed.sessions || {},
+          projectInvitations: parsed.projectInvitations || [],
         };
       }
     } catch (err) {
-      console.warn('Failed to load database from file, initializing fresh data:', err);
+      console.warn('Failed to load database from file, initializing fresh empty data:', err);
     }
-    this.saveData(INITIAL_DATA);
-    return JSON.parse(JSON.stringify(INITIAL_DATA));
+    const emptyState: DatabaseSchema = {
+      users: [],
+      workspaces: [
+        {
+          id: 'ws_default',
+          name: 'Nexora Workspace',
+          slug: 'nexora-workspace',
+          ownerId: '',
+          createdAt: new Date().toISOString(),
+          settings: {
+            allowMemberInvites: true,
+            requireProofApproval: true,
+            emergencyRecoveryEmail: '',
+            strictIdorChecks: true,
+          },
+        },
+      ],
+      workspaceMemberships: [],
+      teams: [],
+      projects: [],
+      tasks: [],
+      milestones: [],
+      proofSubmissions: [],
+      resources: [],
+      projectMessages: [],
+      directMessages: [],
+      notifications: [],
+      notificationPreferences: {},
+      activityEvents: [],
+      files: [],
+      onboarding: {},
+      sessions: {},
+      projectInvitations: [],
+    };
+    this.saveData(emptyState);
+    return emptyState;
   }
 
   private saveData(data: DatabaseSchema) {
@@ -843,9 +882,48 @@ class DatabaseManager {
   }
 
   public resetToDefaults() {
-    this.data = JSON.parse(JSON.stringify(INITIAL_DATA));
-    this.saveData(this.data);
+    this.data = this.clearAllData();
     return this.data;
+  }
+
+  public clearAllData(): DatabaseSchema {
+    const emptyState: DatabaseSchema = {
+      users: [],
+      workspaces: [
+        {
+          id: 'ws_default',
+          name: 'Nexora Workspace',
+          slug: 'nexora-workspace',
+          ownerId: '',
+          createdAt: new Date().toISOString(),
+          settings: {
+            allowMemberInvites: true,
+            requireProofApproval: true,
+            emergencyRecoveryEmail: '',
+            strictIdorChecks: true,
+          },
+        },
+      ],
+      workspaceMemberships: [],
+      teams: [],
+      projects: [],
+      tasks: [],
+      milestones: [],
+      proofSubmissions: [],
+      resources: [],
+      projectMessages: [],
+      directMessages: [],
+      notifications: [],
+      notificationPreferences: {},
+      activityEvents: [],
+      files: [],
+      onboarding: {},
+      sessions: {},
+      projectInvitations: [],
+    };
+    this.data = emptyState;
+    this.saveData(emptyState);
+    return emptyState;
   }
 }
 
