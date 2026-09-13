@@ -5,6 +5,7 @@ import {
   MessageSquare,
   BarChart3,
   Settings,
+  User,
 } from 'lucide-react';
 import { ActiveTab } from './Shell.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
@@ -14,6 +15,12 @@ interface BottomNavBarProps {
   onSelectTab: (tab: ActiveTab) => void;
   unreadMessagesCount?: number;
   activeProjectsCount?: number;
+  onOpenProfile?: () => void;
+  user?: {
+    name?: string;
+    avatarUrl?: string;
+    role?: string;
+  } | null;
 }
 
 export function BottomNavBar({
@@ -21,6 +28,8 @@ export function BottomNavBar({
   onSelectTab,
   unreadMessagesCount = 0,
   activeProjectsCount = 0,
+  onOpenProfile,
+  user,
 }: BottomNavBarProps) {
   const { themeConfig } = useTheme();
 
@@ -119,6 +128,38 @@ export function BottomNavBar({
             </button>
           );
         })}
+
+        {/* User Profile Navigation Button */}
+        {onOpenProfile && (
+          <button
+            id="bottom-nav-profile"
+            onClick={onOpenProfile}
+            className="relative flex-1 flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 group text-slate-400 hover:text-slate-200 hover:bg-[#14172f]/60"
+            title="My Profile"
+          >
+            <div className="relative p-0.5">
+              <div
+                className={`w-6 h-6 rounded-lg bg-gradient-to-tr ${themeConfig.gradient} flex items-center justify-center text-[10px] font-bold text-white overflow-hidden group-hover:scale-105 transition-transform border border-white/20 shadow-sm`}
+              >
+                {user?.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name || 'Profile'}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : user?.name ? (
+                  user.name[0].toUpperCase()
+                ) : (
+                  <User className="w-3.5 h-3.5" />
+                )}
+              </div>
+            </div>
+            <span className="text-[10px] tracking-tight font-medium mt-0.5 text-slate-400 group-hover:text-slate-200">
+              Profile
+            </span>
+          </button>
+        )}
       </div>
     </nav>
   );

@@ -102,7 +102,26 @@
       "timezone": "America/Chicago",
       "statusMessage": "🟢 Deep work on ledger synchronization",
       "createdAt": "2026-02-15T08:15:00.000Z",
-      "lastActiveAt": "2026-09-12T08:30:00.000Z"
+      "lastActiveAt": "2026-09-13T11:54:42.281Z"
+    },
+    {
+      "id": "usr_mtzqyn6z_3bmw",
+      "email": "ehabwalyaldeen10@gmail.com",
+      "name": "Ehab Walyaldeen",
+      "role": "leader",
+      "title": "Engineering Contributor",
+      "department": "Core Engineering",
+      "location": "Remote",
+      "bio": "Active member of Nexora Workspace",
+      "skills": [
+        "Collaboration",
+        "Project Management"
+      ],
+      "createdAt": "2026-09-13T11:45:00.395Z",
+      "lastActiveAt": "2026-09-13T11:45:00.395Z",
+      "githubHandle": "",
+      "timezone": "UTC",
+      "statusMessage": "🟢 Active in Workspace"
     }
   ],
   "workspaces": [
@@ -148,6 +167,13 @@
       "userId": "usr_member",
       "role": "member",
       "joinedAt": "2026-02-15T08:15:00.000Z"
+    },
+    {
+      "id": "wm_mtzqyn6z",
+      "workspaceId": "ws_default",
+      "userId": "usr_mtzqyn6z_3bmw",
+      "role": "leader",
+      "joinedAt": "2026-09-13T11:45:00.395Z"
     }
   ],
   "teams": [
@@ -332,39 +358,8 @@
         "usr_member"
       ],
       "createdAt": "2026-04-12T14:30:00.000Z",
-      "updatedAt": "2026-09-08T10:00:00.000Z"
-    }
-  ],
-  "milestones": [
-    {
-      "id": "ms_aurora_1",
-      "projectId": "proj_aurora",
-      "title": "M1: Cryptographic Handshake Specification",
-      "description": "Finalize RFC and establish formal verification lemmas with peer review.",
-      "dueDate": "2026-08-15T18:00:00.000Z",
-      "status": "completed",
-      "ownerId": "usr_leader",
-      "createdAt": "2026-02-12T10:00:00.000Z"
-    },
-    {
-      "id": "ms_aurora_2",
-      "projectId": "proj_aurora",
-      "title": "M2: Edge Node Benchmarking & Proof Verifier",
-      "description": "Deploy 50 simulated edge clusters and measure verified throughput under load.",
-      "dueDate": "2026-09-25T18:00:00.000Z",
-      "status": "in_progress",
-      "ownerId": "usr_member",
-      "createdAt": "2026-02-12T10:00:00.000Z"
-    },
-    {
-      "id": "ms_zt_1",
-      "projectId": "proj_zerotrust",
-      "title": "M1: Egress Policy Enforcement Engine",
-      "description": "Implement eBPF packet inspection rules for egress traffic filtering.",
-      "dueDate": "2026-09-18T18:00:00.000Z",
-      "status": "in_progress",
-      "ownerId": "usr_member",
-      "createdAt": "2026-03-05T10:00:00.000Z"
+      "updatedAt": "2026-09-08T10:00:00.000Z",
+      "expenseItems": []
     }
   ],
   "tasks": [
@@ -543,6 +538,38 @@
       "checklist": [],
       "createdAt": "2026-09-05T11:00:00.000Z",
       "updatedAt": "2026-09-05T11:00:00.000Z"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "ms_aurora_1",
+      "projectId": "proj_aurora",
+      "title": "M1: Cryptographic Handshake Specification",
+      "description": "Finalize RFC and establish formal verification lemmas with peer review.",
+      "dueDate": "2026-08-15T18:00:00.000Z",
+      "status": "completed",
+      "ownerId": "usr_leader",
+      "createdAt": "2026-02-12T10:00:00.000Z"
+    },
+    {
+      "id": "ms_aurora_2",
+      "projectId": "proj_aurora",
+      "title": "M2: Edge Node Benchmarking & Proof Verifier",
+      "description": "Deploy 50 simulated edge clusters and measure verified throughput under load.",
+      "dueDate": "2026-09-25T18:00:00.000Z",
+      "status": "in_progress",
+      "ownerId": "usr_member",
+      "createdAt": "2026-02-12T10:00:00.000Z"
+    },
+    {
+      "id": "ms_zt_1",
+      "projectId": "proj_zerotrust",
+      "title": "M1: Egress Policy Enforcement Engine",
+      "description": "Implement eBPF packet inspection rules for egress traffic filtering.",
+      "dueDate": "2026-09-18T18:00:00.000Z",
+      "status": "in_progress",
+      "ownerId": "usr_member",
+      "createdAt": "2026-03-05T10:00:00.000Z"
     }
   ],
   "proofSubmissions": [
@@ -746,6 +773,56 @@
     }
   },
   "activityEvents": [
+    {
+      "id": "act_1789300482282_4rhfy",
+      "workspaceId": "ws_default",
+      "userId": "usr_leader",
+      "action": "Changed Member Rank",
+      "entityType": "setting",
+      "entityId": "usr_member",
+      "details": "Marcus Chen changed rank of Alex Rivera from \"co-leader\" to \"member\"",
+      "createdAt": "2026-09-13T11:54:42.282Z"
+    },
+    {
+      "id": "act_1789300479990_sizlh",
+      "workspaceId": "ws_default",
+      "userId": "usr_leader",
+      "action": "Promoted to Leader",
+      "entityType": "setting",
+      "entityId": "usr_member",
+      "details": "Marcus Chen changed rank of Alex Rivera from \"member\" to \"co-leader\"",
+      "createdAt": "2026-09-13T11:54:39.990Z"
+    },
+    {
+      "id": "act_1789300473547_l165e",
+      "workspaceId": "ws_default",
+      "userId": "usr_leader",
+      "action": "Signed in via OAuth",
+      "entityType": "auth",
+      "entityId": "usr_leader",
+      "details": "Authenticated via Enterprise SSO",
+      "createdAt": "2026-09-13T11:54:33.547Z"
+    },
+    {
+      "id": "act_1789300463892_4jsng",
+      "workspaceId": "ws_default",
+      "userId": "usr_coleader",
+      "action": "Signed in via OAuth",
+      "entityType": "auth",
+      "entityId": "usr_coleader",
+      "details": "Authenticated via Enterprise SSO",
+      "createdAt": "2026-09-13T11:54:23.892Z"
+    },
+    {
+      "id": "act_1789299900398_e08v0",
+      "workspaceId": "ws_default",
+      "userId": "usr_mtzqyn6z_3bmw",
+      "action": "Registered new account",
+      "entityType": "auth",
+      "entityId": "usr_mtzqyn6z_3bmw",
+      "details": "Created new user account (ehabwalyaldeen10@gmail.com) as leader",
+      "createdAt": "2026-09-13T11:45:00.398Z"
+    },
     {
       "id": "act_1",
       "workspaceId": "ws_default",
@@ -970,6 +1047,22 @@
       "userId": "usr_owner",
       "workspaceId": "ws_default",
       "expiresAt": 1791825410348
+    },
+    "nexora_sess_e710a7f78cb85082e6737e63b65253c5195a429d9a4c7f20ad67ea16803fbf55": {
+      "userId": "usr_mtzqyn6z_3bmw",
+      "workspaceId": "ws_default",
+      "expiresAt": 1791891900397
+    },
+    "nexora_sess_094903c3627fd11d8d450ef55c1ef36f41a60c1685b696d526ce266dec16a678": {
+      "userId": "usr_coleader",
+      "workspaceId": "ws_default",
+      "expiresAt": 1791892463890
+    },
+    "nexora_sess_35082845671672dc455f97b30a15b41c158fe075716e2204364cb8f53470bb41": {
+      "userId": "usr_leader",
+      "workspaceId": "ws_default",
+      "expiresAt": 1791892473545
     }
-  }
+  },
+  "projectInvitations": []
 }

@@ -36,6 +36,7 @@ import {
   Flame,
   Crown,
   ChevronDown,
+  ChevronRight,
   User as UserIcon,
   Camera,
   Image as ImageIcon,
@@ -64,7 +65,7 @@ export function MemberProfileModal({
   const [profileData, setProfileData] = useState<UserProfileDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'tasks'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'tasks' | 'role'>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -85,6 +86,7 @@ export function MemberProfileModal({
   const [newSkillInput, setNewSkillInput] = useState('');
   const [changingRank, setChangingRank] = useState(false);
   const [rankSuccessMsg, setRankSuccessMsg] = useState<string | null>(null);
+  const [isConfirmChangeRoleOpen, setIsConfirmChangeRoleOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isConfirmStep2Open, setIsConfirmStep2Open] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
@@ -358,30 +360,36 @@ export function MemberProfileModal({
                   </button>
                 )}
 
-                {/* Leader / Owner Rank Management Action */}
-                {canChangeRank && (
-                  <div className="flex items-center gap-1.5">
-                    {user.role === 'member' ? (
-                      <button
-                        onClick={() => handleChangeRank('leader')}
-                        disabled={changingRank}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-medium shadow-md shadow-amber-950/40 transition-all disabled:opacity-50"
-                        title="Promote this member to Leader rank"
-                      >
-                        <Crown className="w-3.5 h-3.5" />
-                        <span>{changingRank ? 'Promoting...' : 'Promote to Leader'}</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleChangeRank('member')}
-                        disabled={changingRank}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1b1e38] hover:bg-[#25294c] border border-amber-500/30 text-amber-200 text-xs font-medium transition-colors disabled:opacity-50"
-                        title="Change rank back to Member"
-                      >
-                        <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{changingRank ? 'Updating...' : 'Set as Member'}</span>
-                      </button>
-                    )}
+                {/* Leader / Owner: Tap on role to change it */}
+                {canChangeRank ? (
+                  <button
+                    id="btn-tap-change-role"
+                    type="button"
+                    onClick={() => setIsConfirmChangeRoleOpen(true)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#101222] hover:bg-[#181b36] border border-amber-500/40 hover:border-amber-400 text-xs transition-all group shadow-sm whitespace-nowrap cursor-pointer"
+                    title={`Current role: ${user.role}. Click to change role.`}
+                  >
+                    <div className="flex items-center gap-1.5 font-semibold text-slate-100 group-hover:text-amber-300 transition-colors">
+                      {user.role === 'leader' && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                      {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
+                      {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+                      <span className="capitalize">
+                        {user.role === 'co-leader' ? 'Co-Leader' : user.role === 'leader' ? 'Leader' : 'Member'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 group-hover:bg-amber-500/25 transition-colors">
+                      Change Role
+                    </span>
+                  </button>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#101222] border border-[#232746] text-xs text-slate-300 whitespace-nowrap">
+                    {user.role === 'owner' && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                    {user.role === 'leader' && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                    {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
+                    {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+                    <span className="capitalize font-medium">
+                      {user.role === 'co-leader' ? 'Co-Leader' : user.role === 'leader' ? 'Leader' : user.role === 'owner' ? 'Owner' : 'Member'}
+                    </span>
                   </div>
                 )}
 
@@ -741,10 +749,10 @@ export function MemberProfileModal({
               </div>
 
               {/* Navigation Tabs */}
-              <div className="flex border-b border-[#1f2344] gap-1">
+              <div className="flex border-b border-[#1f2344] gap-1 overflow-x-auto scrollbar-none">
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === 'overview'
                       ? 'border-purple-500 text-purple-300 font-semibold'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -754,7 +762,7 @@ export function MemberProfileModal({
                 </button>
                 <button
                   onClick={() => setActiveTab('projects')}
-                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                     activeTab === 'projects'
                       ? 'border-purple-500 text-purple-300 font-semibold'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -767,7 +775,7 @@ export function MemberProfileModal({
                 </button>
                 <button
                   onClick={() => setActiveTab('tasks')}
-                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                     activeTab === 'tasks'
                       ? 'border-purple-500 text-purple-300 font-semibold'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -778,6 +786,25 @@ export function MemberProfileModal({
                     {profileData.tasks.length}
                   </span>
                 </button>
+
+                {/* Leader: Choose Role Tab */}
+                {canChangeRank && (
+                  <button
+                    id="tab-btn-role"
+                    onClick={() => setActiveTab('role')}
+                    className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                      activeTab === 'role'
+                        ? 'border-amber-500 text-amber-300 font-semibold'
+                        : 'border-transparent text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>Choose Role</span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-semibold">
+                      Leader
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* TAB CONTENT: OVERVIEW */}
@@ -791,65 +818,46 @@ export function MemberProfileModal({
                     </div>
                   )}
 
-                  {/* Leader / Owner Rank Management Governance Card */}
+                  {/* Leader / Owner Role Governance Link Banner */}
                   {canChangeRank && (
-                    <div className="p-4 rounded-xl bg-gradient-to-r from-[#17142b] to-[#121324] border border-amber-500/30 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Crown className="w-4 h-4 text-amber-400" />
-                          <span className="text-xs font-semibold text-white">Leader Governance: Member Rank Assignment</span>
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-[#17142b] to-[#121324] border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-[#0e1022] border border-[#222544] shrink-0">
+                          {user.role === 'leader' && <Crown className="w-4 h-4 text-amber-400" />}
+                          {user.role === 'co-leader' && <Shield className="w-4 h-4 text-indigo-400" />}
+                          {user.role === 'member' && <UserCheck className="w-4 h-4 text-purple-400" />}
                         </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                          Leader Action
-                        </span>
+                        <div>
+                          <div className="text-xs font-semibold text-white flex items-center gap-2">
+                            <span>Leader Governance: Member Role</span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              Leader Access
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                            Current Role:{' '}
+                            <strong className="text-white capitalize inline-flex items-center gap-1 font-semibold">
+                              {user.role === 'leader' && <Crown className="w-3 h-3 text-amber-400" />}
+                              {user.role === 'co-leader' && <Shield className="w-3 h-3 text-indigo-400" />}
+                              {user.role === 'member' && <UserCheck className="w-3 h-3 text-purple-400" />}
+                              {user.role === 'co-leader' ? 'Co-Leader' : user.role === 'leader' ? 'Leader' : 'Member'}
+                            </strong>
+                            . Open the Choose Role tab to change permissions and assign roles.
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">
-                        As a workspace leader, you can change this member's rank (e.g. promote from Member to Leader). Profile biography, skills, and personal contacts are strictly edited by the member themselves.
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <span className="text-[11px] text-slate-400 font-mono">Set Rank:</span>
-                        <button
-                          type="button"
-                          onClick={() => handleChangeRank('member')}
-                          disabled={changingRank || user.role === 'member'}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            user.role === 'member'
-                              ? 'bg-purple-900/50 text-purple-200 border border-purple-500/40 ring-1 ring-purple-500/30 cursor-default'
-                              : 'bg-[#1b1e38] hover:bg-[#25294c] border border-[#2d325a] text-slate-300'
-                          }`}
-                        >
-                          {user.role === 'member' && <Check className="w-3 h-3 inline mr-1 text-purple-400" />}
-                          Member
-                        </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleChangeRank('leader')}
-                          disabled={changingRank || user.role === 'leader'}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            user.role === 'leader'
-                              ? 'bg-amber-950/60 text-amber-200 border border-amber-500/50 ring-1 ring-amber-500/30 cursor-default'
-                              : 'bg-amber-600 hover:bg-amber-500 text-white shadow-sm shadow-amber-950/40'
-                          }`}
-                        >
-                          {user.role === 'leader' && <Check className="w-3 h-3 inline mr-1 text-amber-300" />}
-                          Leader {user.role !== 'leader' && '(Promote)'}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleChangeRank('co-leader')}
-                          disabled={changingRank || user.role === 'co-leader'}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                            user.role === 'co-leader'
-                              ? 'bg-indigo-950/60 text-indigo-200 border border-indigo-500/50 ring-1 ring-indigo-500/30 cursor-default'
-                              : 'bg-[#1b1e38] hover:bg-[#25294c] border border-[#2d325a] text-slate-300'
-                          }`}
-                        >
-                          {user.role === 'co-leader' && <Check className="w-3 h-3 inline mr-1 text-indigo-300" />}
-                          Co-Leader
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsConfirmChangeRoleOpen(true)}
+                        className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold flex items-center gap-1.5 transition-all shrink-0 whitespace-nowrap shadow-md shadow-amber-950/40 cursor-pointer"
+                      >
+                        {user.role === 'leader' && <Crown className="w-3.5 h-3.5 text-black" />}
+                        {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-black" />}
+                        {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-black" />}
+                        <span>Change Role</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-black/80" />
+                      </button>
                     </div>
                   )}
 
@@ -1149,6 +1157,282 @@ export function MemberProfileModal({
                   )}
                 </div>
               )}
+
+              {/* TAB CONTENT: ROLE (DEDICATED ROLE ASSIGNMENT TAB) */}
+              {activeTab === 'role' && canChangeRank && (
+                <div className="space-y-4 animate-in fade-in duration-150">
+                  {/* Rank update feedback notification */}
+                  {rankSuccessMsg && (
+                    <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2.5 shadow-md">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="font-medium">{rankSuccessMsg}</span>
+                    </div>
+                  )}
+
+                  {/* Header Banner */}
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-[#17142b] to-[#121324] border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 rounded-xl bg-[#0e1022] border border-[#222544] shrink-0">
+                        {user.role === 'leader' && <Crown className="w-5 h-5 text-amber-400" />}
+                        {user.role === 'co-leader' && <Shield className="w-5 h-5 text-indigo-400" />}
+                        {user.role === 'member' && <UserCheck className="w-5 h-5 text-purple-400" />}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                          <span>Assign Role for {user.name}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                            Leader Governance
+                          </span>
+                        </h4>
+                        <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                          Choose a role below to configure this member's system authority and administrative privileges. Changes apply immediately.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0a0c18] border border-[#232746] text-xs shrink-0 self-start sm:self-center">
+                      <span className="text-slate-400 font-mono text-[11px]">Current:</span>
+                      <div className="flex items-center gap-1.5 font-semibold text-white capitalize">
+                        {user.role === 'leader' && <Crown className="w-3.5 h-3.5 text-amber-400" />}
+                        {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-indigo-400" />}
+                        {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-purple-400" />}
+                        <span>{user.role === 'co-leader' ? 'Co-Leader' : user.role === 'leader' ? 'Leader' : 'Member'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Role Cards with Icons always visible */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                    {/* 1. Member Role Card */}
+                    <div
+                      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                        user.role === 'member'
+                          ? 'bg-gradient-to-b from-[#191535] to-[#101228] border-purple-500/60 ring-1 ring-purple-500/40 shadow-lg shadow-purple-950/40'
+                          : 'bg-[#0d0f1e] border-[#22264a] hover:border-purple-500/40'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shadow-sm">
+                            <UserCheck className="w-5 h-5 text-purple-400" />
+                          </div>
+                          {user.role === 'member' ? (
+                            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/50 text-purple-300 text-[10px] font-mono font-semibold flex items-center gap-1">
+                              <Check className="w-3 h-3 text-purple-400" />
+                              Active Role
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono text-slate-500">Tier 1</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <h5 className="text-sm font-bold text-white flex items-center gap-1.5">
+                            <UserCheck className="w-4 h-4 text-purple-400 shrink-0" />
+                            <span>Member</span>
+                          </h5>
+                          <div className="text-[11px] font-mono text-purple-300/80 mt-0.5">Standard Contributor</div>
+                        </div>
+
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          Standard project member with deliverable execution and peer messaging capabilities.
+                        </p>
+
+                        <div className="space-y-1.5 pt-2 border-t border-[#1f223f] text-[11px] text-slate-300">
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Complete & submit assigned deliverables</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Upload proof files & activity logs</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Direct messaging & squad discussions</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-500">
+                            <X className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                            <span>Cannot delete teams or manage roles</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 mt-3 border-t border-[#1f223f]">
+                        <button
+                          type="button"
+                          disabled={changingRank || user.role === 'member'}
+                          onClick={() => handleChangeRank('member')}
+                          className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                            user.role === 'member'
+                              ? 'bg-purple-950/60 text-purple-300 border border-purple-500/40 cursor-default opacity-85'
+                              : 'bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                          }`}
+                        >
+                          {changingRank ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <UserCheck className="w-3.5 h-3.5 text-purple-300" />
+                          )}
+                          <span>{user.role === 'member' ? 'Current Active Role' : 'Assign Member Role'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Co-Leader Role Card */}
+                    <div
+                      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                        user.role === 'co-leader'
+                          ? 'bg-gradient-to-b from-[#131b3e] to-[#0f142e] border-indigo-500/60 ring-1 ring-indigo-500/40 shadow-lg shadow-indigo-950/40'
+                          : 'bg-[#0d0f1e] border-[#22264a] hover:border-indigo-500/40'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 shadow-sm">
+                            <Shield className="w-5 h-5 text-indigo-400" />
+                          </div>
+                          {user.role === 'co-leader' ? (
+                            <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/50 text-indigo-300 text-[10px] font-mono font-semibold flex items-center gap-1">
+                              <Check className="w-3 h-3 text-indigo-400" />
+                              Active Role
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono text-slate-500">Tier 2</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <h5 className="text-sm font-bold text-white flex items-center gap-1.5">
+                            <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
+                            <span>Co-Leader</span>
+                          </h5>
+                          <div className="text-[11px] font-mono text-indigo-300/80 mt-0.5">Operational Leadership</div>
+                        </div>
+
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          Operations and sprint co-leader. Orchestrates deliverables, milestones, and proofs.
+                        </p>
+
+                        <div className="space-y-1.5 pt-2 border-t border-[#1f223f] text-[11px] text-slate-300">
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Create, edit, and assign project tasks</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Manage milestones & verify member proofs</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Invite members to project workspaces</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-500">
+                            <X className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                            <span>Cannot delete teams or reset workspace data</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 mt-3 border-t border-[#1f223f]">
+                        <button
+                          type="button"
+                          disabled={changingRank || user.role === 'co-leader'}
+                          onClick={() => handleChangeRank('co-leader')}
+                          className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                            user.role === 'co-leader'
+                              ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-500/40 cursor-default opacity-85'
+                              : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                          }`}
+                        >
+                          {changingRank ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Shield className="w-3.5 h-3.5 text-indigo-300" />
+                          )}
+                          <span>{user.role === 'co-leader' ? 'Current Active Role' : 'Assign Co-Leader Role'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 3. Leader Role Card */}
+                    <div
+                      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                        user.role === 'leader'
+                          ? 'bg-gradient-to-b from-[#241a10] to-[#14111f] border-amber-500/60 ring-1 ring-amber-500/40 shadow-lg shadow-amber-950/40'
+                          : 'bg-[#0d0f1e] border-[#22264a] hover:border-amber-500/40'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shadow-sm">
+                            <Crown className="w-5 h-5 text-amber-400" />
+                          </div>
+                          {user.role === 'leader' ? (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[10px] font-mono font-semibold flex items-center gap-1">
+                              <Check className="w-3 h-3 text-amber-400" />
+                              Active Role
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono text-amber-400/80 font-bold">Tier 3 (Executive)</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <h5 className="text-sm font-bold text-white flex items-center gap-1.5">
+                            <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span>Leader</span>
+                          </h5>
+                          <div className="text-[11px] font-mono text-amber-300/80 mt-0.5">Workspace Governance</div>
+                        </div>
+
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          Full workspace governance. Can manage squads, assign roles, and perform workspace resets.
+                        </p>
+
+                        <div className="space-y-1.5 pt-2 border-t border-[#1f223f] text-[11px] text-slate-300">
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>All Member & Co-Leader capabilities</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Promote/demote members across all roles</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Create and delete team squads</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Exclusive authority to wipe/reset data</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 mt-3 border-t border-[#1f223f]">
+                        <button
+                          type="button"
+                          disabled={changingRank || user.role === 'leader'}
+                          onClick={() => handleChangeRank('leader')}
+                          className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                            user.role === 'leader'
+                              ? 'bg-amber-950/60 text-amber-300 border border-amber-500/40 cursor-default opacity-85'
+                              : 'bg-amber-500 hover:bg-amber-400 text-black shadow-md shadow-amber-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                          }`}
+                        >
+                          {changingRank ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Crown className="w-3.5 h-3.5 text-black" />
+                          )}
+                          <span>{user.role === 'leader' ? 'Current Active Role' : 'Promote to Leader'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1236,6 +1520,20 @@ export function MemberProfileModal({
           }}
         />
       )}
+
+      {/* Role Change Confirmation Prompt Modal */}
+      <ConfirmModal
+        isOpen={isConfirmChangeRoleOpen}
+        onClose={() => setIsConfirmChangeRoleOpen(false)}
+        onConfirm={() => {
+          setIsConfirmChangeRoleOpen(false);
+          setIsEditing(false);
+          setActiveTab('role');
+        }}
+        title={`Change Role for ${user?.name || 'Member'}?`}
+        message={`Do you want to change the workspace role for ${user?.name || 'this member'}? If confirmed, the Role Selection tab will open so you can assign their new role as Member, Co-Leader, or Leader.`}
+        confirmLabel="Yes, Choose Role"
+      />
 
       {/* Step 1: Initial Deletion Confirmation Modal */}
       <ConfirmModal

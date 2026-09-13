@@ -164,6 +164,12 @@ export const api = {
     });
   },
 
+  async deleteTeam(teamId: string): Promise<{ success: boolean; deletedId: string; message: string }> {
+    return request(`/api/teams/${teamId}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Projects
   async getProjects(): Promise<Project[]> {
     return request('/api/projects');

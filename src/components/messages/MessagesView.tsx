@@ -17,6 +17,7 @@ import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
 import { RoleBadge } from '../common/Badges.js';
+import { ConfirmModal } from '../common/Modal.js';
 import { VoiceRecorder } from './VoiceRecorder.js';
 import { AudioPlayer } from './AudioPlayer.js';
 
@@ -124,6 +125,9 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
 
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleEditSubmit = async (messageId: string) => {
     if (!editingText.trim() || !selectedTarget) {
@@ -140,26 +144,31 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
       }
       setMessages(prev => prev.map(m => m.id === messageId ? updated : m));
     } catch (e: any) {
-      alert(e.message || 'Failed to edit message');
+      setActionError(e.message || 'Failed to edit message');
     } finally {
       setEditingMessageId(null);
       setEditingText('');
     }
   };
 
-  const handleDelete = async (messageId: string) => {
-    if (!selectedTarget) return;
-    if (!confirm('Delete this message?')) return;
+  const handleConfirmDelete = async () => {
+    if (!messageToDelete || !selectedTarget) return;
+    const targetMsgId = messageToDelete;
+    setIsDeleting(true);
+    setActionError(null);
     
     try {
       if (selectedTarget.type === 'project') {
-        await api.deleteProjectMessage(selectedTarget.id, messageId);
+        await api.deleteProjectMessage(selectedTarget.id, targetMsgId);
       } else {
-        await api.deleteDirectMessage(selectedTarget.id, messageId);
+        await api.deleteDirectMessage(selectedTarget.id, targetMsgId);
       }
-      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setMessages(prev => prev.filter(m => m.id !== targetMsgId));
+      setMessageToDelete(null);
     } catch (e: any) {
-      alert(e.message || 'Failed to delete message');
+      setActionError(e.message || 'Failed to delete message');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -266,6 +275,20 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
           </span>
         </div>
 
+        {/* Error notification */}
+        {actionError && (
+          <div className="mx-4 mt-2 px-3 py-2 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-200 text-xs flex items-center justify-between shadow-sm animate-in fade-in">
+            <span>{actionError}</span>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              className="text-rose-400 hover:text-rose-200 text-xs font-semibold ml-2 px-1 py-0.5 rounded hover:bg-rose-900/40"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Message Log */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-3">
           {!selectedTarget ? (
@@ -282,6 +305,9 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
               const authorId = m.userId || m.senderId;
               const author = users.find((u) => u.id === authorId);
               const isMe = authorId === user?.id;
+              const isLeader = user?.role === 'owner' || user?.role === 'leader';
+              const canEdit = isMe;
+              const canDelete = isMe || isLeader;
 
               return (
                 <div
@@ -297,13 +323,42 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
                     <span className={`font-semibold ${isMe ? 'text-purple-200' : 'text-purple-300'}`}>
                       {isMe ? 'You' : author ? author.name : authorId}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {m.isEdited && (
                         <span className={`text-[9px] font-mono italic ${isMe ? 'text-purple-200/80' : 'text-slate-500'}`}>(edited)</span>
                       )}
                       <span className={`text-[10px] font-mono ${isMe ? 'text-purple-200/80' : 'text-slate-500'}`}>
                         {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
+                      {canEdit && !editingMessageId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingMessageId(m.id);
+                            setEditingText(m.content);
+                          }}
+                          className={`p-1 transition-colors rounded ${
+                            isMe ? 'text-purple-200 hover:text-white hover:bg-black/20' : 'text-slate-400 hover:text-purple-300 hover:bg-[#181b36]'
+                          }`}
+                          title="Edit message"
+                          aria-label="Edit message"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                      {canDelete && !editingMessageId && (
+                        <button
+                          type="button"
+                          onClick={() => setMessageToDelete(m.id)}
+                          className={`p-1 transition-colors rounded ${
+                            isMe ? 'text-purple-200 hover:text-rose-200 hover:bg-black/20' : 'text-slate-400 hover:text-rose-400 hover:bg-[#181b36]'
+                          }`}
+                          title="Delete message"
+                          aria-label="Delete message"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                   {editingMessageId === m.id ? (
@@ -329,27 +384,6 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
                       <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
                       {m.audioUrl && <AudioPlayer audioUrl={m.audioUrl} />}
                     </>
-                  )}
-                  {isMe && !editingMessageId && (
-                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[#181a33] p-1 rounded-lg border border-purple-500/30">
-                      <button
-                        onClick={() => {
-                          setEditingMessageId(m.id);
-                          setEditingText(m.content);
-                        }}
-                        className="p-1 text-slate-400 hover:text-purple-300 transition-colors"
-                        title="Edit message"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(m.id)}
-                        className="p-1 text-slate-400 hover:text-red-400 transition-colors"
-                        title="Delete message"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
                   )}
                 </div>
               );
@@ -393,6 +427,19 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal for Message Deletion */}
+      <ConfirmModal
+        isOpen={!!messageToDelete}
+        onClose={() => {
+          if (!isDeleting) setMessageToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Message"
+        message="Are you sure you want to permanently delete this message? This action cannot be undone."
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete Message'}
+        destructive={true}
+      />
     </div>
   );
 }

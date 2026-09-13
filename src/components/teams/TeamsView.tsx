@@ -65,6 +65,8 @@ export function TeamsView({
   const [inviteUserId, setInviteUserId] = useState('');
 
   const [removeTarget, setRemoveTarget] = useState<{ teamId: string; userId: string; userName: string } | null>(null);
+  const [deleteTeamTarget, setDeleteTeamTarget] = useState<Team | null>(null);
+  const [deletingTeam, setDeletingTeam] = useState(false);
 
   const canManage = role === 'owner' || role === 'leader';
 
@@ -139,6 +141,20 @@ export function TeamsView({
     await api.removeTeamMember(removeTarget.teamId, removeTarget.userId);
     setRemoveTarget(null);
     fetchData();
+  };
+
+  const handleConfirmDeleteTeam = async () => {
+    if (!deleteTeamTarget) return;
+    setDeletingTeam(true);
+    try {
+      await api.deleteTeam(deleteTeamTarget.id);
+      setDeleteTeamTarget(null);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete team');
+    } finally {
+      setDeletingTeam(false);
+    }
   };
 
   // Distinct departments for filter
@@ -240,15 +256,27 @@ export function TeamsView({
                       <h3 className="text-lg font-display font-semibold text-slate-100">{team.name}</h3>
                       <p className="text-xs text-slate-400 mt-0.5">{team.description}</p>
                     </div>
-                    {canManage && (
-                      <button
-                        onClick={() => setInviteModalTeam(team)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14162a] border border-[#232746] hover:border-purple-500/40 text-purple-300 text-xs font-medium transition-colors"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        <span>Add Member</span>
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canManage && (
+                        <>
+                          <button
+                            onClick={() => setInviteModalTeam(team)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14162a] border border-[#232746] hover:border-purple-500/40 text-purple-300 text-xs font-medium transition-colors"
+                            title="Add Member to Squad"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Add Member</span>
+                          </button>
+                          <button
+                            onClick={() => setDeleteTeamTarget(team)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 border border-[#232746] hover:border-rose-500/40 transition-all"
+                            title={`Delete squad ${team.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* Team Leadership with clickable profiles */}
@@ -705,6 +733,17 @@ export function TeamsView({
         title="Remove Member from Team"
         message={`Are you sure you want to remove ${removeTarget?.userName} from this team? Their existing task assignments will remain recorded in the audit log.`}
         confirmLabel="Remove Member"
+        destructive
+      />
+
+      {/* Delete team confirmation dialog */}
+      <ConfirmModal
+        isOpen={!!deleteTeamTarget}
+        onClose={() => setDeleteTeamTarget(null)}
+        onConfirm={handleConfirmDeleteTeam}
+        title={`Delete Team "${deleteTeamTarget?.name}"?`}
+        message={`Are you sure you want to delete the team "${deleteTeamTarget?.name}"? Any active projects associated with this team will remain intact but will be unassigned from this squad. This action cannot be undone.`}
+        confirmLabel={deletingTeam ? 'Deleting...' : 'Delete Team'}
         destructive
       />
     </div>

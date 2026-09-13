@@ -85,9 +85,27 @@ export function SettingsView() {
     }
   };
 
+  const canResetData = role === 'leader' || role === 'owner';
+
   const handleResetDefaults = async () => {
-    await fetch('/api/reset-data', { method: 'POST' });
-    window.location.reload();
+    if (!canResetData) return;
+    try {
+      const res = await fetch('/api/reset-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(user?.id ? { 'x-user-id': user.id } : {}),
+        },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || 'Only workspace leaders have the ability to reset all data.');
+        return;
+      }
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset workspace data');
+    }
   };
 
   return (
@@ -434,35 +452,44 @@ export function SettingsView() {
         </div>
       </div>
 
-      {/* Reset to Empty Workspace */}
-      <div className="p-5 rounded-2xl bg-rose-950/20 border border-rose-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h4 className="text-sm font-semibold text-rose-300 flex items-center gap-1.5">
-            <AlertTriangle className="w-4 h-4" />
-            <span>Empty Workspace / Reset All Data</span>
-          </h4>
-          <p className="text-xs text-rose-400/80 mt-0.5">
-            Wipe all projects, tasks, milestones, proofs, and messages to start with a clean empty state.
-          </p>
-        </div>
+      {/* Reset to Empty Workspace - Leader Only */}
+      {canResetData && (
+        <>
+          <div className="p-5 rounded-2xl bg-rose-950/20 border border-rose-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-rose-300 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Empty Workspace / Reset All Data</span>
+                </h4>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  Leader Authority Only
+                </span>
+              </div>
+              <p className="text-xs text-rose-400/80 mt-1">
+                Wipe all projects, tasks, milestones, proofs, and messages to start with a clean empty state. Co-leaders and members are not authorized to reset workspace data.
+              </p>
+            </div>
 
-        <button
-          onClick={() => setIsResetConfirmOpen(true)}
-          className="px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-medium transition-colors shrink-0"
-        >
-          Clear Workspace Data
-        </button>
-      </div>
+            <button
+              onClick={() => setIsResetConfirmOpen(true)}
+              className="px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-medium transition-colors shrink-0"
+            >
+              Clear Workspace Data
+            </button>
+          </div>
 
-      <ConfirmModal
-        isOpen={isResetConfirmOpen}
-        onClose={() => setIsResetConfirmOpen(false)}
-        onConfirm={handleResetDefaults}
-        title="Reset All Workspace Data?"
-        message="This will immediately overwrite current tasks, messages, and proofs with the default seed fixtures. This cannot be undone."
-        confirmLabel="Reset Everything"
-        destructive
-      />
+          <ConfirmModal
+            isOpen={isResetConfirmOpen}
+            onClose={() => setIsResetConfirmOpen(false)}
+            onConfirm={handleResetDefaults}
+            title="Reset All Workspace Data?"
+            message="This will immediately overwrite current tasks, messages, and proofs with the default seed fixtures. This cannot be undone."
+            confirmLabel="Reset Everything"
+            destructive
+          />
+        </>
+      )}
 
       <AvatarPickerModal
         isOpen={isAvatarPickerOpen}

@@ -523,6 +523,42 @@ apiRouter.patch('/teams/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADE
   res.json(updated);
 });
 
+apiRouter.delete('/teams/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const workspaceId = req.workspace!.id;
+  const currentUserId = req.user!.id;
+
+  const data = db.getRawData();
+  const existingTeam = data.teams.find((t) => t.id === id && t.workspaceId === workspaceId);
+  if (!existingTeam) {
+    res.status(404).json({ error: 'Team not found in current workspace' });
+    return;
+  }
+
+  const teamName = existingTeam.name;
+
+  db.mutate((d) => {
+    d.teams = d.teams.filter((t) => t.id !== id);
+    // Unlink any projects assigned to this team
+    for (const p of d.projects) {
+      if (p.teamId === id) {
+        p.teamId = undefined;
+      }
+    }
+  });
+
+  logActivity({
+    workspaceId,
+    userId: currentUserId,
+    action: 'Deleted team',
+    entityType: 'team',
+    entityId: id,
+    details: `${req.user!.name} deleted squad / team "${teamName}"`,
+  });
+
+  res.json({ success: true, deletedId: id, message: `Team "${teamName}" has been deleted.` });
+});
+
 apiRouter.post('/teams/:id/members', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { userId, email } = req.body;
@@ -2403,16 +2439,56 @@ apiRouter.put('/messages/project/:projectId/:messageId', requireAuth, (req: Auth
 apiRouter.delete('/messages/project/:projectId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const userId = req.user!.id;
+  const isPrivileged = req.user!.role === 'owner' || req.user!.role === 'leader';
 
   const result = db.mutate((data) => {
     const idx = data.projectMessages.findIndex(m => m.id === messageId);
     if (idx === -1) return null;
     const msg = data.projectMessages[idx];
     const authorId = msg.senderId || (msg as any).userId;
-    if (authorId !== userId) return 'unauthorized';
+    if (authorId !== userId && !isPrivileged) return 'unauthorized';
     
     data.projectMessages.splice(idx, 1);
     return true;
+  });
+
+  if (result === 'unauthorized') {
+    res.status(403).json({ error: 'Cannot delete someone else\'s message' });
+    return;
+  }
+  if (!result) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  res.json({ success: true });
+});
+
+apiRouter.delete('/messages/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { messageId } = req.params;
+  const userId = req.user!.id;
+  const isPrivileged = req.user!.role === 'owner' || req.user!.role === 'leader';
+
+  const result = db.mutate((data) => {
+    const pIdx = data.projectMessages.findIndex(m => m.id === messageId);
+    if (pIdx !== -1) {
+      const msg = data.projectMessages[pIdx];
+      const authorId = msg.senderId || (msg as any).userId;
+      if (authorId !== userId && !isPrivileged) return 'unauthorized';
+      data.projectMessages.splice(pIdx, 1);
+      return true;
+    }
+
+    const dIdx = data.directMessages.findIndex(m => m.id === messageId);
+    if (dIdx !== -1) {
+      const msg = data.directMessages[dIdx];
+      const authorId = msg.senderId || (msg as any).userId;
+      if (authorId !== userId && msg.receiverId !== userId && !isPrivileged) return 'unauthorized';
+      data.directMessages.splice(dIdx, 1);
+      return true;
+    }
+
+    return null;
   });
 
   if (result === 'unauthorized') {
@@ -2516,13 +2592,14 @@ apiRouter.put('/messages/direct/:otherUserId/:messageId', requireAuth, (req: Aut
 apiRouter.delete('/messages/direct/:otherUserId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const userId = req.user!.id;
+  const isPrivileged = req.user!.role === 'owner' || req.user!.role === 'leader';
 
   const result = db.mutate((data) => {
     const idx = data.directMessages.findIndex(m => m.id === messageId);
     if (idx === -1) return null;
     const msg = data.directMessages[idx];
     const authorId = msg.senderId || (msg as any).userId;
-    if (authorId !== userId) return 'unauthorized';
+    if (authorId !== userId && msg.receiverId !== userId && !isPrivileged) return 'unauthorized';
     
     data.directMessages.splice(idx, 1);
     return true;
@@ -3249,9 +3326,29 @@ apiRouter.get('/audit', requireAuth, (req: AuthenticatedRequest, res: Response) 
 });
 
 // ----------------------------------------------------
-// System Reset
+// System Reset (Strictly restricted: Leader and Owner only. Not even co-leader or members)
 // ----------------------------------------------------
-apiRouter.post('/reset-data', (req: any, res: Response) => {
-  db.resetToDefaults();
-  res.json({ success: true });
-});
+apiRouter.post(
+  '/reset-data',
+  requireAuth,
+  requireRole([ROLES.OWNER, ROLES.LEADER]),
+  (req: AuthenticatedRequest, res: Response) => {
+    if (req.role !== ROLES.OWNER && req.role !== ROLES.LEADER) {
+      res.status(403).json({ error: 'Forbidden: Only workspace leaders have the ability to reset all data.' });
+      return;
+    }
+
+    db.resetToDefaults();
+
+    logActivity({
+      workspaceId: req.workspace?.id || 'ws_default',
+      userId: req.user!.id,
+      action: 'Reset System Data',
+      entityType: 'setting',
+      entityId: 'system_reset',
+      details: `${req.user!.name} (${req.role}) executed full workspace reset to seed fixtures`,
+    });
+
+    res.json({ success: true, message: 'All workspace data has been reset to defaults.' });
+  }
+);

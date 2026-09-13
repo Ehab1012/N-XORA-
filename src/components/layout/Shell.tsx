@@ -18,6 +18,7 @@ import {
   Shield,
   Palette,
   Check,
+  User as UserIcon,
 } from 'lucide-react';
 import { PRODUCT_NAME, PRODUCT_STYLIZED_NAME } from '../../../shared/const.js';
 import { useAuth } from '../../contexts/AuthContext.js';
@@ -207,23 +208,32 @@ export function Shell({
           </button>
 
           {/* User Profile & Account Controls */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
+              id="my-profile-header-btn"
               onClick={() => setMyProfileOpen(true)}
-              className="flex items-center gap-2 pl-1.5 pr-2 sm:pr-2.5 py-1 h-9 rounded-xl bg-[#121426] border border-[#222646] hover:border-purple-500/50 hover:bg-[#181b34] transition-all group"
+              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 h-9 rounded-xl bg-[#121426] border border-[#222646] hover:border-purple-500/60 hover:bg-[#181b34] transition-all group shadow-sm"
               title="View & Edit My Profile"
             >
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden group-hover:scale-105 transition-transform shrink-0">
-                {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
-                ) : user?.name ? (
-                  user.name[0].toUpperCase()
-                ) : (
-                  'U'
-                )}
+              <div className="relative">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden group-hover:scale-105 transition-transform shrink-0 shadow-sm">
+                  {user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : user?.name ? (
+                    user.name[0].toUpperCase()
+                  ) : (
+                    <UserIcon className="w-3.5 h-3.5" />
+                  )}
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-[#121426]" />
               </div>
-              <span className="text-xs font-medium text-slate-200 group-hover:text-purple-300 transition-colors max-w-[90px] truncate hidden md:inline">
-                {user?.name}
+              <span className="text-xs font-medium text-slate-200 group-hover:text-purple-300 transition-colors max-w-[100px] truncate hidden sm:inline">
+                {user?.name || 'Profile'}
               </span>
             </button>
 
@@ -315,7 +325,46 @@ export function Shell({
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="md:hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-md pt-16 flex flex-col">
-            <div className="p-4 space-y-2 flex-1">
+            <div className="p-4 space-y-2 flex-1 overflow-y-auto">
+              {/* My Profile Quick Card on Mobile */}
+              {user && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setMyProfileOpen(true);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#17142e] to-[#121426] border border-purple-500/40 text-left mb-3 group shadow-md"
+                  title="View & Edit My Profile"
+                >
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-sm text-white overflow-hidden shrink-0 shadow-sm">
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt={user.name}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        user.name?.[0]?.toUpperCase() || 'U'
+                      )}
+                    </div>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0c0e1a]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors truncate">
+                      {user.name}
+                    </div>
+                    <div className="text-xs text-purple-300/80 font-mono capitalize flex items-center gap-1.5">
+                      <span>{user.role || 'Member'}</span>
+                      <span>•</span>
+                      <span className="text-slate-400">My Profile</span>
+                    </div>
+                  </div>
+                  <span className="text-xs text-purple-400 group-hover:translate-x-1 transition-transform">→</span>
+                </button>
+              )}
+
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -360,6 +409,8 @@ export function Shell({
           onSelectTab(tab);
         }}
         unreadMessagesCount={unreadCount}
+        onOpenProfile={() => setMyProfileOpen(true)}
+        user={user}
       />
 
       {/* Slideout Notification Drawer */}
