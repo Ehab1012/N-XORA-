@@ -66,7 +66,7 @@ export function SettingsView() {
 
   const handleSaveWorkspaceSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role !== 'owner') return;
+    if (role !== 'leader') return;
 
     setSavingWs(true);
     try {
@@ -85,7 +85,7 @@ export function SettingsView() {
     }
   };
 
-  const canResetData = role === 'leader' || role === 'owner';
+  const canResetData = role === 'leader';
 
   const handleResetDefaults = async () => {
     if (!canResetData) return;
@@ -358,12 +358,12 @@ export function SettingsView() {
         )}
       </div>
 
-      {/* Workspace Governance (Owner Only) */}
-      {role === 'owner' && (
+      {/* Workspace Governance (Leader Only) */}
+      {role === 'leader' && (
         <div className="glass-panel p-6 rounded-2xl border border-purple-500/30 space-y-4">
           <h3 className="text-base font-display font-semibold text-slate-100 flex items-center gap-2">
             <Lock className="w-4 h-4 text-purple-400" />
-            <span>Workspace Security Governance (Owner Only)</span>
+            <span>Workspace Security Governance (Leader Only)</span>
           </h3>
 
           <form onSubmit={handleSaveWorkspaceSettings} className="space-y-4 text-xs">

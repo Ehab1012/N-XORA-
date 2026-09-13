@@ -246,7 +246,7 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
     }
   };
 
-  const canManage = role === 'owner' || role === 'leader' || role === 'co-leader';
+  const canManage = role === 'leader' || role === 'co-leader';
 
   return (
     <div

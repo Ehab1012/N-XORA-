@@ -38,7 +38,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 
   if (!isOpen || !user) return null;
 
-  const isOwner = role === 'owner';
+  const isLeader = role === 'leader';
 
   const handleNext = async (nextStepIndex: number, stepName: string) => {
     setSaving(true);
@@ -85,13 +85,13 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
           </div>
           <div>
             <h3 className="text-sm font-mono text-purple-300 uppercase tracking-wider">
-              {isOwner ? `Workspace Setup • Step ${step} of 4` : `Welcome to ${workspace?.name || 'Nexora'}`}
+              {isLeader ? `Workspace Setup • Step ${step} of 4` : `Welcome to ${workspace?.name || 'Nexora'}`}
             </h3>
           </div>
         </div>
 
         {/* Dynamic Step Content */}
-        {isOwner ? (
+        {isLeader ? (
           <div className="space-y-6">
             {step === 1 && (
               <div>

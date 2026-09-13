@@ -82,7 +82,7 @@ export function DocumentThumbnail({
     document.body.removeChild(a);
   };
 
-  const canDelete = role === 'owner' || role === 'leader' || file.uploadedById === user?.id;
+  const canDelete = role === 'leader' || file.uploadedById === user?.id;
 
   const heightClass =
     size === 'sm' ? 'h-28' : size === 'lg' ? 'h-48' : 'h-36';

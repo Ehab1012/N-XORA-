@@ -227,7 +227,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
 
   const team = teams.find((t) => t.id === project.teamId);
   const leader = users.find((u) => u.id === project.leaderId);
-  const isLeaderOrOwner = role === 'owner' || role === 'leader' || role === 'co-leader';
+  const isLeaderOrOwner = role === 'leader' || role === 'co-leader';
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();

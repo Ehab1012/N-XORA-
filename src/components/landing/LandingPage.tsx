@@ -250,7 +250,7 @@ export function LandingPage({ onOpenAuthModal }: LandingPageProps) {
             </div>
             <h4 className="text-lg font-display font-semibold text-slate-100 mb-2">Role-Aware Authorization</h4>
             <p className="text-sm text-slate-400 leading-relaxed">
-              Enforced strictly on the server layer. Workspace Owners, Leaders, Co-Leaders, and Members have clear, verifiable
+              Enforced strictly on the server layer. Workspace Leaders, Leaders, Co-Leaders, and Members have clear, verifiable
               boundaries protecting private work from unauthorized tampering.
             </p>
           </div>
@@ -300,7 +300,7 @@ export function LandingPage({ onOpenAuthModal }: LandingPageProps) {
               </thead>
               <tbody className="divide-y divide-[#1e213b]">
                 <tr>
-                  <td className="py-3.5 px-4 font-semibold text-purple-300">Workspace Owner</td>
+                  <td className="py-3.5 px-4 font-semibold text-purple-300">Workspace Leader</td>
                   <td className="py-3.5 px-4 text-emerald-400">Full System Control</td>
                   <td className="py-3.5 px-4 text-emerald-400">Universal Manage</td>
                   <td className="py-3.5 px-4 text-emerald-400">Approve & Reject</td>

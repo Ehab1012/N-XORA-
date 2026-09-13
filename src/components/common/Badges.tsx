@@ -3,12 +3,6 @@ import { TaskStatus, ProjectStatus, ProofStatus, UserRole, TaskPriority } from '
 
 export function RoleBadge({ role }: { role: UserRole }) {
   const styles: Record<UserRole, { label: string; bg: string; text: string; border: string }> = {
-    owner: {
-      label: 'Owner',
-      bg: 'bg-purple-950/60',
-      text: 'text-purple-300',
-      border: 'border-purple-500/30',
-    },
     leader: {
       label: 'Leader',
       bg: 'bg-violet-950/60',

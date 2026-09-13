@@ -134,9 +134,9 @@ export function MemberProfileModal({
   const isSelf = currentUser?.id === userId;
   // STRICT RULE: Each member can only edit his own profile
   const canEdit = isSelf;
-  const isLeaderOrOwner = currentRole === 'leader' || currentRole === 'owner';
-  const canChangeRank = isLeaderOrOwner && !isSelf && user?.role !== 'owner';
-  const canDeleteMember = isLeaderOrOwner && !isSelf && user?.role !== 'owner';
+  const isLeader = currentRole === 'leader';
+  const canChangeRank = isLeader && !isSelf;
+  const canDeleteMember = isLeader && !isSelf;
 
   const handleCopyEmail = (emailStr: string) => {
     navigator.clipboard.writeText(emailStr);
@@ -383,12 +383,11 @@ export function MemberProfileModal({
                   </button>
                 ) : (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#101222] border border-[#232746] text-xs text-slate-300 whitespace-nowrap">
-                    {user.role === 'owner' && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
                     {user.role === 'leader' && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
                     {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
                     {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
                     <span className="capitalize font-medium">
-                      {user.role === 'co-leader' ? 'Co-Leader' : user.role === 'leader' ? 'Leader' : user.role === 'owner' ? 'Owner' : 'Member'}
+                      {user.role === 'co-leader' ? 'Co-Leader' : user.role === 'leader' ? 'Leader' : 'Member'}
                     </span>
                   </div>
                 )}
@@ -406,7 +405,7 @@ export function MemberProfileModal({
                   <button
                     onClick={() => setIsDeleteModalOpen(true)}
                     className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/50 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-medium transition-colors"
-                    title="Delete member from system (Leader / Co-Leader / Owner action)"
+                    title="Delete member from system (Leader action)"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Delete Member</span>

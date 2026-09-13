@@ -305,7 +305,7 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
               const authorId = m.userId || m.senderId;
               const author = users.find((u) => u.id === authorId);
               const isMe = authorId === user?.id;
-              const isLeader = user?.role === 'owner' || user?.role === 'leader';
+              const isLeader = user?.role === 'leader';
               const canEdit = isMe;
               const canDelete = isMe || isLeader;
 

@@ -72,7 +72,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {(availableUsers.length > 0
               ? availableUsers
               : [
-                  { id: 'usr_owner', name: 'Elena Vance', email: 'elena@nexora.internal', role: 'owner', title: 'Workspace Owner' },
+                  { id: 'usr_owner', name: 'Elena Vance', email: 'elena@nexora.internal', role: 'leader', title: 'Workspace Leader' },
                   { id: 'usr_leader', name: 'Marcus Chen', email: 'marcus@nexora.internal', role: 'leader', title: 'Engineering Leader' },
                   { id: 'usr_coleader', name: 'Sarah Jenkins', email: 'sarah@nexora.internal', role: 'co-leader', title: 'Product Co-Leader' },
                   { id: 'usr_member', name: 'Alex Rivera', email: 'alex@nexora.internal', role: 'member', title: 'Staff Member' },

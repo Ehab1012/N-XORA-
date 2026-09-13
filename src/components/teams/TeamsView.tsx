@@ -68,7 +68,7 @@ export function TeamsView({
   const [deleteTeamTarget, setDeleteTeamTarget] = useState<Team | null>(null);
   const [deletingTeam, setDeletingTeam] = useState(false);
 
-  const canManage = role === 'owner' || role === 'leader';
+  const canManage = role === 'leader';
 
   const fetchData = async () => {
     try {
@@ -411,7 +411,6 @@ export function TeamsView({
                 className="bg-[#0c0d18] border border-[#232746] rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-purple-500 capitalize"
               >
                 <option value="all">All Roles</option>
-                <option value="owner">Owners</option>
                 <option value="leader">Leaders</option>
                 <option value="co-leader">Co-Leaders</option>
                 <option value="member">Members</option>
@@ -562,7 +561,7 @@ export function TeamsView({
                           <MessageSquare className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {canManage && !isCurrentUser && member.role !== 'owner' && (
+                      {canManage && !isCurrentUser && (
                         <select
                           value={member.role}
                           onChange={(e) => handleChangeRole(member, e.target.value as any)}

@@ -65,7 +65,7 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
     document.body.removeChild(a);
   };
 
-  const canDelete = role === 'owner' || role === 'leader' || file.uploadedById === user?.id;
+  const canDelete = role === 'leader' || file.uploadedById === user?.id;
 
   // Render decoded text content for JSON/code preview
   let textPreview = '';

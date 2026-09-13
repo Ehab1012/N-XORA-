@@ -31,7 +31,7 @@ export function ProofReviewModal({
 
   const submitter = users.find((u) => u.id === proof.submittedById);
   const reviewer = users.find((u) => u.id === proof.reviewedById);
-  const canReview = role === 'owner' || role === 'leader' || role === 'co-leader';
+  const canReview = role === 'leader' || role === 'co-leader';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,7 +235,7 @@ export function ProofReviewModal({
           </form>
         ) : (
           <div className="p-3 rounded-lg bg-[#111324] border border-[#1f223f] text-xs text-slate-400 text-center">
-            Review decisions require Leader, Co-Leader, or Owner permissions.
+            Review decisions require Leader or Co-Leader permissions.
           </div>
         )}
       </div>

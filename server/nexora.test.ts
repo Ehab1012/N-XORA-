@@ -22,7 +22,7 @@ describe('Nexora Core Suite', () => {
     const session = getSession(token);
     expect(session).not.toBeNull();
     expect(session?.user.id).toBe('usr_owner');
-    expect(session?.role).toBe('owner');
+    expect(session?.role).toBe('leader');
     expect(session?.workspace.id).toBe('ws_default');
 
     const destroyed = destroySession(token);
@@ -34,12 +34,10 @@ describe('Nexora Core Suite', () => {
     const data = db.getRawData();
     expect(data.users.length).toBeGreaterThanOrEqual(4);
 
-    const owner = data.users.find((u) => u.role === ROLES.OWNER);
     const leader = data.users.find((u) => u.role === ROLES.LEADER);
     const coLeader = data.users.find((u) => u.role === ROLES.CO_LEADER);
     const member = data.users.find((u) => u.role === ROLES.MEMBER);
 
-    expect(owner).toBeDefined();
     expect(leader).toBeDefined();
     expect(coLeader).toBeDefined();
     expect(member).toBeDefined();

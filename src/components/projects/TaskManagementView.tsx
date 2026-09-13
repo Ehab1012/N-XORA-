@@ -114,7 +114,7 @@ export function TaskManagementView({
   onStatusFilterChange,
 }: TaskManagementViewProps) {
   const { user, role } = useAuth();
-  const isLeaderOrOwner = role === 'owner' || role === 'leader' || role === 'co-leader';
+  const isLeaderOrOwner = role === 'leader' || role === 'co-leader';
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
 
   const [internalSearchQuery, setInternalSearchQuery] = useState('');

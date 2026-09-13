@@ -78,7 +78,7 @@ export function TaskDetailModal({
   const creator = users.find((u) => u.id === task.creatorId);
   const milestone = milestones.find((m) => m.id === task.milestoneId);
 
-  const isLeaderOrOwner = role === 'owner' || role === 'leader' || role === 'co-leader';
+  const isLeaderOrOwner = role === 'leader' || role === 'co-leader';
   const isParticipant = user ? participantIds.includes(user.id) : false;
   const canEdit = isLeaderOrOwner || task.assigneeId === user?.id || isParticipant;
 

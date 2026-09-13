@@ -279,14 +279,14 @@ apiRouter.post('/auth/register', rateLimit(10, 60000), (req: AuthenticatedReques
   }
 
   const isFirstUser = data.users.length === 0;
-  const userRole: UserRole = isFirstUser ? 'owner' : (role || 'member');
+  const userRole: UserRole = isFirstUser ? 'leader' : (role || 'member');
 
   const newUser = {
     id: 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
     email: cleanEmail,
     name: cleanName,
     role: userRole,
-    title: title?.trim() || (userRole === 'owner' ? 'Workspace Owner' : 'Engineering Contributor'),
+    title: title?.trim() || (userRole === 'leader' ? 'Workspace Leader' : 'Engineering Contributor'),
     department: department?.trim() || 'Core Engineering',
     location: 'Remote',
     bio: 'Active member of Nexora Workspace',
@@ -429,7 +429,7 @@ apiRouter.get('/workspaces/current', requireAuth, (req: AuthenticatedRequest, re
   res.json(ws);
 });
 
-apiRouter.patch('/workspaces/settings', requireAuth, requireRole([ROLES.OWNER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/workspaces/settings', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { name, settings } = req.body;
   const updated = db.mutate((data) => {
     const ws = data.workspaces.find((w) => w.id === req.workspace!.id);
@@ -465,7 +465,7 @@ apiRouter.get('/teams', requireAuth, (req: AuthenticatedRequest, res: Response) 
   res.json(teams);
 });
 
-apiRouter.post('/teams', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/teams', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { name, description, leaderId, coLeaderId } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Team name is required' });
@@ -500,7 +500,7 @@ apiRouter.post('/teams', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), 
   res.status(201).json(newTeam);
 });
 
-apiRouter.patch('/teams/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/teams/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { name, description, leaderId, coLeaderId } = req.body;
 
@@ -523,7 +523,7 @@ apiRouter.patch('/teams/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADE
   res.json(updated);
 });
 
-apiRouter.delete('/teams/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/teams/:id', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const workspaceId = req.workspace!.id;
   const currentUserId = req.user!.id;
@@ -559,7 +559,7 @@ apiRouter.delete('/teams/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEAD
   res.json({ success: true, deletedId: id, message: `Team "${teamName}" has been deleted.` });
 });
 
-apiRouter.post('/teams/:id/members', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/teams/:id/members', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { userId, email } = req.body;
 
@@ -787,7 +787,7 @@ apiRouter.patch('/users/:id', requireAuth, (req: AuthenticatedRequest, res: Resp
 apiRouter.patch(
   ['/users/:id/rank', '/users/:id/role'],
   requireAuth,
-  requireRole([ROLES.OWNER, ROLES.LEADER]),
+  requireRole([ROLES.LEADER]),
   (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     const currentUserId = req.user!.id;
@@ -802,7 +802,7 @@ apiRouter.patch(
     }
 
     // Leaders cannot change their own rank (prevents self-demotion or bypassing checks)
-    if (currentUserId === id && currentRole !== ROLES.OWNER) {
+    if (currentUserId === id) {
       res.status(403).json({ error: 'Leaders cannot alter their own rank.' });
       return;
     }
@@ -811,12 +811,6 @@ apiRouter.patch(
     const targetUser = data.users.find((u) => u.id === id);
     if (!targetUser) {
       res.status(404).json({ error: 'Member not found' });
-      return;
-    }
-
-    // Cannot modify workspace owner rank unless by owner
-    if (targetUser.role === ROLES.OWNER && currentRole !== ROLES.OWNER) {
-      res.status(403).json({ error: 'Cannot modify workspace owner rank.' });
       return;
     }
 
@@ -861,7 +855,7 @@ apiRouter.patch(
   }
 );
 
-apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const currentUserId = req.user!.id;
   const currentRole = req.role!;
@@ -875,11 +869,6 @@ apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEAD
   const targetUser = data.users.find((u) => u.id === id);
   if (!targetUser) {
     res.status(404).json({ error: 'Member not found' });
-    return;
-  }
-
-  if (targetUser.role === ROLES.OWNER && currentRole !== ROLES.OWNER) {
-    res.status(403).json({ error: 'Cannot delete workspace owner.' });
     return;
   }
 
@@ -922,7 +911,7 @@ apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEAD
   res.json({ success: true, deletedId: id });
 });
 
-apiRouter.delete('/teams/:id/members/:userId', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/teams/:id/members/:userId', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id, userId } = req.params;
 
   const updated = db.mutate((data) => {
@@ -1024,7 +1013,7 @@ apiRouter.get('/projects/:id/recent-events', requireAuth, (req: AuthenticatedReq
 });
 
 // Dedicated endpoint to add or remove team member assignments for a project
-apiRouter.post('/projects/:id/members', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/projects/:id/members', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { userId, action = 'add' } = req.body;
 
@@ -1154,7 +1143,7 @@ apiRouter.post('/projects/:id/simulate-event', requireAuth, (req: AuthenticatedR
   res.json({ success: true, event: eventPayload, activeSubscribers: realtimeHub.getActiveCount(id) });
 });
 
-apiRouter.post('/projects', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/projects', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { title, description, teamId, objectives, status, deadline, accentColor, visibility, memberIds } = req.body;
 
   if (!title || !teamId) {
@@ -1196,7 +1185,7 @@ apiRouter.post('/projects', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER,
   res.status(201).json(newProject);
 });
 
-apiRouter.patch('/projects/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/projects/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const fields = req.body;
 
@@ -1292,7 +1281,7 @@ apiRouter.patch('/projects/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LE
   res.json(updated);
 });
 
-apiRouter.delete('/projects/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/projects/:id', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   
   const deleted = db.mutate((data) => {
@@ -1929,7 +1918,7 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, (req: AuthenticatedReques
 });
 
 // Finalize/Complete a group task directly (awarding team bonus)
-apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const rawData = db.getRawData();
   const existingTask = rawData.tasks.find((t) => t.id === id);
@@ -2008,7 +1997,7 @@ apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.OWNE
 });
 
 // Review an individual participant submission in a group task
-apiRouter.post('/tasks/:id/group-review', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/tasks/:id/group-review', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { userId, action, reviewNote } = req.body;
 
@@ -2053,7 +2042,7 @@ apiRouter.get('/milestones', requireAuth, (req: AuthenticatedRequest, res: Respo
   res.json(milestones);
 });
 
-apiRouter.post('/milestones', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/milestones', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { projectId, title, description, dueDate, ownerId } = req.body;
   if (!projectId || !title) {
     res.status(400).json({ error: 'Project ID and milestone title are required' });
@@ -2078,7 +2067,7 @@ apiRouter.post('/milestones', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADE
   res.status(201).json(newMilestone);
 });
 
-apiRouter.patch('/milestones/:id', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/milestones/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const updates = req.body;
 
@@ -2209,7 +2198,7 @@ apiRouter.post('/proofs', requireAuth, rateLimit(20, 60000), (req: Authenticated
   res.status(201).json(newProof);
 });
 
-apiRouter.post('/proofs/:id/review', requireAuth, requireRole([ROLES.OWNER, ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/proofs/:id/review', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { action, reason } = req.body;
 
@@ -2439,7 +2428,7 @@ apiRouter.put('/messages/project/:projectId/:messageId', requireAuth, (req: Auth
 apiRouter.delete('/messages/project/:projectId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const userId = req.user!.id;
-  const isPrivileged = req.user!.role === 'owner' || req.user!.role === 'leader';
+  const isPrivileged = req.user!.role === 'leader';
 
   const result = db.mutate((data) => {
     const idx = data.projectMessages.findIndex(m => m.id === messageId);
@@ -2467,7 +2456,7 @@ apiRouter.delete('/messages/project/:projectId/:messageId', requireAuth, (req: A
 apiRouter.delete('/messages/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const userId = req.user!.id;
-  const isPrivileged = req.user!.role === 'owner' || req.user!.role === 'leader';
+  const isPrivileged = req.user!.role === 'leader';
 
   const result = db.mutate((data) => {
     const pIdx = data.projectMessages.findIndex(m => m.id === messageId);
@@ -2592,7 +2581,7 @@ apiRouter.put('/messages/direct/:otherUserId/:messageId', requireAuth, (req: Aut
 apiRouter.delete('/messages/direct/:otherUserId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const userId = req.user!.id;
-  const isPrivileged = req.user!.role === 'owner' || req.user!.role === 'leader';
+  const isPrivileged = req.user!.role === 'leader';
 
   const result = db.mutate((data) => {
     const idx = data.directMessages.findIndex(m => m.id === messageId);
@@ -2714,7 +2703,7 @@ apiRouter.get('/onboarding', requireAuth, (req: AuthenticatedRequest, res: Respo
   const data = db.getRawData();
   const state = data.onboarding[req.user!.id] || {
     userId: req.user!.id,
-    hasCompleted: req.role !== 'owner',
+    hasCompleted: req.role !== 'leader',
     dismissed: false,
     step: 'workspace',
     invitedTeammates: [],
@@ -2946,7 +2935,7 @@ apiRouter.delete('/projects/:projectId/files/:fileId', requireAuth, (req: Authen
     if (idx === -1) return null;
 
     const file = data.files[idx];
-    if (role !== 'owner' && role !== 'leader' && file.uploadedById !== user.id) {
+    if (role !== 'leader' && file.uploadedById !== user.id) {
       return 'FORBIDDEN';
     }
 
@@ -2987,10 +2976,10 @@ apiRouter.get('/files/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
     return;
   }
 
-  // Access check: uploader, workspace owner, or project member
+  // Access check: uploader, workspace leader, or project member
   const user = req.user!;
   const role = req.role!;
-  if (role !== 'owner' && file.uploadedById !== user.id) {
+  if (role !== 'leader' && file.uploadedById !== user.id) {
     if (file.projectId) {
       const proj = data.projects.find((p) => p.id === file.projectId);
       if (proj && !proj.memberIds.includes(user.id)) {
@@ -3021,13 +3010,13 @@ apiRouter.post('/projects/:projectId/invitations', requireAuth, rateLimit(20, 60
     return;
   }
 
-  // Permission check: workspace owner, team leader, project leader/co-leader, or member if allowed
+  // Permission check: workspace leader, team leader, project leader/co-leader, or member if allowed
   const isLeader = proj.leaderId === user.id || proj.coLeaderId === user.id;
-  const isWorkspaceOwner = userRole === 'owner';
+  const isWorkspaceLeader = userRole === 'leader';
   const allowMemberInvites = data.workspaces[0]?.settings?.allowMemberInvites ?? true;
 
-  if (!isLeader && !isWorkspaceOwner && !allowMemberInvites) {
-    res.status(403).json({ error: 'Only project leaders or workspace owners can issue project invitations' });
+  if (!isLeader && !isWorkspaceLeader && !allowMemberInvites) {
+    res.status(403).json({ error: 'Only project leaders or workspace leaders can issue project invitations' });
     return;
   }
 
@@ -3331,9 +3320,9 @@ apiRouter.get('/audit', requireAuth, (req: AuthenticatedRequest, res: Response) 
 apiRouter.post(
   '/reset-data',
   requireAuth,
-  requireRole([ROLES.OWNER, ROLES.LEADER]),
+  requireRole([ROLES.LEADER]),
   (req: AuthenticatedRequest, res: Response) => {
-    if (req.role !== ROLES.OWNER && req.role !== ROLES.LEADER) {
+    if (req.role !== ROLES.LEADER) {
       res.status(403).json({ error: 'Forbidden: Only workspace leaders have the ability to reset all data.' });
       return;
     }

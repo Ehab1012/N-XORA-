@@ -56,8 +56,8 @@ export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
     fetchData();
   }, []);
 
-  const canCreate = role === 'owner' || role === 'leader' || role === 'co-leader';
-  const isLeader = role === 'owner' || role === 'leader';
+  const canCreate = role === 'leader' || role === 'co-leader';
+  const isLeader = role === 'leader';
 
   const handleDeleteProject = async (projectId: string) => {
     if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {

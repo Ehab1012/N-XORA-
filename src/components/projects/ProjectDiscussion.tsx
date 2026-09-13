@@ -145,7 +145,7 @@ export function ProjectDiscussion({ projectId, users }: ProjectDiscussionProps) 
             const isMe = senderId === user?.id;
             const replyTarget = m.replyToId ? messages.find((prev) => prev.id === m.replyToId) : null;
 
-            const isLeader = user?.role === 'owner' || user?.role === 'leader';
+            const isLeader = user?.role === 'leader';
             const canEdit = isMe;
             const canDelete = isMe || isLeader;
 

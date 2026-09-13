@@ -5,7 +5,6 @@ export const PRODUCT_DESCRIPTION =
   'A secure collaboration workspace for coordinated project work, role-aware access, proof of work, and accountability.';
 
 export const ROLES = {
-  OWNER: 'owner',
   LEADER: 'leader',
   CO_LEADER: 'co-leader',
   MEMBER: 'member',

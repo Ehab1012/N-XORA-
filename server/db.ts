@@ -18,6 +18,7 @@ import {
   StoredFile,
   OnboardingState,
   ProjectInvitation,
+  UserRole,
 } from '../shared/types.js';
 import { SEED_PROJECT_FILES } from './seedFiles.js';
 
@@ -51,8 +52,8 @@ const INITIAL_DATA: DatabaseSchema = {
       id: 'usr_owner',
       email: 'elena@nexora.internal',
       name: 'Elena Vance',
-      role: 'owner',
-      title: 'Workspace Owner & Lead Architect',
+      role: 'leader',
+      title: 'Lead Architect & Workspace Leader',
       department: 'Architecture & Zero-Trust Systems',
       location: 'San Francisco, CA (PST / UTC-8)',
       bio: 'Principal systems architect directing zero-trust operational protocols, cryptographic enclave verification, and distributed execution pipelines across engineering squads.',
@@ -118,7 +119,7 @@ const INITIAL_DATA: DatabaseSchema = {
     },
   ],
   workspaceMemberships: [
-    { id: 'wm_1', workspaceId: 'ws_default', userId: 'usr_owner', role: 'owner', joinedAt: '2026-01-10T09:00:00.000Z' },
+    { id: 'wm_1', workspaceId: 'ws_default', userId: 'usr_owner', role: 'leader', joinedAt: '2026-01-10T09:00:00.000Z' },
     { id: 'wm_2', workspaceId: 'ws_default', userId: 'usr_leader', role: 'leader', joinedAt: '2026-01-15T10:30:00.000Z' },
     { id: 'wm_3', workspaceId: 'ws_default', userId: 'usr_coleader', role: 'co-leader', joinedAt: '2026-02-01T11:00:00.000Z' },
   ],
@@ -769,8 +770,10 @@ class DatabaseManager {
           expenseItems: p.expenseItems || [],
         }));
 
-        const loadedUsers = (parsed.users || []).map((u: User) => ({
+        const loadedUsers = (parsed.users || []).map((u: any) => ({
           ...u,
+          role: (u.role === 'owner' ? 'leader' : u.role) as UserRole,
+          title: u.title ? u.title.replace('Workspace Owner', 'Workspace Leader') : u.title,
           skills: u.skills || ['General Engineering'],
           department: u.department || 'Core Engineering',
           location: u.location || 'Remote',
@@ -778,6 +781,11 @@ class DatabaseManager {
           githubHandle: u.githubHandle || '',
           timezone: u.timezone || 'UTC',
           statusMessage: u.statusMessage || '🟢 Active in Workspace',
+        }));
+
+        const loadedMemberships = (parsed.workspaceMemberships || []).map((m: any) => ({
+          ...m,
+          role: (m.role === 'owner' ? 'leader' : m.role) as UserRole,
         }));
 
         const loadedWorkspaces = parsed.workspaces && parsed.workspaces.length > 0
@@ -801,7 +809,7 @@ class DatabaseManager {
         return {
           users: loadedUsers,
           workspaces: loadedWorkspaces,
-          workspaceMemberships: parsed.workspaceMemberships || [],
+          workspaceMemberships: loadedMemberships,
           teams: parsed.teams || [],
           projects: loadedProjects,
           tasks: parsed.tasks || [],
