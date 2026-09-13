@@ -29,9 +29,9 @@ export function ProofSubmissionModal({
     const selected = e.target.files?.[0];
     if (!selected) return;
 
-    // Check size limit: max 5MB
-    if (selected.size > 5 * 1024 * 1024) {
-      setError('File size must be under 5MB');
+    // Check size limit: max 1GB
+    if (selected.size > 1024 * 1024 * 1024) {
+      setError('File size must be under 1GB');
       return;
     }
 

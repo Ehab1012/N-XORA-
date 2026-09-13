@@ -118,9 +118,9 @@ export function AvatarPickerModal({
       return;
     }
 
-    // Limit original file size check (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size exceeds 10MB limit. Please choose a smaller image.');
+    // Limit original file size check (50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File size exceeds 50MB limit. Please choose a smaller image.');
       return;
     }
 
@@ -374,7 +374,7 @@ export function AvatarPickerModal({
                       Click to choose photo or drag & drop here
                     </p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Supports PNG, JPG, WebP, GIF, SVG (up to 10MB) • Auto-centered and resized
+                      Supports PNG, JPG, WebP, GIF, SVG (up to 50MB) • Auto-centered and resized
                     </p>
                   </div>
                   <button

@@ -97,8 +97,8 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
 
   const processFile = (file: File) => {
     setFileReadError(null);
-    if (file.size > 15 * 1024 * 1024) {
-      setFileReadError('File exceeds 15MB limit. Please select a smaller file.');
+    if (file.size > 1024 * 1024 * 1024) {
+      setFileReadError('File exceeds 1GB limit. Please select a smaller file.');
       return;
     }
 

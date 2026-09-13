@@ -1,5 +1,16 @@
 import fs from 'fs';
 import path from 'path';
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
+
+const firebaseConfig = JSON.parse(fs.readFileSync('firebase-applet-config.json', 'utf-8'));
+
+if (!getApps().length) {
+  initializeApp(firebaseConfig);
+}
+export const firestore = getFirestore(firebaseConfig.firestoreDatabaseId);
+const auth = getAuth();
 import {
   User,
   Workspace,
@@ -756,6 +767,41 @@ class DatabaseManager {
     this.data = this.loadData();
   }
 
+  public async init() {
+    try {
+      console.log('Restoring DB state from Firestore...');
+            const collections = await getDocs(collection(firestore, 'nexora_data'));
+      
+      if (!collections.empty) {
+        const restoredData = { ...this.data };
+        collections.forEach(doc => {
+          if (doc.data().value) {
+            restoredData[doc.id] = doc.data().value;
+          }
+        });
+        this.data = restoredData;
+        this.saveDataLocally(this.data);
+        console.log('Successfully restored DB state from Firestore.');
+      } else {
+        console.log('No Firestore state found. Initializing with local data.');
+        await this.syncToFirestore(this.data);
+      }
+    } catch (err) {
+      console.error('Failed to restore from Firestore:', err);
+    }
+  }
+
+  private saveDataLocally(data: any) {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Failed to save local database file:', err);
+    }
+  }
+
   private loadData(): DatabaseSchema {
     try {
       if (!fs.existsSync(DATA_DIR)) {
@@ -869,13 +915,20 @@ class DatabaseManager {
   }
 
   private saveData(data: DatabaseSchema) {
+    this.saveDataLocally(data);
+    this.syncToFirestore(data).catch((err) => console.error("Firestore sync error:", err));
+  }
+
+  private async syncToFirestore(data: DatabaseSchema) {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+            const batch = writeBatch(firestore);
+      for (const [key, value] of Object.entries(data)) {
+         batch.set(doc(firestore, 'nexora_data', key), { value });
       }
-      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+      
+      await batch.commit();
     } catch (err) {
-      console.error('Failed to save database file:', err);
+      console.error('Firestore batch write error:', err);
     }
   }
 

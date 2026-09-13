@@ -1,5 +1,29 @@
 import { Router, Response, Request } from 'express';
-import { db, DatabaseSchema } from './db.js';
+import { db, DatabaseSchema, firestore } from './db.js';
+import { collection, doc, setDoc, getDoc, getDocs, writeBatch, query, orderBy } from 'firebase/firestore';
+
+async function saveFileChunks(fileId: string, dataUrl: string) {
+  const chunkSize = 750000; // ~750KB per chunk
+  const numChunks = Math.ceil(dataUrl.length / chunkSize);
+  const BATCH_LIMIT = 400; // Firestore maximum is 500 operations per batch
+
+  for (let b = 0; b < numChunks; b += BATCH_LIMIT) {
+    const batch = writeBatch(firestore);
+    const end = Math.min(b + BATCH_LIMIT, numChunks);
+    for (let i = b; i < end; i++) {
+      const chunk = dataUrl.substring(i * chunkSize, (i + 1) * chunkSize);
+      batch.set(doc(firestore, 'nexora_file_chunks', fileId + '_' + i), {
+        data: chunk,
+        index: i,
+        total: numChunks,
+        fileId,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    await batch.commit();
+  }
+}
+
 import { chatWithGemini } from './gemini.js';
 import {
   AuthenticatedRequest,
@@ -2289,7 +2313,7 @@ apiRouter.get('/resources', requireAuth, (req: AuthenticatedRequest, res: Respon
   res.json(resources);
 });
 
-apiRouter.post('/resources', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/resources', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const {
     projectId,
     title,
@@ -2313,9 +2337,13 @@ apiRouter.post('/resources', requireAuth, (req: AuthenticatedRequest, res: Respo
 
   const effectiveUrl = (url && String(url).trim()) || (dataUrl && String(dataUrl)) || '';
 
+  const generatedId = 'res_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+  if (dataUrl) {
+    await saveFileChunks(generatedId, dataUrl);
+  }
   const newResource = db.mutate((data) => {
     const resItem = {
-      id: 'res_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+      id: generatedId,
       projectId,
       title: title.trim(),
       description: description?.trim() || '',
@@ -2325,7 +2353,7 @@ apiRouter.post('/resources', requireAuth, (req: AuthenticatedRequest, res: Respo
       fileName: fileName ? String(fileName).trim() : undefined,
       fileSize: fileSize ? Number(fileSize) : undefined,
       fileType: fileType ? String(fileType) : undefined,
-      dataUrl: dataUrl ? String(dataUrl) : undefined,
+      dataUrl: dataUrl ? '/api/files/' + generatedId + '/content' : undefined,
       thumbnailUrl: thumbnailUrl ? String(thumbnailUrl) : undefined,
       tags: Array.isArray(tags) ? tags : [],
       createdById: req.user!.id,
@@ -2764,7 +2792,58 @@ apiRouter.post('/onboarding/dismiss', requireAuth, (req: AuthenticatedRequest, r
 // ----------------------------------------------------
 // File Upload & Protected Serving
 // ----------------------------------------------------
-apiRouter.post('/files/upload', requireAuth, rateLimit(25, 60000), (req: AuthenticatedRequest, res: Response) => {
+
+apiRouter.get('/files/:id/content', async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    let fullDataUrl = '';
+    let index = 0;
+    let keepGoing = true;
+
+    // Fetch chunks in parallel batches of 20 for high performance
+    while (keepGoing) {
+      const batchIndices = [];
+      for (let k = 0; k < 20; k++) {
+        batchIndices.push(index + k);
+      }
+      const chunkDocs = await Promise.all(
+        batchIndices.map((idx) => getDoc(doc(firestore, 'nexora_file_chunks', id + '_' + idx)))
+      );
+
+      for (const chunkDoc of chunkDocs) {
+        if (!chunkDoc.exists()) {
+          keepGoing = false;
+          break;
+        }
+        fullDataUrl += chunkDoc.data().data;
+        index++;
+      }
+    }
+
+    if (!fullDataUrl) {
+      res.status(404).send('File not found');
+      return;
+    }
+
+    if (fullDataUrl.startsWith('data:')) {
+      const match = fullDataUrl.match(/^data:(.*?);base64,(.*)$/);
+      if (match) {
+        const mime = match[1];
+        const buffer = Buffer.from(match[2], 'base64');
+        res.setHeader('Content-Type', mime);
+        res.send(buffer);
+        return;
+      }
+    }
+
+    res.send(fullDataUrl);
+  } catch (err) {
+    console.error('Failed to stream file:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+apiRouter.post('/files/upload', requireAuth, rateLimit(25, 60000), async (req: AuthenticatedRequest, res: Response) => {
   const { name, mimeType, dataUrl, projectId, description, category, tags, thumbnailUrl } = req.body;
 
   if (!name || !dataUrl) {
@@ -2772,22 +2851,24 @@ apiRouter.post('/files/upload', requireAuth, rateLimit(25, 60000), (req: Authent
     return;
   }
 
-  // Size limit check (approx 15MB base64)
-  if (dataUrl.length > 20 * 1024 * 1024) {
-    res.status(413).json({ error: 'File size exceeds 15MB limit' });
+  // Size limit check (supports up to 1GB file, ~1.4GB in base64 string)
+  if (dataUrl.length > 1400 * 1024 * 1024) {
+    res.status(413).json({ error: 'File size exceeds 1GB limit' });
     return;
   }
 
+  const generatedId = 'file_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+  await saveFileChunks(generatedId, dataUrl);
   const newFile = db.mutate((data) => {
     const file = {
-      id: 'file_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+      id: generatedId,
       name: name.trim(),
       mimeType: mimeType || 'application/octet-stream',
       sizeBytes: Math.round((dataUrl.length * 3) / 4),
       uploadedById: req.user!.id,
       uploadedByName: req.user!.name,
       projectId: projectId || undefined,
-      dataUrl,
+      dataUrl: '/api/files/' + generatedId + '/content',
       thumbnailUrl: thumbnailUrl || undefined,
       description: description ? description.trim() : undefined,
       category: category || undefined,
@@ -2862,7 +2943,7 @@ apiRouter.get('/projects/:projectId/files', requireAuth, (req: AuthenticatedRequ
 });
 
 // Upload shared document directly to a project
-apiRouter.post('/projects/:projectId/files', requireAuth, rateLimit(25, 60000), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/projects/:projectId/files', requireAuth, rateLimit(25, 60000), async (req: AuthenticatedRequest, res: Response) => {
   const { projectId } = req.params;
   const { name, mimeType, dataUrl, description, category, tags, thumbnailUrl } = req.body;
 
@@ -2878,16 +2959,18 @@ apiRouter.post('/projects/:projectId/files', requireAuth, rateLimit(25, 60000), 
     return;
   }
 
+  const generatedId = 'file_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+  await saveFileChunks(generatedId, dataUrl);
   const newFile = db.mutate((d) => {
     const file = {
-      id: 'file_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+      id: generatedId,
       name: name.trim(),
       mimeType: mimeType || 'application/octet-stream',
       sizeBytes: Math.round((dataUrl.length * 3) / 4),
       uploadedById: req.user!.id,
       uploadedByName: req.user!.name,
       projectId,
-      dataUrl,
+      dataUrl: '/api/files/' + generatedId + '/content',
       thumbnailUrl: thumbnailUrl || undefined,
       description: description ? description.trim() : undefined,
       category: category || undefined,

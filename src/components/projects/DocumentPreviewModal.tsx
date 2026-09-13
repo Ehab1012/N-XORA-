@@ -45,8 +45,8 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
   const formatBytes = (bytes: number) => {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
@@ -68,26 +68,26 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
   const canDelete = role === 'leader' || file.uploadedById === user?.id;
 
   // Render decoded text content for JSON/code preview
-  let textPreview = '';
-  if (isCode && file.dataUrl.startsWith('data:')) {
-    try {
-      const base64Index = file.dataUrl.indexOf('base64,');
-      if (base64Index !== -1) {
-        const base64 = file.dataUrl.substring(base64Index + 7);
-        textPreview = atob(base64);
-        if (file.name.endsWith('.json')) {
-          try {
-            textPreview = JSON.stringify(JSON.parse(textPreview), null, 2);
-          } catch {
-            // Keep raw text
+  const [textPreview, setTextPreview] = React.useState('');
+  React.useEffect(() => {
+    if (isCode) {
+      if (file.dataUrl.startsWith('data:')) {
+        try {
+          const base64Index = file.dataUrl.indexOf('base64,');
+          if (base64Index !== -1) {
+            let text = atob(file.dataUrl.substring(base64Index + 7));
+            if (file.name.endsWith('.json')) { try { text = JSON.stringify(JSON.parse(text), null, 2); } catch {} }
+            setTextPreview(text);
           }
-        }
+        } catch { setTextPreview('Unable to decode raw file data for preview.'); }
+      } else if (file.dataUrl.startsWith('/api/files/')) {
+        fetch(file.dataUrl).then(res => res.text()).then(text => {
+          if (file.name.endsWith('.json')) { try { text = JSON.stringify(JSON.parse(text), null, 2); } catch {} }
+          setTextPreview(text);
+        }).catch(() => setTextPreview('Unable to load file content.'));
       }
-    } catch {
-      textPreview = 'Unable to decode raw file data for preview.';
     }
-  }
-
+  }, [file.dataUrl, isCode, file.name]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div
