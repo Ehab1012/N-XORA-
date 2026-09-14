@@ -274,6 +274,12 @@ export const api = {
     });
   },
 
+  async deleteTask(id: string): Promise<{ success: boolean; deletedId: string }> {
+    return request(`/api/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   async submitGroupTaskPart(
     taskId: string,
     payload: { note?: string; proofLinks?: string[] }
@@ -319,6 +325,12 @@ export const api = {
     return request(`/api/milestones/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
+    });
+  },
+
+  async deleteMilestone(id: string): Promise<{ success: boolean; deletedId: string }> {
+    return request(`/api/milestones/${id}`, {
+      method: 'DELETE',
     });
   },
 

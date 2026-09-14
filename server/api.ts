@@ -8,19 +8,62 @@ async function saveFileChunks(fileId: string, dataUrl: string) {
   const BATCH_LIMIT = 400; // Firestore maximum is 500 operations per batch
 
   for (let b = 0; b < numChunks; b += BATCH_LIMIT) {
-    const batch = writeBatch(firestore);
     const end = Math.min(b + BATCH_LIMIT, numChunks);
-    for (let i = b; i < end; i++) {
-      const chunk = dataUrl.substring(i * chunkSize, (i + 1) * chunkSize);
-      batch.set(doc(firestore, 'nexora_file_chunks', fileId + '_' + i), {
-        data: chunk,
-        index: i,
-        total: numChunks,
-        fileId,
-        createdAt: new Date().toISOString(),
-      });
+    try {
+      const batch = writeBatch(firestore);
+      for (let i = b; i < end; i++) {
+        const chunk = dataUrl.substring(i * chunkSize, (i + 1) * chunkSize);
+        batch.set(doc(firestore, 'nexora_file_chunks', fileId + '_' + i), {
+          data: chunk,
+          index: i,
+          total: numChunks,
+          fileId,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      await batch.commit();
+    } catch (batchErr) {
+      console.warn('Batch write failed for file chunks, falling back to individual chunk saves:', batchErr);
+      for (let i = b; i < end; i++) {
+        const chunk = dataUrl.substring(i * chunkSize, (i + 1) * chunkSize);
+        await setDoc(doc(firestore, 'nexora_file_chunks', fileId + '_' + i), {
+          data: chunk,
+          index: i,
+          total: numChunks,
+          fileId,
+          createdAt: new Date().toISOString(),
+        });
+      }
     }
-    await batch.commit();
+  }
+}
+
+async function deleteFileChunks(fileId: string) {
+  try {
+    let index = 0;
+    while (true) {
+      const batchIndices = [];
+      for (let k = 0; k < 20; k++) {
+        batchIndices.push(index + k);
+      }
+      const chunkDocs = await Promise.all(
+        batchIndices.map((idx) => getDoc(doc(firestore, 'nexora_file_chunks', fileId + '_' + idx)))
+      );
+
+      const existingDocs = chunkDocs.filter((d) => d.exists());
+      if (existingDocs.length === 0) {
+        break;
+      }
+
+      const batch = writeBatch(firestore);
+      for (const d of existingDocs) {
+        batch.delete(d.ref);
+      }
+      await batch.commit();
+      index += 20;
+    }
+  } catch (err) {
+    console.error(`Failed to delete chunks for file ${fileId}:`, err);
   }
 }
 
@@ -285,7 +328,7 @@ apiRouter.post('/auth/login', rateLimit(10, 60000), (req: AuthenticatedRequest, 
   res.json({ token, user, workspace, role: user.role });
 });
 
-apiRouter.post('/auth/register', rateLimit(10, 60000), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/auth/register', rateLimit(10, 60000), async (req: AuthenticatedRequest, res: Response) => {
   const { name, email, role, title, department } = req.body;
   if (!name || !email) {
     res.status(400).json({ error: 'Name and email are required' });
@@ -319,7 +362,7 @@ apiRouter.post('/auth/register', rateLimit(10, 60000), (req: AuthenticatedReques
     lastActiveAt: new Date().toISOString(),
   };
 
-  db.mutate((d) => {
+  await db.mutateAsync((d) => {
     d.users.push(newUser);
     let ws = d.workspaces[0];
     if (!ws) {
@@ -453,9 +496,9 @@ apiRouter.get('/workspaces/current', requireAuth, (req: AuthenticatedRequest, re
   res.json(ws);
 });
 
-apiRouter.patch('/workspaces/settings', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/workspaces/settings', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { name, settings } = req.body;
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const ws = data.workspaces.find((w) => w.id === req.workspace!.id);
     if (!ws) return null;
     if (name) ws.name = name.trim();
@@ -489,14 +532,14 @@ apiRouter.get('/teams', requireAuth, (req: AuthenticatedRequest, res: Response) 
   res.json(teams);
 });
 
-apiRouter.post('/teams', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/teams', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { name, description, leaderId, coLeaderId } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Team name is required' });
     return;
   }
 
-  const newTeam = db.mutate((data) => {
+  const newTeam = await db.mutateAsync((data) => {
     const team = {
       id: 'team_' + Date.now().toString(36),
       workspaceId: req.workspace!.id,
@@ -524,11 +567,11 @@ apiRouter.post('/teams', requireAuth, requireRole([ROLES.LEADER]), (req: Authent
   res.status(201).json(newTeam);
 });
 
-apiRouter.patch('/teams/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/teams/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { name, description, leaderId, coLeaderId } = req.body;
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const team = data.teams.find((t) => t.id === id);
     if (!team) return null;
 
@@ -547,7 +590,7 @@ apiRouter.patch('/teams/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_L
   res.json(updated);
 });
 
-apiRouter.delete('/teams/:id', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/teams/:id', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const workspaceId = req.workspace!.id;
   const currentUserId = req.user!.id;
@@ -561,12 +604,12 @@ apiRouter.delete('/teams/:id', requireAuth, requireRole([ROLES.LEADER]), (req: A
 
   const teamName = existingTeam.name;
 
-  db.mutate((d) => {
+  await db.mutateAsync((d) => {
     d.teams = d.teams.filter((t) => t.id !== id);
     // Unlink any projects assigned to this team
     for (const p of d.projects) {
       if (p.teamId === id) {
-        p.teamId = undefined;
+        delete (p as any).teamId;
       }
     }
   });
@@ -583,11 +626,11 @@ apiRouter.delete('/teams/:id', requireAuth, requireRole([ROLES.LEADER]), (req: A
   res.json({ success: true, deletedId: id, message: `Team "${teamName}" has been deleted.` });
 });
 
-apiRouter.post('/teams/:id/members', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/teams/:id/members', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { userId, email } = req.body;
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const team = data.teams.find((t) => t.id === id);
     if (!team) return null;
 
@@ -734,7 +777,7 @@ apiRouter.get('/users/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
   });
 });
 
-apiRouter.patch('/users/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/users/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const currentUserId = req.user!.id;
 
@@ -760,7 +803,7 @@ apiRouter.patch('/users/:id', requireAuth, (req: AuthenticatedRequest, res: Resp
     avatarUrl,
   } = req.body;
 
-  const updatedUser = db.mutate((data) => {
+  const updatedUser = await db.mutateAsync((data) => {
     const user = data.users.find((u) => u.id === id);
     if (!user) return null;
 
@@ -812,7 +855,7 @@ apiRouter.patch(
   ['/users/:id/rank', '/users/:id/role'],
   requireAuth,
   requireRole([ROLES.LEADER]),
-  (req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     const currentUserId = req.user!.id;
     const currentRole = req.role!;
@@ -840,7 +883,7 @@ apiRouter.patch(
 
     const previousRole = targetUser.role;
 
-    const updatedUser = db.mutate((d) => {
+    const updatedUser = await db.mutateAsync((d) => {
       const u = d.users.find((user) => user.id === id);
       if (!u) return null;
       u.role = newRole;
@@ -879,7 +922,7 @@ apiRouter.patch(
   }
 );
 
-apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const currentUserId = req.user!.id;
   const currentRole = req.role!;
@@ -896,23 +939,57 @@ apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.LEADER]), (req: A
     return;
   }
 
-  const deleted = db.mutate((d) => {
+  const deleted = await db.mutateAsync((d) => {
     const idx = d.users.findIndex((u) => u.id === id);
     if (idx === -1) return null;
     const removed = d.users.splice(idx, 1)[0];
 
+    // Clean up workspace memberships
+    d.workspaceMemberships = (d.workspaceMemberships || []).filter((m) => m.userId !== id);
+
     // Clean up team rosters
     for (const t of d.teams) {
-      t.memberIds = t.memberIds.filter((m) => m !== id);
+      t.memberIds = (t.memberIds || []).filter((m) => m !== id);
       if (t.leaderId === id) t.leaderId = '';
       if (t.coLeaderId === id) t.coLeaderId = '';
     }
 
     // Clean up project memberships
     for (const p of d.projects) {
-      p.memberIds = p.memberIds.filter((m) => m !== id);
+      p.memberIds = (p.memberIds || []).filter((m) => m !== id);
       if (p.leaderId === id) p.leaderId = '';
       if (p.coLeaderId === id) p.coLeaderId = '';
+    }
+
+    // Clean up assigned tasks
+    for (const task of d.tasks) {
+      if (task.assigneeId === id) {
+        delete (task as any).assigneeId;
+      }
+    }
+
+    // Clean up active sessions
+    if (d.sessions) {
+      for (const token of Object.keys(d.sessions)) {
+        if (d.sessions[token]?.userId === id) {
+          delete d.sessions[token];
+        }
+      }
+    }
+
+    // Clean up onboarding state
+    if (d.onboarding && d.onboarding[id]) {
+      delete d.onboarding[id];
+    }
+
+    // Clean up notification preferences
+    if (d.notificationPreferences && d.notificationPreferences[id]) {
+      delete d.notificationPreferences[id];
+    }
+
+    // Clean up user notifications
+    if (d.notifications) {
+      d.notifications = d.notifications.filter((n) => n.userId !== id);
     }
 
     return removed;
@@ -935,13 +1012,15 @@ apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.LEADER]), (req: A
   res.json({ success: true, deletedId: id });
 });
 
-apiRouter.delete('/teams/:id/members/:userId', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/teams/:id/members/:userId', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id, userId } = req.params;
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const team = data.teams.find((t) => t.id === id);
     if (!team) return null;
-    team.memberIds = team.memberIds.filter((m) => m !== userId);
+    team.memberIds = (team.memberIds || []).filter((m) => m !== userId);
+    if (team.leaderId === userId) team.leaderId = '';
+    if (team.coLeaderId === userId) team.coLeaderId = '';
     return team;
   });
 
@@ -1037,7 +1116,7 @@ apiRouter.get('/projects/:id/recent-events', requireAuth, (req: AuthenticatedReq
 });
 
 // Dedicated endpoint to add or remove team member assignments for a project
-apiRouter.post('/projects/:id/members', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/projects/:id/members', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { userId, action = 'add' } = req.body;
 
@@ -1054,7 +1133,7 @@ apiRouter.post('/projects/:id/members', requireAuth, requireRole([ROLES.LEADER, 
   }
 
   let wasAdded = false;
-  const updated = db.mutate((d) => {
+  const updated = await db.mutateAsync((d) => {
     const proj = d.projects.find((p) => p.id === id);
     if (!proj) return null;
 
@@ -1167,7 +1246,7 @@ apiRouter.post('/projects/:id/simulate-event', requireAuth, (req: AuthenticatedR
   res.json({ success: true, event: eventPayload, activeSubscribers: realtimeHub.getActiveCount(id) });
 });
 
-apiRouter.post('/projects', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/projects', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { title, description, teamId, objectives, status, deadline, accentColor, visibility, memberIds } = req.body;
 
   if (!title || !teamId) {
@@ -1175,7 +1254,7 @@ apiRouter.post('/projects', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEA
     return;
   }
 
-  const newProject = db.mutate((data) => {
+  const newProject = await db.mutateAsync((data) => {
     const project = {
       id: 'proj_' + Date.now().toString(36),
       workspaceId: req.workspace!.id,
@@ -1209,7 +1288,7 @@ apiRouter.post('/projects', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEA
   res.status(201).json(newProject);
 });
 
-apiRouter.patch('/projects/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/projects/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const fields = req.body;
 
@@ -1223,7 +1302,7 @@ apiRouter.patch('/projects/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.C
   const oldStatus = existingProj.status;
   const oldMemberIds = [...(existingProj.memberIds || [])];
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const proj = data.projects.find((p) => p.id === id);
     if (!proj) return null;
 
@@ -1305,10 +1384,15 @@ apiRouter.patch('/projects/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.C
   res.json(updated);
 });
 
-apiRouter.delete('/projects/:id', requireAuth, requireRole([ROLES.LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/projects/:id', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
+  const currentData = db.getRawData();
+  const projectFiles = (currentData.files || []).filter((f) => f.projectId === id);
+  for (const f of projectFiles) {
+    deleteFileChunks(f.id).catch((err) => console.error('Failed to delete file chunks for project file:', err));
+  }
   
-  const deleted = db.mutate((data) => {
+  const deleted = await db.mutateAsync((data) => {
     const idx = data.projects.findIndex((p) => p.id === id);
     if (idx === -1) return false;
     
@@ -1316,11 +1400,15 @@ apiRouter.delete('/projects/:id', requireAuth, requireRole([ROLES.LEADER]), (req
     data.projects.splice(idx, 1);
     
     // Cleanup associated entities
-    data.tasks = data.tasks.filter(t => t.projectId !== id);
-    data.milestones = data.milestones.filter(m => m.projectId !== id);
-    data.resources = data.resources.filter(r => r.projectId !== id);
-    data.projectMessages = data.projectMessages.filter(m => m.projectId !== id);
-    data.files = data.files.filter(f => f.projectId !== id);
+    const projectTaskIds = new Set(data.tasks.filter((t) => t.projectId === id).map((t) => t.id));
+    data.tasks = data.tasks.filter((t) => t.projectId !== id);
+    data.milestones = data.milestones.filter((m) => m.projectId !== id);
+    data.resources = data.resources.filter((r) => r.projectId !== id);
+    data.projectMessages = data.projectMessages.filter((m) => m.projectId !== id);
+    data.files = data.files.filter((f) => f.projectId !== id);
+    data.projectInvitations = (data.projectInvitations || []).filter((pi) => pi.projectId !== id);
+    data.proofSubmissions = (data.proofSubmissions || []).filter((ps) => !projectTaskIds.has(ps.taskId));
+    data.notifications = (data.notifications || []).filter((n) => (n as any).projectId !== id);
     
     return proj;
   });
@@ -1339,13 +1427,13 @@ apiRouter.delete('/projects/:id', requireAuth, requireRole([ROLES.LEADER]), (req
     details: `Deleted project "${(deleted as any).title}"`,
   });
 
-  res.json({ success: true });
+  res.json({ success: true, message: `Project "${(deleted as any).title}" deleted permanently.` });
 });
 
 // ----------------------------------------------------
 // Project Expenses & Bought Components / Services
 // ----------------------------------------------------
-apiRouter.post('/projects/:id/expenses', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/projects/:id/expenses', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { title, category, cost, date, status, vendor, notes } = req.body;
 
@@ -1375,7 +1463,7 @@ apiRouter.post('/projects/:id/expenses', requireAuth, (req: AuthenticatedRequest
     createdAt: new Date().toISOString(),
   };
 
-  const updatedProject = db.mutate((data) => {
+  const updatedProject = await db.mutateAsync((data) => {
     const p = data.projects.find((item) => item.id === id);
     if (!p) return null;
     if (!Array.isArray(p.expenseItems)) {
@@ -1400,7 +1488,7 @@ apiRouter.post('/projects/:id/expenses', requireAuth, (req: AuthenticatedRequest
   res.status(201).json({ project: updatedProject, expenseItem: newExpenseItem });
 });
 
-apiRouter.delete('/projects/:id/expenses/:expenseId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/projects/:id/expenses/:expenseId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { id, expenseId } = req.params;
 
   const currentData = db.getRawData();
@@ -1411,7 +1499,7 @@ apiRouter.delete('/projects/:id/expenses/:expenseId', requireAuth, (req: Authent
   }
 
   let deletedExpenseTitle = '';
-  const updatedProject = db.mutate((data) => {
+  const updatedProject = await db.mutateAsync((data) => {
     const p = data.projects.find((item) => item.id === id);
     if (!p || !Array.isArray(p.expenseItems)) return null;
 
@@ -1471,7 +1559,7 @@ apiRouter.get('/tasks', requireAuth, (req: AuthenticatedRequest, res: Response) 
   res.json(tasks);
 });
 
-apiRouter.post('/tasks', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/tasks', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const {
     projectId,
     title,
@@ -1504,7 +1592,7 @@ apiRouter.post('/tasks', requireAuth, (req: AuthenticatedRequest, res: Response)
   const indPoints = Number(individualPoints) > 0 ? Number(individualPoints) : 35;
   const bonusPoints = Number(groupBonusPoints) > 0 ? Number(groupBonusPoints) : 60;
 
-  const newTask = db.mutate((data) => {
+  const newTask = await db.mutateAsync((data) => {
     const taskId = 'task_' + Date.now().toString(36);
 
     const initialSubmissions = isGroupTask
@@ -1616,7 +1704,7 @@ apiRouter.post('/tasks', requireAuth, (req: AuthenticatedRequest, res: Response)
   res.status(201).json(newTask);
 });
 
-apiRouter.patch('/tasks/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/tasks/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const updates = req.body;
 
@@ -1632,7 +1720,7 @@ apiRouter.patch('/tasks/:id', requireAuth, (req: AuthenticatedRequest, res: Resp
   const oldParticipants = existingTask.participantIds || [];
   let bonusTriggeredJustNow = false;
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const task = data.tasks.find((t) => t.id === id);
     if (!task) return null;
 
@@ -1791,7 +1879,7 @@ apiRouter.patch('/tasks/:id', requireAuth, (req: AuthenticatedRequest, res: Resp
 });
 
 // Member submits their contribution to a group task (takes individual points!)
-apiRouter.post('/tasks/:id/group-submit', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { note, proofLinks } = req.body;
   const currentUserId = req.user!.id;
@@ -1814,7 +1902,7 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, (req: AuthenticatedReques
   let allMembersSubmitted = false;
   let bonusAwarded = false;
 
-  const updatedTask = db.mutate((data) => {
+  const updatedTask = await db.mutateAsync((data) => {
     const task = data.tasks.find((t) => t.id === id);
     if (!task) return null;
 
@@ -1942,7 +2030,7 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, (req: AuthenticatedReques
 });
 
 // Finalize/Complete a group task directly (awarding team bonus)
-apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const rawData = db.getRawData();
   const existingTask = rawData.tasks.find((t) => t.id === id);
@@ -1954,7 +2042,7 @@ apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEAD
 
   const bonusPts = existingTask.groupBonusPoints || 60;
 
-  const updatedTask = db.mutate((data) => {
+  const updatedTask = await db.mutateAsync((data) => {
     const task = data.tasks.find((t) => t.id === id);
     if (!task) return null;
 
@@ -2021,7 +2109,7 @@ apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEAD
 });
 
 // Review an individual participant submission in a group task
-apiRouter.post('/tasks/:id/group-review', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/tasks/:id/group-review', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { userId, action, reviewNote } = req.body;
 
@@ -2030,7 +2118,7 @@ apiRouter.post('/tasks/:id/group-review', requireAuth, requireRole([ROLES.LEADER
     return;
   }
 
-  const updatedTask = db.mutate((data) => {
+  const updatedTask = await db.mutateAsync((data) => {
     const task = data.tasks.find((t) => t.id === id);
     if (!task || !Array.isArray(task.submissions)) return null;
 
@@ -2066,14 +2154,14 @@ apiRouter.get('/milestones', requireAuth, (req: AuthenticatedRequest, res: Respo
   res.json(milestones);
 });
 
-apiRouter.post('/milestones', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/milestones', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { projectId, title, description, dueDate, ownerId } = req.body;
   if (!projectId || !title) {
     res.status(400).json({ error: 'Project ID and milestone title are required' });
     return;
   }
 
-  const newMilestone = db.mutate((data) => {
+  const newMilestone = await db.mutateAsync((data) => {
     const ms = {
       id: 'ms_' + Date.now().toString(36),
       projectId,
@@ -2091,7 +2179,7 @@ apiRouter.post('/milestones', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_L
   res.status(201).json(newMilestone);
 });
 
-apiRouter.patch('/milestones/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/milestones/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const updates = req.body;
 
@@ -2104,7 +2192,7 @@ apiRouter.patch('/milestones/:id', requireAuth, requireRole([ROLES.LEADER, ROLES
 
   const oldStatus = existingMs.status;
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const ms = data.milestones.find((m) => m.id === id);
     if (!ms) return null;
     if (updates.title) ms.title = updates.title.trim();
@@ -2147,6 +2235,42 @@ apiRouter.patch('/milestones/:id', requireAuth, requireRole([ROLES.LEADER, ROLES
   res.json(updated);
 });
 
+apiRouter.delete('/milestones/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+
+  const deleted = await db.mutateAsync((data) => {
+    const idx = data.milestones.findIndex((m) => m.id === id);
+    if (idx === -1) return null;
+
+    const ms = data.milestones[idx];
+    data.milestones.splice(idx, 1);
+    // Unlink tasks referencing this milestone
+    for (const t of data.tasks) {
+      if (t.milestoneId === id) {
+        delete t.milestoneId;
+      }
+    }
+    return ms;
+  });
+
+  if (!deleted) {
+    res.status(404).json({ error: 'Milestone not found' });
+    return;
+  }
+
+  logActivity({
+    workspaceId: req.workspace!.id,
+    projectId: (deleted as any).projectId,
+    userId: req.user!.id,
+    action: 'Deleted milestone',
+    entityType: 'milestone',
+    entityId: id,
+    details: `Deleted milestone "${(deleted as any).title}"`,
+  });
+
+  res.json({ success: true, deletedId: id });
+});
+
 // ----------------------------------------------------
 // Proof of Work
 // ----------------------------------------------------
@@ -2161,14 +2285,14 @@ apiRouter.get('/proofs', requireAuth, (req: AuthenticatedRequest, res: Response)
   res.json(proofs);
 });
 
-apiRouter.post('/proofs', requireAuth, rateLimit(20, 60000), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/proofs', requireAuth, rateLimit(20, 60000), async (req: AuthenticatedRequest, res: Response) => {
   const { taskId, projectId, explanation, links, attachmentIds } = req.body;
   if (!taskId || !projectId || !explanation) {
     res.status(400).json({ error: 'Task, project, and explanation are required for proof submission' });
     return;
   }
 
-  const newProof = db.mutate((data) => {
+  const newProof = await db.mutateAsync((data) => {
     const proofId = 'proof_' + Date.now().toString(36);
     const proof = {
       id: proofId,
@@ -2222,7 +2346,7 @@ apiRouter.post('/proofs', requireAuth, rateLimit(20, 60000), (req: Authenticated
   res.status(201).json(newProof);
 });
 
-apiRouter.post('/proofs/:id/review', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/proofs/:id/review', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const { action, reason } = req.body;
 
@@ -2231,7 +2355,7 @@ apiRouter.post('/proofs/:id/review', requireAuth, requireRole([ROLES.LEADER, ROL
     return;
   }
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const proof = data.proofSubmissions.find((p) => p.id === id);
     if (!proof) return null;
 
@@ -2341,7 +2465,7 @@ apiRouter.post('/resources', requireAuth, async (req: AuthenticatedRequest, res:
   if (dataUrl) {
     await saveFileChunks(generatedId, dataUrl);
   }
-  const newResource = db.mutate((data) => {
+  const newResource = await db.mutateAsync((data) => {
     const resItem = {
       id: generatedId,
       projectId,
@@ -2368,9 +2492,10 @@ apiRouter.post('/resources', requireAuth, async (req: AuthenticatedRequest, res:
   res.status(201).json(newResource);
 });
 
-apiRouter.delete('/resources/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/resources/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
-  const deleted = db.mutate((data) => {
+  deleteFileChunks(id).catch((err) => console.error('Failed to delete resource chunks:', err));
+  const deleted = await db.mutateAsync((data) => {
     const idx = data.resources.findIndex((r) => r.id === id);
     if (idx === -1) return false;
     data.resources.splice(idx, 1);
@@ -2394,7 +2519,7 @@ apiRouter.get('/messages/project/:projectId', requireAuth, (req: AuthenticatedRe
   res.json(messages);
 });
 
-apiRouter.post('/messages/project/:projectId', requireAuth, rateLimit(30, 60000), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/messages/project/:projectId', requireAuth, rateLimit(30, 60000), async (req: AuthenticatedRequest, res: Response) => {
   const { projectId } = req.params;
   const { content, replyToId, audioUrl } = req.body;
 
@@ -2403,7 +2528,7 @@ apiRouter.post('/messages/project/:projectId', requireAuth, rateLimit(30, 60000)
     return;
   }
 
-  const newMsg = db.mutate((data) => {
+  const newMsg = await db.mutateAsync((data) => {
     const msg = {
       id: 'msg_' + Date.now().toString(36),
       projectId,
@@ -2420,7 +2545,7 @@ apiRouter.post('/messages/project/:projectId', requireAuth, rateLimit(30, 60000)
   res.status(201).json(newMsg);
 });
 
-apiRouter.put('/messages/project/:projectId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.put('/messages/project/:projectId/:messageId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const { content } = req.body;
   const userId = req.user!.id;
@@ -2430,7 +2555,7 @@ apiRouter.put('/messages/project/:projectId/:messageId', requireAuth, (req: Auth
     return;
   }
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const msg = data.projectMessages.find(m => m.id === messageId);
     if (!msg) return null;
     const authorId = msg.senderId || (msg as any).userId;
@@ -2453,12 +2578,12 @@ apiRouter.put('/messages/project/:projectId/:messageId', requireAuth, (req: Auth
   res.json(updated);
 });
 
-apiRouter.delete('/messages/project/:projectId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/messages/project/:projectId/:messageId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const userId = req.user!.id;
   const isPrivileged = req.user!.role === 'leader';
 
-  const result = db.mutate((data) => {
+  const result = await db.mutateAsync((data) => {
     const idx = data.projectMessages.findIndex(m => m.id === messageId);
     if (idx === -1) return null;
     const msg = data.projectMessages[idx];
@@ -2481,12 +2606,12 @@ apiRouter.delete('/messages/project/:projectId/:messageId', requireAuth, (req: A
   res.json({ success: true });
 });
 
-apiRouter.delete('/messages/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/messages/:messageId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const userId = req.user!.id;
   const isPrivileged = req.user!.role === 'leader';
 
-  const result = db.mutate((data) => {
+  const result = await db.mutateAsync((data) => {
     const pIdx = data.projectMessages.findIndex(m => m.id === messageId);
     if (pIdx !== -1) {
       const msg = data.projectMessages[pIdx];
@@ -2534,7 +2659,7 @@ apiRouter.get('/messages/direct/:otherUserId', requireAuth, (req: AuthenticatedR
   res.json(messages);
 });
 
-apiRouter.post('/messages/direct/:otherUserId', requireAuth, rateLimit(30, 60000), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/messages/direct/:otherUserId', requireAuth, rateLimit(30, 60000), async (req: AuthenticatedRequest, res: Response) => {
   const { otherUserId } = req.params;
   const { content, audioUrl } = req.body;
 
@@ -2543,7 +2668,7 @@ apiRouter.post('/messages/direct/:otherUserId', requireAuth, rateLimit(30, 60000
     return;
   }
 
-  const newMsg = db.mutate((data) => {
+  const newMsg = await db.mutateAsync((data) => {
     const msg = {
       id: 'dm_' + Date.now().toString(36),
       senderId: req.user!.id,
@@ -2573,7 +2698,7 @@ apiRouter.post('/messages/direct/:otherUserId', requireAuth, rateLimit(30, 60000
   res.status(201).json(newMsg);
 });
 
-apiRouter.put('/messages/direct/:otherUserId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.put('/messages/direct/:otherUserId/:messageId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const { content } = req.body;
   const userId = req.user!.id;
@@ -2583,7 +2708,7 @@ apiRouter.put('/messages/direct/:otherUserId/:messageId', requireAuth, (req: Aut
     return;
   }
 
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     const msg = data.directMessages.find(m => m.id === messageId);
     if (!msg) return null;
     const authorId = msg.senderId || (msg as any).userId;
@@ -2606,12 +2731,12 @@ apiRouter.put('/messages/direct/:otherUserId/:messageId', requireAuth, (req: Aut
   res.json(updated);
 });
 
-apiRouter.delete('/messages/direct/:otherUserId/:messageId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/messages/direct/:otherUserId/:messageId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { messageId } = req.params;
   const userId = req.user!.id;
   const isPrivileged = req.user!.role === 'leader';
 
-  const result = db.mutate((data) => {
+  const result = await db.mutateAsync((data) => {
     const idx = data.directMessages.findIndex(m => m.id === messageId);
     if (idx === -1) return null;
     const msg = data.directMessages[idx];
@@ -2668,17 +2793,17 @@ apiRouter.get('/notifications', requireAuth, (req: AuthenticatedRequest, res: Re
   res.json(notifs);
 });
 
-apiRouter.post('/notifications/:id/read', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/notifications/:id/read', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
-  db.mutate((data) => {
+  await db.mutateAsync((data) => {
     const notif = data.notifications.find((n) => n.id === id && n.userId === req.user!.id);
     if (notif) notif.isRead = true;
   });
   res.json({ success: true });
 });
 
-apiRouter.post('/notifications/read-all', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-  db.mutate((data) => {
+apiRouter.post('/notifications/read-all', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  await db.mutateAsync((data) => {
     for (const notif of data.notifications) {
       if (notif.userId === req.user!.id) notif.isRead = true;
     }
@@ -2700,9 +2825,9 @@ apiRouter.get('/notifications/preferences', requireAuth, (req: AuthenticatedRequ
   res.json(prefs);
 });
 
-apiRouter.patch('/notifications/preferences', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.patch('/notifications/preferences', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const updates = req.body;
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     if (!data.notificationPreferences[req.user!.id]) {
       data.notificationPreferences[req.user!.id] = {
         userId: req.user!.id,
@@ -2739,9 +2864,9 @@ apiRouter.get('/onboarding', requireAuth, (req: AuthenticatedRequest, res: Respo
   res.json(state);
 });
 
-apiRouter.post('/onboarding/step', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/onboarding/step', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { step, invitedTeammate } = req.body;
-  const updated = db.mutate((data) => {
+  const updated = await db.mutateAsync((data) => {
     if (!data.onboarding[req.user!.id]) {
       data.onboarding[req.user!.id] = {
         userId: req.user!.id,
@@ -2761,8 +2886,8 @@ apiRouter.post('/onboarding/step', requireAuth, (req: AuthenticatedRequest, res:
   res.json(updated);
 });
 
-apiRouter.post('/onboarding/complete', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-  const updated = db.mutate((data) => {
+apiRouter.post('/onboarding/complete', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const updated = await db.mutateAsync((data) => {
     if (!data.onboarding[req.user!.id]) {
       data.onboarding[req.user!.id] = {
         userId: req.user!.id,
@@ -2779,8 +2904,8 @@ apiRouter.post('/onboarding/complete', requireAuth, (req: AuthenticatedRequest, 
   res.json(updated);
 });
 
-apiRouter.post('/onboarding/dismiss', requireAuth, (req: AuthenticatedRequest, res: Response) => {
-  const updated = db.mutate((data) => {
+apiRouter.post('/onboarding/dismiss', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const updated = await db.mutateAsync((data) => {
     if (data.onboarding[req.user!.id]) {
       data.onboarding[req.user!.id].dismissed = true;
     }
@@ -2859,7 +2984,7 @@ apiRouter.post('/files/upload', requireAuth, rateLimit(25, 60000), async (req: A
 
   const generatedId = 'file_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
   await saveFileChunks(generatedId, dataUrl);
-  const newFile = db.mutate((data) => {
+  const newFile = await db.mutateAsync((data) => {
     const file = {
       id: generatedId,
       name: name.trim(),
@@ -2961,7 +3086,7 @@ apiRouter.post('/projects/:projectId/files', requireAuth, rateLimit(25, 60000), 
 
   const generatedId = 'file_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
   await saveFileChunks(generatedId, dataUrl);
-  const newFile = db.mutate((d) => {
+  const newFile = await db.mutateAsync((d) => {
     const file = {
       id: generatedId,
       name: name.trim(),
@@ -3008,12 +3133,12 @@ apiRouter.post('/projects/:projectId/files', requireAuth, rateLimit(25, 60000), 
 });
 
 // Delete shared project document
-apiRouter.delete('/projects/:projectId/files/:fileId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/projects/:projectId/files/:fileId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { projectId, fileId } = req.params;
   const user = req.user!;
   const role = req.role!;
 
-  const deleted = db.mutate((data) => {
+  const deleted = await db.mutateAsync((data) => {
     const idx = data.files.findIndex((f) => f.id === fileId && f.projectId === projectId);
     if (idx === -1) return null;
 
@@ -3035,6 +3160,8 @@ apiRouter.delete('/projects/:projectId/files/:fileId', requireAuth, (req: Authen
     res.status(404).json({ error: 'File not found in project' });
     return;
   }
+
+  await deleteFileChunks(fileId);
 
   logActivity({
     workspaceId: req.workspace!.id,
@@ -3075,12 +3202,55 @@ apiRouter.get('/files/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
   res.json(file);
 });
 
+apiRouter.delete('/files/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const user = req.user!;
+  const role = req.role!;
+
+  const deleted = await db.mutateAsync((data) => {
+    const idx = data.files.findIndex((f) => f.id === id);
+    if (idx === -1) return null;
+
+    const file = data.files[idx];
+    if (role !== 'leader' && file.uploadedById !== user.id) {
+      return 'FORBIDDEN';
+    }
+
+    data.files.splice(idx, 1);
+    return file;
+  });
+
+  if (deleted === 'FORBIDDEN') {
+    res.status(403).json({ error: 'Permission denied to delete this document' });
+    return;
+  }
+
+  if (!deleted) {
+    res.status(404).json({ error: 'File not found' });
+    return;
+  }
+
+  await deleteFileChunks(id);
+
+  logActivity({
+    workspaceId: req.workspace!.id,
+    projectId: (deleted as any).projectId,
+    userId: user.id,
+    action: 'Deleted file',
+    entityType: 'resource',
+    entityId: id,
+    details: `Deleted file: ${(deleted as any).name}`,
+  });
+
+  res.json({ success: true, deletedId: id });
+});
+
 // ----------------------------------------------------
 // Project Team Invitation Module
 // ----------------------------------------------------
 
 // Create Team Invitation(s) for a Project
-apiRouter.post('/projects/:projectId/invitations', requireAuth, rateLimit(20, 60000), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/projects/:projectId/invitations', requireAuth, rateLimit(20, 60000), async (req: AuthenticatedRequest, res: Response) => {
   const { projectId } = req.params;
   const { email, emails, role = 'member', customNote, expiresInDays = 7 } = req.body;
   const user = req.user!;
@@ -3119,7 +3289,7 @@ apiRouter.post('/projects/:projectId/invitations', requireAuth, rateLimit(20, 60
     ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
     : undefined;
 
-  db.mutate((d) => {
+  await db.mutateAsync((d) => {
     // If targetEmails is empty, create a single shareable link invite
     const inviteList = targetEmails.length > 0 ? targetEmails : [undefined];
 
@@ -3205,12 +3375,12 @@ apiRouter.get('/projects/:projectId/invitations', requireAuth, (req: Authenticat
 });
 
 // Revoke a project invitation
-apiRouter.delete('/projects/:projectId/invitations/:invitationId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/projects/:projectId/invitations/:invitationId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { projectId, invitationId } = req.params;
   const user = req.user!;
   
   let revoked = false;
-  db.mutate((d) => {
+  await db.mutateAsync((d) => {
     const inv = d.projectInvitations.find((i) => i.id === invitationId && i.projectId === projectId);
     if (inv) {
       inv.status = 'revoked';
@@ -3278,7 +3448,7 @@ apiRouter.get('/invitations/:token', (req: Request, res: Response) => {
 });
 
 // Accept an invitation
-apiRouter.post('/invitations/:token/accept', requireAuth, rateLimit(15, 60000), (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/invitations/:token/accept', requireAuth, rateLimit(15, 60000), async (req: AuthenticatedRequest, res: Response) => {
   const { token } = req.params;
   const user = req.user!;
 
@@ -3314,7 +3484,7 @@ apiRouter.post('/invitations/:token/accept', requireAuth, rateLimit(15, 60000), 
     return;
   }
 
-  db.mutate((d) => {
+  await db.mutateAsync((d) => {
     // 1. Add user to project memberIds if not present
     const projectInDb = d.projects.find((p) => p.id === proj.id);
     if (projectInDb) {

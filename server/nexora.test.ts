@@ -116,7 +116,9 @@ describe('Nexora Core Suite', () => {
       topScorer.breakdown.tasksScore +
       topScorer.breakdown.milestonesScore +
       topScorer.breakdown.proofsScore +
-      topScorer.breakdown.onTimeScore;
+      topScorer.breakdown.onTimeScore +
+      (topScorer.breakdown.groupTasksScore || 0) +
+      (topScorer.breakdown.groupBonusScore || 0);
     expect(topScorer.totalScore).toBe(expected);
   });
 

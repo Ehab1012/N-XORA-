@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, writeBatch, doc, setDoc } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const firebaseConfig = JSON.parse(fs.readFileSync('firebase-applet-config.json', 'utf-8'));
@@ -113,6 +113,24 @@ const INITIAL_DATA: DatabaseSchema = {
       createdAt: '2026-02-01T11:00:00.000Z',
       lastActiveAt: '2026-09-12T07:55:00.000Z',
     },
+    {
+      id: 'usr_member',
+      email: 'alex@nexora.internal',
+      name: 'Alex Rivera',
+      role: 'member',
+      title: 'Senior Systems Engineer',
+      department: 'Platform Engineering',
+      location: 'Austin, TX (CST / UTC-6)',
+      bio: 'Core infrastructure developer optimizing low-latency IPC channels and zero-trust authentication bridges.',
+      phone: '+1 (512) 555-0143',
+      skills: ['Rust', 'TypeScript', 'Docker', 'Linux Kernels', 'WebSockets'],
+      githubHandle: 'alexrivera-dev',
+      linkedinUrl: 'https://linkedin.com/in/alex-rivera-nexora',
+      timezone: 'America/Chicago',
+      statusMessage: '🟢 Shipping Sprint 4 modules',
+      createdAt: '2026-02-15T12:00:00.000Z',
+      lastActiveAt: '2026-09-12T08:00:00.000Z',
+    },
   ],
   workspaces: [
     {
@@ -133,6 +151,7 @@ const INITIAL_DATA: DatabaseSchema = {
     { id: 'wm_1', workspaceId: 'ws_default', userId: 'usr_owner', role: 'leader', joinedAt: '2026-01-10T09:00:00.000Z' },
     { id: 'wm_2', workspaceId: 'ws_default', userId: 'usr_leader', role: 'leader', joinedAt: '2026-01-15T10:30:00.000Z' },
     { id: 'wm_3', workspaceId: 'ws_default', userId: 'usr_coleader', role: 'co-leader', joinedAt: '2026-02-01T11:00:00.000Z' },
+    { id: 'wm_4', workspaceId: 'ws_default', userId: 'usr_member', role: 'member', joinedAt: '2026-02-15T12:00:00.000Z' },
   ],
   teams: [
     {
@@ -770,16 +789,23 @@ class DatabaseManager {
   public async init() {
     try {
       console.log('Restoring DB state from Firestore...');
-            const collections = await getDocs(collection(firestore, 'nexora_data'));
-      
+      const collections = await getDocs(collection(firestore, 'nexora_data'));
+
       if (!collections.empty) {
-        const restoredData = { ...this.data };
-        collections.forEach(doc => {
-          if (doc.data().value) {
-            restoredData[doc.id] = doc.data().value;
+        const restoredData: any = { ...this.data };
+        collections.forEach((docSnap) => {
+          const docData = docSnap.data();
+          if (docData && 'value' in docData && docData.value !== undefined) {
+            restoredData[docSnap.id] = docData.value;
           }
         });
         this.data = restoredData;
+        if (Array.isArray(this.data.projects)) {
+          this.data.projects = this.data.projects.map((p: any) => ({
+            ...p,
+            expenseItems: Array.isArray(p.expenseItems) ? p.expenseItems : [],
+          }));
+        }
         this.saveDataLocally(this.data);
         console.log('Successfully restored DB state from Firestore.');
       } else {
@@ -874,61 +900,45 @@ class DatabaseManager {
         };
       }
     } catch (err) {
-      console.warn('Failed to load database from file, initializing fresh empty data:', err);
+      console.warn('Failed to load database from file, initializing from default seed data:', err);
     }
-    const emptyState: DatabaseSchema = {
-      users: [],
-      workspaces: [
-        {
-          id: 'ws_default',
-          name: 'Nexora Workspace',
-          slug: 'nexora-workspace',
-          ownerId: '',
-          createdAt: new Date().toISOString(),
-          settings: {
-            allowMemberInvites: true,
-            requireProofApproval: true,
-            emergencyRecoveryEmail: '',
-            strictIdorChecks: true,
-          },
-        },
-      ],
-      workspaceMemberships: [],
-      teams: [],
-      projects: [],
-      tasks: [],
-      milestones: [],
-      proofSubmissions: [],
-      resources: [],
-      projectMessages: [],
-      directMessages: [],
-      notifications: [],
-      notificationPreferences: {},
-      activityEvents: [],
-      files: [],
-      onboarding: {},
-      sessions: {},
-      projectInvitations: [],
-    };
-    this.saveData(emptyState);
-    return emptyState;
+    const defaultData = JSON.parse(JSON.stringify(INITIAL_DATA));
+    this.saveDataLocally(defaultData);
+    return defaultData;
+  }
+
+  private sanitize<T>(data: T): T {
+    return JSON.parse(JSON.stringify(data));
   }
 
   private saveData(data: DatabaseSchema) {
-    this.saveDataLocally(data);
-    this.syncToFirestore(data).catch((err) => console.error("Firestore sync error:", err));
+    this.data = this.sanitize(data);
+    this.saveDataLocally(this.data);
+    this.syncToFirestore(this.data).catch((err) => console.error("Firestore sync error:", err));
   }
 
-  private async syncToFirestore(data: DatabaseSchema) {
+  public async syncToFirestore(data: DatabaseSchema): Promise<void> {
     try {
-            const batch = writeBatch(firestore);
-      for (const [key, value] of Object.entries(data)) {
-         batch.set(doc(firestore, 'nexora_data', key), { value });
+      const sanitized = this.sanitize(data);
+      const batch = writeBatch(firestore);
+      for (const [key, value] of Object.entries(sanitized)) {
+        batch.set(doc(firestore, 'nexora_data', key), { value });
       }
-      
       await batch.commit();
+      console.log('Successfully committed full state to Firestore');
     } catch (err) {
-      console.error('Firestore batch write error:', err);
+      console.error('Firestore batch write error, falling back to individual document updates:', err);
+      try {
+        const sanitized = this.sanitize(data);
+        for (const [key, value] of Object.entries(sanitized)) {
+          await setDoc(doc(firestore, 'nexora_data', key), { value }).catch((docErr) => {
+            console.error(`Failed individual Firestore write for ${key}:`, docErr);
+          });
+        }
+        console.log('Individual document fallback sync complete');
+      } catch (fallbackErr) {
+        console.error('Firestore fallback sync failed:', fallbackErr);
+      }
     }
   }
 
@@ -942,8 +952,17 @@ class DatabaseManager {
     return result;
   }
 
+  public async mutateAsync<T>(fn: (db: DatabaseSchema) => Promise<T> | T): Promise<T> {
+    const result = await fn(this.data);
+    this.data = this.sanitize(this.data);
+    this.saveDataLocally(this.data);
+    await this.syncToFirestore(this.data);
+    return result;
+  }
+
   public resetToDefaults() {
-    this.data = this.clearAllData();
+    this.data = JSON.parse(JSON.stringify(INITIAL_DATA));
+    this.saveData(this.data);
     return this.data;
   }
 
