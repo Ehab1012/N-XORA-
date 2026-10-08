@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Download,
@@ -33,6 +33,48 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
   const { user, role } = useAuth();
   const [copied, setCopied] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [textPreview, setTextPreview] = useState('');
+
+  const isCode = !!file && (
+    file.mimeType.includes('json') ||
+    file.mimeType.includes('javascript') ||
+    file.mimeType.includes('text/') ||
+    file.name.endsWith('.json') ||
+    file.name.endsWith('.ts') ||
+    file.name.endsWith('.md')
+  );
+
+  useEffect(() => {
+    if (!isOpen || !file || !isCode) {
+      setTextPreview('');
+      return;
+    }
+
+    if (file.dataUrl.startsWith('data:')) {
+      try {
+        const base64Index = file.dataUrl.indexOf('base64,');
+        if (base64Index !== -1) {
+          let text = atob(file.dataUrl.substring(base64Index + 7));
+          if (file.name.endsWith('.json')) {
+            try { text = JSON.stringify(JSON.parse(text), null, 2); } catch {}
+          }
+          setTextPreview(text);
+        }
+      } catch {
+        setTextPreview('Unable to decode raw file data for preview.');
+      }
+    } else if (file.dataUrl.startsWith('/api/files/')) {
+      fetch(file.dataUrl)
+        .then((res) => res.text())
+        .then((text) => {
+          if (file.name.endsWith('.json')) {
+            try { text = JSON.stringify(JSON.parse(text), null, 2); } catch {}
+          }
+          setTextPreview(text);
+        })
+        .catch(() => setTextPreview('Unable to load file content.'));
+    }
+  }, [isOpen, file, isCode]);
 
   if (!isOpen || !file) return null;
 
@@ -40,7 +82,6 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
   const isPdf = file.mimeType === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   const isVideo = file.mimeType.startsWith('video/') || file.name.endsWith('.mp4') || file.name.endsWith('.webm');
   const isAudio = file.mimeType.startsWith('audio/') || file.name.endsWith('.mp3') || file.name.endsWith('.wav');
-  const isCode = file.mimeType.includes('json') || file.mimeType.includes('javascript') || file.mimeType.includes('text/') || file.name.endsWith('.json') || file.name.endsWith('.ts') || file.name.endsWith('.md');
 
   const formatBytes = (bytes: number) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -67,27 +108,6 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
 
   const canDelete = role === 'leader' || file.uploadedById === user?.id;
 
-  // Render decoded text content for JSON/code preview
-  const [textPreview, setTextPreview] = React.useState('');
-  React.useEffect(() => {
-    if (isCode) {
-      if (file.dataUrl.startsWith('data:')) {
-        try {
-          const base64Index = file.dataUrl.indexOf('base64,');
-          if (base64Index !== -1) {
-            let text = atob(file.dataUrl.substring(base64Index + 7));
-            if (file.name.endsWith('.json')) { try { text = JSON.stringify(JSON.parse(text), null, 2); } catch {} }
-            setTextPreview(text);
-          }
-        } catch { setTextPreview('Unable to decode raw file data for preview.'); }
-      } else if (file.dataUrl.startsWith('/api/files/')) {
-        fetch(file.dataUrl).then(res => res.text()).then(text => {
-          if (file.name.endsWith('.json')) { try { text = JSON.stringify(JSON.parse(text), null, 2); } catch {} }
-          setTextPreview(text);
-        }).catch(() => setTextPreview('Unable to load file content.'));
-      }
-    }
-  }, [file.dataUrl, isCode, file.name]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div

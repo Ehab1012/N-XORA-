@@ -212,6 +212,7 @@ export interface ProofSubmission {
   explanation: string;
   links: string[];
   attachmentIds: string[];
+  attachments?: StoredFile[];
   status: ProofStatus;
   reviewNote?: string;
   reviewedById?: string;
@@ -268,7 +269,7 @@ export interface NotificationItem {
   userId: string;
   title: string;
   message: string;
-  type: 'deadline' | 'overdue' | 'proof_review' | 'mention' | 'announcement' | 'score' | 'task_assigned' | 'milestone_reached';
+  type: 'deadline' | 'overdue' | 'proof_review' | 'mention' | 'announcement' | 'score' | 'score_bonus' | 'task_assigned' | 'milestone_reached';
   isRead: boolean;
   link?: string;
   createdAt: string;
@@ -312,6 +313,19 @@ export interface StoredFile {
   createdAt: string;
 }
 
+export interface BonusAward {
+  id: string;
+  workspaceId: string;
+  projectId?: string;
+  recipientId: string;
+  recipientName: string;
+  awardedById: string;
+  awardedByName: string;
+  points: number;
+  reason: string;
+  createdAt: string;
+}
+
 export interface UserScoreDetail {
   userId: string;
   userName: string;
@@ -325,6 +339,9 @@ export interface UserScoreDetail {
   onTimeDeliveries?: number;
   groupTasksCompleted?: number;
   groupBonusCount?: number;
+  directBonusCount?: number;
+  directBonusScore?: number;
+  bonusAwards?: BonusAward[];
   breakdown: {
     tasksCompleted: number; // 25 pts each
     tasksScore: number;
@@ -338,6 +355,8 @@ export interface UserScoreDetail {
     groupTasksScore?: number; // individual submission points
     groupBonusCount?: number; // completed group missions
     groupBonusScore?: number; // collective team completion bonus
+    directBonusCount?: number; // Leader-awarded merit bonuses
+    directBonusScore?: number; // Leader-awarded merit bonus points
   };
 }
 
@@ -381,7 +400,8 @@ export type RealtimeEventType =
   | 'project:file_uploaded'
   | 'task:status_changed'
   | 'task:member_assigned'
-  | 'milestone:status_changed';
+  | 'milestone:status_changed'
+  | 'user:bonus_awarded';
 
 export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 

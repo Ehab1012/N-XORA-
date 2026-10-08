@@ -91,6 +91,14 @@ export function MemberProfileModal({
   const [isConfirmStep2Open, setIsConfirmStep2Open] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
 
+  // Leader Bonus Award State
+  const [isAwardBonusOpen, setIsAwardBonusOpen] = useState(false);
+  const [bonusPoints, setBonusPoints] = useState<number>(50);
+  const [bonusReason, setBonusReason] = useState<string>('Exceptional initiative & high quality delivery');
+  const [awardingBonus, setAwardingBonus] = useState(false);
+  const [bonusSuccessMsg, setBonusSuccessMsg] = useState<string | null>(null);
+  const [bonusErrorMsg, setBonusErrorMsg] = useState<string | null>(null);
+
   const fetchProfile = async (id: string) => {
     setLoading(true);
     setError(null);
@@ -137,6 +145,30 @@ export function MemberProfileModal({
   const isLeader = currentRole === 'leader';
   const canChangeRank = isLeader && !isSelf;
   const canDeleteMember = isLeader && !isSelf;
+  const canAwardBonus = isLeader;
+
+  const handleAwardBonus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userId || !user) return;
+    setAwardingBonus(true);
+    setBonusErrorMsg(null);
+    setBonusSuccessMsg(null);
+    try {
+      const res = await api.awardBonus(userId, {
+        points: bonusPoints,
+        reason: bonusReason.trim(),
+      });
+      setBonusSuccessMsg(res.message);
+      setIsAwardBonusOpen(false);
+      await fetchProfile(userId);
+      refreshMe();
+      setTimeout(() => setBonusSuccessMsg(null), 5000);
+    } catch (err: any) {
+      setBonusErrorMsg(err.message || 'Failed to award bonus points');
+    } finally {
+      setAwardingBonus(false);
+    }
+  };
 
   const handleCopyEmail = (emailStr: string) => {
     navigator.clipboard.writeText(emailStr);
@@ -262,10 +294,10 @@ export function MemberProfileModal({
       ) : (
         <div className="space-y-6">
           {/* Header Banner & Avatar Card */}
-          <div className="relative rounded-2xl bg-gradient-to-br from-[#1c1438] via-[#121428] to-[#0c0d18] border border-[#2c305c] p-5 sm:p-6 overflow-hidden shadow-xl">
+          <div className="relative rounded-2xl bg-[#060b1c]/85 backdrop-blur-xl border border-cyan-500/30 p-5 sm:p-6 overflow-hidden shadow-xl shadow-cyan-950/40">
             {/* Background ambient accents */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start sm:items-center gap-4">
@@ -274,11 +306,11 @@ export function MemberProfileModal({
                     onClick={() => {
                       if (isSelf) setAvatarPickerOpen(true);
                     }}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-fuchsia-600 p-[2px] shadow-lg shadow-purple-950/50 relative overflow-hidden ${
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-indigo-500 p-[2px] shadow-lg shadow-cyan-950/50 relative overflow-hidden ${
                       isSelf ? 'cursor-pointer' : ''
                     }`}
                   >
-                    <div className="w-full h-full bg-[#0d0f1e] rounded-[14px] flex items-center justify-center text-white font-bold text-2xl sm:text-3xl font-display overflow-hidden relative">
+                    <div className="w-full h-full bg-[#050814] rounded-[14px] flex items-center justify-center text-white font-bold text-2xl sm:text-3xl font-sharp overflow-hidden relative">
                       {user.avatarUrl ? (
                         <img
                           src={user.avatarUrl}
@@ -293,22 +325,22 @@ export function MemberProfileModal({
                       {/* Hover overlay for self */}
                       {isSelf && (
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
-                          <Camera className="w-5 h-5 text-purple-300" />
-                          <span className="text-[9px] font-mono tracking-tighter mt-0.5 text-purple-200">Change</span>
+                          <Camera className="w-5 h-5 text-cyan-300" />
+                          <span className="text-[9px] font-mono tracking-tighter mt-0.5 text-cyan-200">Change</span>
                         </div>
                       )}
                     </div>
                   </div>
                   {/* Status ping indicator */}
                   <span
-                    className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 ring-4 ring-[#0d0f1e]"
+                    className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 ring-4 ring-[#050814]"
                     title="Active Member"
                   />
                   {isSelf && (
                     <button
                       type="button"
                       onClick={() => setAvatarPickerOpen(true)}
-                      className="sm:hidden absolute -top-1.5 -right-1.5 p-1 rounded-full bg-purple-600 text-white shadow-md"
+                      className="sm:hidden absolute -top-1.5 -right-1.5 p-1 rounded-full bg-cyan-500 text-slate-950 shadow-md"
                       title="Change photo"
                     >
                       <Camera className="w-3 h-3" />
@@ -318,26 +350,26 @@ export function MemberProfileModal({
 
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">
+                    <h2 className="text-xl sm:text-2xl font-bold font-sharp text-white tracking-tight">
                       {user.name}
                     </h2>
                     <RoleBadge role={user.role} />
                     {isSelf && (
-                      <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-mono border border-purple-500/40">
+                      <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-mono border border-cyan-500/40 font-bold">
                         You
                       </span>
                     )}
                   </div>
-                  <p className="text-xs sm:text-sm font-medium text-purple-200/90">
+                  <p className="text-xs sm:text-sm font-medium text-cyan-200/90 font-sans">
                     {user.title || 'Engineering Contributor'}
                   </p>
-                  <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                    <Briefcase className="w-3 h-3 text-purple-400" />
+                  <p className="text-[11px] text-slate-400 flex items-center gap-1.5 font-sans">
+                    <Briefcase className="w-3 h-3 text-cyan-400" />
                     <span>{user.department || 'Platform Engineering'}</span>
                     {user.location && (
                       <>
                         <span className="text-slate-600">•</span>
-                        <MapPin className="w-3 h-3 text-indigo-400" />
+                        <MapPin className="w-3 h-3 text-teal-400" />
                         <span>{user.location}</span>
                       </>
                     )}
@@ -346,17 +378,35 @@ export function MemberProfileModal({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-[#232746]">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-cyan-500/20">
                 {!isSelf && onSendMessage && (
                   <button
                     onClick={() => {
                       onClose();
                       onSendMessage(user.id, user.name);
                     }}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium shadow-md shadow-purple-950/40 transition-colors"
+                    className="btn-modern-primary flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-bold shadow-md shadow-cyan-950/40 cursor-pointer"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
+                    <MessageSquare className="w-3.5 h-3.5 text-slate-950 icon-anim" />
                     <span>Message</span>
+                  </button>
+                )}
+
+                {/* Leader: Award Merit / Leadership Bonus Button */}
+                {canAwardBonus && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBonusPoints(50);
+                      setBonusReason(isSelf ? 'Leadership execution & strategic direction' : 'Exceptional initiative & high quality delivery');
+                      setBonusErrorMsg(null);
+                      setIsAwardBonusOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-950/40 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                    title={isSelf ? 'Award leadership bonus points to yourself' : `Award bonus points to ${user.name} (Leader exclusive)`}
+                  >
+                    <Award className="w-3.5 h-3.5 text-slate-950 icon-anim" />
+                    <span>{isSelf ? 'Award Self Bonus' : 'Award Bonus'}</span>
                   </button>
                 )}
 
@@ -366,27 +416,27 @@ export function MemberProfileModal({
                     id="btn-tap-change-role"
                     type="button"
                     onClick={() => setIsConfirmChangeRoleOpen(true)}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#101222] hover:bg-[#181b36] border border-amber-500/40 hover:border-amber-400 text-xs transition-all group shadow-sm whitespace-nowrap cursor-pointer"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#060a18] hover:bg-[#0c142e] border border-cyan-500/30 hover:border-cyan-400 text-xs transition-all group shadow-sm whitespace-nowrap cursor-pointer hover:-translate-y-0.5"
                     title={`Current role: ${user.role}. Click to change role.`}
                   >
-                    <div className="flex items-center gap-1.5 font-semibold text-slate-100 group-hover:text-amber-300 transition-colors">
+                    <div className="flex items-center gap-1.5 font-semibold text-slate-100 group-hover:text-cyan-200 transition-colors">
                       {user.role === 'leader' && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-                      {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
-                      {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+                      {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+                      {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-teal-400 shrink-0" />}
                       <span className="capitalize">
                         {user.role === 'co-leader' ? 'Co-Leader' : user.role === 'leader' ? 'Leader' : 'Member'}
                       </span>
                     </div>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 group-hover:bg-amber-500/25 transition-colors">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold group-hover:bg-cyan-900 transition-colors">
                       Change Role
                     </span>
                   </button>
                 ) : (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#101222] border border-[#232746] text-xs text-slate-300 whitespace-nowrap">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#060a18] border border-cyan-500/20 text-xs text-slate-300 whitespace-nowrap">
                     {user.role === 'leader' && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-                    {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
-                    {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                    <span className="capitalize font-medium">
+                    {user.role === 'co-leader' && <Shield className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+                    {user.role === 'member' && <UserCheck className="w-3.5 h-3.5 text-teal-400 shrink-0" />}
+                    <span className="capitalize font-semibold">
                       {user.role === 'co-leader' ? 'Co-Leader' : user.role === 'leader' ? 'Leader' : 'Member'}
                     </span>
                   </div>
@@ -395,19 +445,19 @@ export function MemberProfileModal({
                 {canEdit && (
                   <button
                     onClick={() => setIsEditing(!isEditing)}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1b1e38] hover:bg-[#25294c] border border-[#2d325a] text-purple-200 text-xs font-medium transition-colors"
+                    className="btn-modern-secondary flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
                   >
-                    <Edit3 className="w-3.5 h-3.5 text-purple-400" />
+                    <Edit3 className="w-3.5 h-3.5 text-cyan-400 icon-anim" />
                     <span>{isEditing ? 'View Profile' : 'Edit Profile'}</span>
                   </button>
                 )}
                 {canDeleteMember && (
                   <button
                     onClick={() => setIsDeleteModalOpen(true)}
-                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/50 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-medium transition-colors"
+                    className="btn-modern-danger inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
                     title="Delete member from system (Leader action)"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                     <span>Delete Member</span>
                   </button>
                 )}
@@ -416,9 +466,9 @@ export function MemberProfileModal({
 
             {/* Status message banner */}
             {user.statusMessage && !isEditing && (
-              <div className="mt-4 pt-3 border-t border-[#232746] flex items-center gap-2 text-xs text-slate-300">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-purple-400">Status:</span>
-                <span className="px-2.5 py-1 rounded-lg bg-[#0e101c]/80 border border-[#232746] text-slate-200 text-xs">
+              <div className="mt-4 pt-3 border-t border-cyan-500/20 flex items-center gap-2 text-xs text-slate-300">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold">Status:</span>
+                <span className="px-3 py-1 rounded-xl bg-[#030612] border border-cyan-500/25 text-slate-200 text-xs">
                   {user.statusMessage}
                 </span>
               </div>
@@ -426,26 +476,26 @@ export function MemberProfileModal({
 
             {/* Overall Score Highlight Banner */}
             {profileData?.score && !isEditing && (
-              <div className="mt-4 pt-3 border-t border-[#232746] flex flex-wrap items-center justify-between gap-3">
+              <div className="mt-4 pt-3 border-t border-cyan-500/20 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-300 shadow-sm">
                     <Trophy className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5 font-semibold">
                       <span>Overall Merit Score</span>
                       <span className="text-slate-600">•</span>
-                      <span className="text-amber-300/90 font-semibold">{profileData.score.tier || 'Contributor'}</span>
+                      <span className="text-amber-300/90 font-bold">{profileData.score.tier || 'Contributor'}</span>
                     </div>
                     <div className="flex items-baseline gap-2 mt-0.5">
-                      <span className="text-xl font-bold font-mono text-purple-100">
+                      <span className="text-xl font-bold font-mono text-cyan-100">
                         {profileData.score.totalScore}
                       </span>
-                      <span className="text-[11px] font-mono text-amber-400 font-semibold">
+                      <span className="text-[11px] font-mono text-amber-400 font-bold">
                         PTS
                       </span>
                       {profileData.score.rank && (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[#161832] border border-purple-500/30 text-purple-300">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/35 text-cyan-300 font-bold">
                           Rank #{profileData.score.rank} of {profileData.score.totalMembers || 1}
                         </span>
                       )}
@@ -454,10 +504,10 @@ export function MemberProfileModal({
                 </div>
 
                 <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
-                  <span className="px-2 py-1 rounded-lg bg-[#0e101c]/90 border border-[#1f2344]">
-                    Tasks: <strong className="text-purple-300">+{profileData.score.breakdown.tasksScore}</strong>
+                  <span className="px-2.5 py-1 rounded-xl bg-[#030612] border border-cyan-500/20">
+                    Tasks: <strong className="text-cyan-300">+{profileData.score.breakdown.tasksScore}</strong>
                   </span>
-                  <span className="px-2 py-1 rounded-lg bg-[#0e101c]/90 border border-[#1f2344]">
+                  <span className="px-2.5 py-1 rounded-xl bg-[#030612] border border-cyan-500/20">
                     Proofs: <strong className="text-teal-300">+{profileData.score.breakdown.proofsScore}</strong>
                   </span>
                 </div>
@@ -705,83 +755,83 @@ export function MemberProfileModal({
             /* VIEW PROFILE MODE */
             <div className="space-y-5">
               {/* Quick Metrics Bar */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-xl bg-[#0d0f1e] border border-[#1f223e]">
-                  <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1">
-                    <Layers className="w-3 h-3 text-purple-400" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 shadow-md">
+                  <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1.5 font-semibold">
+                    <Layers className="w-3.5 h-3.5 text-cyan-400" />
                     <span>Active Projects</span>
                   </div>
-                  <div className="text-lg font-bold font-mono text-white mt-1">
+                  <div className="text-xl font-bold font-mono text-white mt-1">
                     {profileData.stats.totalProjects}
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#0d0f1e] border border-[#1f223e]">
-                  <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1">
-                    <ListTodo className="w-3 h-3 text-indigo-400" />
+                <div className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 shadow-md">
+                  <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1.5 font-semibold">
+                    <ListTodo className="w-3.5 h-3.5 text-cyan-400" />
                     <span>Tasks Assigned</span>
                   </div>
-                  <div className="text-lg font-bold font-mono text-white mt-1">
+                  <div className="text-xl font-bold font-mono text-white mt-1">
                     {profileData.stats.totalTasksAssigned}
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#0d0f1e] border border-[#1f223e]">
-                  <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                <div className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 shadow-md">
+                  <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1.5 font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Tasks Done</span>
                   </div>
-                  <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
+                  <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
                     {profileData.stats.completedTasksCount}
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#0d0f1e] border border-[#1f223e]">
-                  <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-400" />
+                <div className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 shadow-md">
+                  <div className="text-[10px] font-mono uppercase text-slate-400 flex items-center gap-1.5 font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                     <span>Completion</span>
                   </div>
-                  <div className="text-lg font-bold font-mono text-amber-300 mt-1">
+                  <div className="text-xl font-bold font-mono text-amber-300 mt-1">
                     {profileData.stats.completionRatePercent}%
                   </div>
                 </div>
               </div>
 
               {/* Navigation Tabs */}
-              <div className="flex border-b border-[#1f2344] gap-1 overflow-x-auto scrollbar-none">
+              <div className="flex border-b border-cyan-500/20 gap-2 overflow-x-auto scrollbar-none">
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'overview'
-                      ? 'border-purple-500 text-purple-300 font-semibold'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                      ? 'border-cyan-400 text-cyan-300 bg-cyan-950/40 rounded-t-xl'
+                      : 'border-transparent text-slate-400 hover:text-cyan-200'
                   }`}
                 >
                   Overview & Skills
                 </button>
                 <button
                   onClick={() => setActiveTab('projects')}
-                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                  className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     activeTab === 'projects'
-                      ? 'border-purple-500 text-purple-300 font-semibold'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                      ? 'border-cyan-400 text-cyan-300 bg-cyan-950/40 rounded-t-xl'
+                      : 'border-transparent text-slate-400 hover:text-cyan-200'
                   }`}
                 >
                   <span>Project Scopes</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-purple-950 text-purple-300 text-[10px] font-mono">
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 text-[10px] font-mono font-bold">
                     {profileData.projects.length}
                   </span>
                 </button>
                 <button
                   onClick={() => setActiveTab('tasks')}
-                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                  className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     activeTab === 'tasks'
-                      ? 'border-purple-500 text-purple-300 font-semibold'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                      ? 'border-cyan-400 text-cyan-300 bg-cyan-950/40 rounded-t-xl'
+                      : 'border-transparent text-slate-400 hover:text-cyan-200'
                   }`}
                 >
                   <span>Assigned Deliverables</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-purple-950 text-purple-300 text-[10px] font-mono">
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 text-[10px] font-mono font-bold">
                     {profileData.tasks.length}
                   </span>
                 </button>
@@ -791,15 +841,15 @@ export function MemberProfileModal({
                   <button
                     id="tab-btn-role"
                     onClick={() => setActiveTab('role')}
-                    className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                    className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                       activeTab === 'role'
-                        ? 'border-amber-500 text-amber-300 font-semibold'
-                        : 'border-transparent text-slate-400 hover:text-slate-200'
+                        ? 'border-amber-400 text-amber-300 bg-amber-950/40 rounded-t-xl'
+                        : 'border-transparent text-slate-400 hover:text-amber-200'
                     }`}
                   >
                     <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span>Choose Role</span>
-                    <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-semibold">
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold">
                       Leader
                     </span>
                   </button>
@@ -862,73 +912,73 @@ export function MemberProfileModal({
 
                   {/* Overall Merit Score & Performance Card */}
                   {profileData.score && (
-                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#1b1535] via-[#101328] to-[#0d0f1e] border border-purple-500/30 shadow-lg shadow-purple-950/30 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#232748]">
+                    <div className="p-4 sm:p-5 rounded-2xl bg-[#060b1c]/90 backdrop-blur-xl border border-cyan-500/30 shadow-lg shadow-cyan-950/40 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-cyan-500/20">
                         <div className="flex items-center gap-3">
                           <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300">
-                            <Trophy className="w-5 h-5" />
+                            <Trophy className="w-5 h-5 icon-anim" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-semibold text-white">
+                              <h4 className="text-sm font-sharp font-semibold text-white">
                                 Overall Merit & Accountability Score
                               </h4>
                               {profileData.score.tier && (
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-950/80 border border-purple-500/40 text-purple-300">
+                                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-bold">
                                   {profileData.score.tier}
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-slate-400 mt-0.5">
+                            <p className="text-[11px] text-slate-400 mt-0.5 font-sans">
                               Continuous score calculated from completed tasks, on-time delivery, verified proofs, and milestones.
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-baseline gap-1.5 font-mono bg-[#090b16]/80 px-3.5 py-1.5 rounded-xl border border-purple-500/20">
-                          <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-purple-300 to-amber-300">
+                        <div className="flex items-baseline gap-1.5 font-mono bg-[#030612] px-4 py-2 rounded-xl border border-cyan-500/30 shadow-inner">
+                          <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-teal-300 to-amber-300 font-sharp">
                             {profileData.score.totalScore}
                           </span>
-                          <span className="text-xs font-semibold text-purple-400">PTS</span>
+                          <span className="text-xs font-bold text-cyan-400">PTS</span>
                         </div>
                       </div>
 
                       {/* Score Formula Breakdown */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                        <div className="p-2.5 rounded-xl bg-[#090b16]/70 border border-[#1d203e]">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
+                        <div className="p-2.5 rounded-xl bg-[#030612]/90 border border-cyan-500/20 hover:border-cyan-500/40 transition-colors">
                           <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
                             <span>Tasks Done</span>
-                            <span className="text-purple-400">+25 ea</span>
+                            <span className="text-cyan-400 font-semibold">+25 ea</span>
                           </div>
                           <div className="mt-1 flex items-baseline justify-between font-mono">
                             <span className="text-base font-bold text-slate-200">
                               {profileData.score.breakdown.tasksCompleted}
                             </span>
-                            <span className="text-xs text-purple-300 font-medium">
+                            <span className="text-xs text-cyan-300 font-medium">
                               +{profileData.score.breakdown.tasksScore} pts
                             </span>
                           </div>
                         </div>
 
-                        <div className="p-2.5 rounded-xl bg-[#090b16]/70 border border-[#1d203e]">
+                        <div className="p-2.5 rounded-xl bg-[#030612]/90 border border-cyan-500/20 hover:border-cyan-500/40 transition-colors">
                           <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
                             <span>On-Time Speed</span>
-                            <span className="text-indigo-400">+15 ea</span>
+                            <span className="text-teal-400 font-semibold">+15 ea</span>
                           </div>
                           <div className="mt-1 flex items-baseline justify-between font-mono">
                             <span className="text-base font-bold text-slate-200">
                               {profileData.score.breakdown.onTimeDeliveries}
                             </span>
-                            <span className="text-xs text-indigo-300 font-medium">
+                            <span className="text-xs text-teal-300 font-medium">
                               +{profileData.score.breakdown.onTimeScore} pts
                             </span>
                           </div>
                         </div>
 
-                        <div className="p-2.5 rounded-xl bg-[#090b16]/70 border border-[#1d203e]">
+                        <div className="p-2.5 rounded-xl bg-[#030612]/90 border border-cyan-500/20 hover:border-cyan-500/40 transition-colors">
                           <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
                             <span>Milestones</span>
-                            <span className="text-amber-400">+50 ea</span>
+                            <span className="text-amber-400 font-semibold">+50 ea</span>
                           </div>
                           <div className="mt-1 flex items-baseline justify-between font-mono">
                             <span className="text-base font-bold text-slate-200">
@@ -940,37 +990,93 @@ export function MemberProfileModal({
                           </div>
                         </div>
 
-                        <div className="p-2.5 rounded-xl bg-[#090b16]/70 border border-[#1d203e]">
+                        <div className="p-2.5 rounded-xl bg-[#030612]/90 border border-cyan-500/20 hover:border-cyan-500/40 transition-colors">
                           <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
                             <span>Proofs Verified</span>
-                            <span className="text-teal-400">+40 ea</span>
+                            <span className="text-emerald-400 font-semibold">+40 ea</span>
                           </div>
                           <div className="mt-1 flex items-baseline justify-between font-mono">
                             <span className="text-base font-bold text-slate-200">
                               {profileData.score.breakdown.proofsApproved}
                             </span>
-                            <span className="text-xs text-teal-300 font-medium">
+                            <span className="text-xs text-emerald-300 font-medium">
                               +{profileData.score.breakdown.proofsScore} pts
                             </span>
                           </div>
                         </div>
+
+                        <div className="p-2.5 rounded-xl bg-[#030612]/90 border border-cyan-500/20 hover:border-cyan-500/40 transition-colors">
+                          <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
+                            <span>Group Tasks</span>
+                            <span className="text-cyan-400 font-semibold">Bonus</span>
+                          </div>
+                          <div className="mt-1 flex items-baseline justify-between font-mono">
+                            <span className="text-base font-bold text-slate-200">
+                              {profileData.score.breakdown.groupBonusCount || 0}
+                            </span>
+                            <span className="text-xs text-cyan-300 font-medium">
+                              +{((profileData.score.breakdown.groupTasksScore || 0) + (profileData.score.breakdown.groupBonusScore || 0))} pts
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-[#030612]/90 border border-amber-500/30 hover:border-amber-500/50 transition-colors">
+                          <div className="text-[10px] font-mono text-amber-300 flex items-center justify-between">
+                            <span>Leader Bonus</span>
+                            <span className="text-amber-400 font-semibold">Merit</span>
+                          </div>
+                          <div className="mt-1 flex items-baseline justify-between font-mono">
+                            <span className="text-base font-bold text-amber-200">
+                              {profileData.score.directBonusCount || profileData.score.breakdown.directBonusCount || 0}
+                            </span>
+                            <span className="text-xs text-amber-300 font-bold">
+                              +{profileData.score.directBonusScore || profileData.score.breakdown.directBonusScore || 0} pts
+                            </span>
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Leader Bonus History if any */}
+                      {profileData.score.bonusAwards && profileData.score.bonusAwards.length > 0 && (
+                        <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/20 space-y-2">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
+                            <Award className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Leader Merit Bonus Awards</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {profileData.score.bonusAwards.map((award) => (
+                              <div
+                                key={award.id}
+                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 rounded-lg bg-[#030612] border border-cyan-500/20 text-xs"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-amber-400 font-mono">+{award.points} PTS</span>
+                                  <span className="text-slate-300">{award.reason}</span>
+                                </div>
+                                <div className="text-[10px] font-mono text-slate-400">
+                                  Awarded by {award.awardedByName} • {new Date(award.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* Bio */}
-                  <div className="p-4 rounded-xl bg-[#0c0d18] border border-[#1f223e] space-y-1.5">
-                    <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
+                  <div className="p-4 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 space-y-1.5 shadow-md">
+                    <span className="text-[10px] font-mono uppercase text-cyan-400 font-bold block">
                       Mandate & Professional Summary
                     </span>
-                    <p className="text-xs text-slate-300 leading-relaxed">
+                    <p className="text-xs text-slate-300 leading-relaxed font-sans">
                       {user.bio || 'No professional biography recorded for this member yet.'}
                     </p>
                   </div>
 
                   {/* Skills Grid */}
-                  <div className="p-4 rounded-xl bg-[#0c0d18] border border-[#1f223e] space-y-2.5">
-                    <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
+                  <div className="p-4 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 space-y-2.5 shadow-md">
+                    <span className="text-[10px] font-mono uppercase text-cyan-400 font-bold block">
                       Technical Competencies & Specializations
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -978,7 +1084,7 @@ export function MemberProfileModal({
                         user.skills.map((s) => (
                           <span
                             key={s}
-                            className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-950/80 to-indigo-950/80 border border-purple-500/30 text-purple-200 text-xs font-medium"
+                            className="px-3 py-1 rounded-xl bg-cyan-950/70 border border-cyan-500/40 text-cyan-200 text-xs font-semibold shadow-sm"
                           >
                             {s}
                           </span>
@@ -991,28 +1097,28 @@ export function MemberProfileModal({
 
                   {/* Contact & Credentials Details */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-3.5 rounded-xl bg-[#0c0d18] border border-[#1f223e] space-y-1 text-xs">
-                      <span className="text-[10px] font-mono uppercase text-slate-500 block">Workspace Email</span>
+                    <div className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 space-y-1 text-xs shadow-md">
+                      <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">Workspace Email</span>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-200 font-mono select-all truncate">{user.email}</span>
                         <button
                           onClick={() => handleCopyEmail(user.email)}
                           title="Copy email address"
-                          className="p-1 rounded text-slate-400 hover:text-purple-300 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-[#0c142e] transition-colors cursor-pointer"
                         >
                           {copiedEmail ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-[#0c0d18] border border-[#1f223e] space-y-1 text-xs">
-                      <span className="text-[10px] font-mono uppercase text-slate-500 block">GitHub Profile</span>
+                    <div className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 space-y-1 text-xs shadow-md">
+                      <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">GitHub Profile</span>
                       {user.githubHandle ? (
                         <a
                           href={`https://github.com/${user.githubHandle}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-purple-300 hover:underline font-mono"
+                          className="flex items-center gap-1.5 text-cyan-300 hover:text-cyan-200 hover:underline font-mono"
                         >
                           <Github className="w-3.5 h-3.5" />
                           <span>@{user.githubHandle}</span>
@@ -1023,13 +1129,13 @@ export function MemberProfileModal({
                       )}
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-[#0c0d18] border border-[#1f223e] space-y-1 text-xs">
-                      <span className="text-[10px] font-mono uppercase text-slate-500 block">Phone / Direct Line</span>
+                    <div className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 space-y-1 text-xs shadow-md">
+                      <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">Phone / Direct Line</span>
                       <span className="text-slate-200 font-mono">{user.phone || 'Not provided'}</span>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-[#0c0d18] border border-[#1f223e] space-y-1 text-xs">
-                      <span className="text-[10px] font-mono uppercase text-slate-500 block">Engineering Squads</span>
+                    <div className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/25 space-y-1 text-xs shadow-md">
+                      <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">Engineering Squads</span>
                       <div className="text-slate-200 font-medium truncate">
                         {profileData.teams.length > 0
                           ? profileData.teams.map((t) => t.name).join(', ')
@@ -1055,18 +1161,18 @@ export function MemberProfileModal({
                       return (
                         <div
                           key={proj.id}
-                          className="p-3.5 rounded-xl bg-[#0c0d18] border border-[#1f223e] hover:border-purple-500/40 transition-colors flex items-center justify-between gap-3 text-xs"
+                          className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/20 hover:border-cyan-400/50 transition-all flex items-center justify-between gap-3 text-xs shadow-md"
                         >
                           <div className="space-y-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: proj.accentColor || '#a855f7' }}
+                                className="w-2.5 h-2.5 rounded-full shadow-sm"
+                                style={{ backgroundColor: proj.accentColor || '#06b6d4' }}
                               />
                               <span className="font-semibold text-slate-100 truncate">{proj.title}</span>
                               <StatusBadge status={proj.status} />
                               {proj.isLeader && (
-                                <span className="px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 text-[10px] font-mono">
+                                <span className="px-2 py-0.5 rounded-lg bg-cyan-950 text-cyan-300 text-[10px] font-mono font-bold border border-cyan-500/30">
                                   Lead
                                 </span>
                               )}
@@ -1082,9 +1188,9 @@ export function MemberProfileModal({
 
                           <div className="flex items-center gap-3">
                             <div className="w-20 text-right">
-                              <span className="text-[11px] font-mono text-purple-300 font-semibold">{pct}%</span>
-                              <div className="w-full bg-[#1e2240] h-1.5 rounded-full overflow-hidden mt-0.5">
-                                <div className="bg-purple-500 h-full rounded-full" style={{ width: `${pct}%` }} />
+                              <span className="text-[11px] font-mono text-cyan-300 font-bold">{pct}%</span>
+                              <div className="w-full bg-[#050814] h-1.5 rounded-full overflow-hidden mt-0.5 border border-cyan-500/20">
+                                <div className="bg-gradient-to-r from-cyan-400 to-teal-400 h-full rounded-full" style={{ width: `${pct}%` }} />
                               </div>
                             </div>
 
@@ -1094,7 +1200,7 @@ export function MemberProfileModal({
                                   onClose();
                                   onOpenProject(proj.id);
                                 }}
-                                className="p-1.5 rounded-lg bg-[#14162a] hover:bg-purple-600 hover:text-white text-slate-400 transition-colors"
+                                className="p-2 rounded-xl bg-[#080d22] hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 border border-cyan-500/25 transition-all cursor-pointer"
                                 title="Open project scope"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
@@ -1119,17 +1225,17 @@ export function MemberProfileModal({
                     profileData.tasks.map((task) => (
                       <div
                         key={task.id}
-                        className="p-3 rounded-xl bg-[#0c0d18] border border-[#1f223e] flex items-center justify-between gap-3 text-xs"
+                        className="p-3.5 rounded-2xl bg-[#060b1c]/85 border border-cyan-500/20 hover:border-cyan-400/40 transition-all flex items-center justify-between gap-3 text-xs shadow-md"
                       >
                         <div className="space-y-0.5 min-w-0">
                           <div className="flex items-center gap-2">
                             <span
                               className={`w-2 h-2 rounded-full ${
-                                task.status === 'complete' ? 'bg-emerald-400' : 'bg-purple-400'
+                                task.status === 'complete' ? 'bg-emerald-400' : 'bg-cyan-400'
                               }`}
                             />
                             <span
-                              className={`font-medium truncate ${
+                              className={`font-semibold truncate ${
                                 task.status === 'complete' ? 'line-through text-slate-400' : 'text-slate-100'
                               }`}
                             >
@@ -1137,7 +1243,7 @@ export function MemberProfileModal({
                             </span>
                           </div>
                           <div className="text-[10px] text-slate-400 flex items-center gap-2">
-                            <span className="text-purple-400">{task.projectTitle}</span>
+                            <span className="text-cyan-400 font-medium">{task.projectTitle}</span>
                             {task.dueDate && (
                               <>
                                 <span>•</span>
@@ -1206,38 +1312,38 @@ export function MemberProfileModal({
                     <div
                       className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
                         user.role === 'member'
-                          ? 'bg-gradient-to-b from-[#191535] to-[#101228] border-purple-500/60 ring-1 ring-purple-500/40 shadow-lg shadow-purple-950/40'
-                          : 'bg-[#0d0f1e] border-[#22264a] hover:border-purple-500/40'
+                          ? 'bg-gradient-to-b from-[#061727] to-[#060b1c] border-cyan-500/60 ring-1 ring-cyan-500/40 shadow-lg shadow-cyan-950/40'
+                          : 'bg-[#060a18] border-cyan-500/20 hover:border-cyan-500/40'
                       }`}
                     >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shadow-sm">
-                            <UserCheck className="w-5 h-5 text-purple-400" />
+                          <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-sm">
+                            <UserCheck className="w-5 h-5 text-cyan-400" />
                           </div>
                           {user.role === 'member' ? (
-                            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/50 text-purple-300 text-[10px] font-mono font-semibold flex items-center gap-1">
-                              <Check className="w-3 h-3 text-purple-400" />
+                            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 text-[10px] font-mono font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3 text-cyan-400" />
                               Active Role
                             </span>
                           ) : (
-                            <span className="text-[10px] font-mono text-slate-500">Tier 1</span>
+                            <span className="text-[10px] font-mono text-slate-500 font-semibold">Tier 1</span>
                           )}
                         </div>
 
                         <div>
-                          <h5 className="text-sm font-bold text-white flex items-center gap-1.5">
-                            <UserCheck className="w-4 h-4 text-purple-400 shrink-0" />
+                          <h5 className="text-sm font-bold text-white flex items-center gap-1.5 font-sharp">
+                            <UserCheck className="w-4 h-4 text-cyan-400 shrink-0" />
                             <span>Member</span>
                           </h5>
-                          <div className="text-[11px] font-mono text-purple-300/80 mt-0.5">Standard Contributor</div>
+                          <div className="text-[11px] font-mono text-cyan-300/80 mt-0.5">Standard Contributor</div>
                         </div>
 
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
                           Standard project member with deliverable execution and peer messaging capabilities.
                         </p>
 
-                        <div className="space-y-1.5 pt-2 border-t border-[#1f223f] text-[11px] text-slate-300">
+                        <div className="space-y-1.5 pt-2 border-t border-cyan-500/20 text-[11px] text-slate-300">
                           <div className="flex items-center gap-2 text-slate-300">
                             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                             <span>Complete & submit assigned deliverables</span>
@@ -1257,21 +1363,21 @@ export function MemberProfileModal({
                         </div>
                       </div>
 
-                      <div className="pt-4 mt-3 border-t border-[#1f223f]">
+                      <div className="pt-4 mt-3 border-t border-cyan-500/20">
                         <button
                           type="button"
                           disabled={changingRank || user.role === 'member'}
                           onClick={() => handleChangeRank('member')}
-                          className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                          className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                             user.role === 'member'
-                              ? 'bg-purple-950/60 text-purple-300 border border-purple-500/40 cursor-default opacity-85'
-                              : 'bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                              ? 'bg-cyan-950/60 text-cyan-300 border border-cyan-500/40 cursor-default opacity-85'
+                              : 'btn-modern-primary text-slate-950 font-bold'
                           }`}
                         >
                           {changingRank ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           ) : (
-                            <UserCheck className="w-3.5 h-3.5 text-purple-300" />
+                            <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
                           )}
                           <span>{user.role === 'member' ? 'Current Active Role' : 'Assign Member Role'}</span>
                         </button>
@@ -1282,38 +1388,38 @@ export function MemberProfileModal({
                     <div
                       className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
                         user.role === 'co-leader'
-                          ? 'bg-gradient-to-b from-[#131b3e] to-[#0f142e] border-indigo-500/60 ring-1 ring-indigo-500/40 shadow-lg shadow-indigo-950/40'
-                          : 'bg-[#0d0f1e] border-[#22264a] hover:border-indigo-500/40'
+                          ? 'bg-gradient-to-b from-[#062024] to-[#060b1c] border-teal-500/60 ring-1 ring-teal-500/40 shadow-lg shadow-teal-950/40'
+                          : 'bg-[#060a18] border-cyan-500/20 hover:border-teal-500/40'
                       }`}
                     >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 shadow-sm">
-                            <Shield className="w-5 h-5 text-indigo-400" />
+                          <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-300 shadow-sm">
+                            <Shield className="w-5 h-5 text-teal-400" />
                           </div>
                           {user.role === 'co-leader' ? (
-                            <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/50 text-indigo-300 text-[10px] font-mono font-semibold flex items-center gap-1">
-                              <Check className="w-3 h-3 text-indigo-400" />
+                            <span className="px-2 py-0.5 rounded-full bg-teal-500/20 border border-teal-500/50 text-teal-300 text-[10px] font-mono font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3 text-teal-400" />
                               Active Role
                             </span>
                           ) : (
-                            <span className="text-[10px] font-mono text-slate-500">Tier 2</span>
+                            <span className="text-[10px] font-mono text-slate-500 font-semibold">Tier 2</span>
                           )}
                         </div>
 
                         <div>
-                          <h5 className="text-sm font-bold text-white flex items-center gap-1.5">
-                            <Shield className="w-4 h-4 text-indigo-400 shrink-0" />
+                          <h5 className="text-sm font-bold text-white flex items-center gap-1.5 font-sharp">
+                            <Shield className="w-4 h-4 text-teal-400 shrink-0" />
                             <span>Co-Leader</span>
                           </h5>
-                          <div className="text-[11px] font-mono text-indigo-300/80 mt-0.5">Operational Leadership</div>
+                          <div className="text-[11px] font-mono text-teal-300/80 mt-0.5">Operational Leadership</div>
                         </div>
 
-                        <p className="text-xs text-slate-300 leading-relaxed">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
                           Operations and sprint co-leader. Orchestrates deliverables, milestones, and proofs.
                         </p>
 
-                        <div className="space-y-1.5 pt-2 border-t border-[#1f223f] text-[11px] text-slate-300">
+                        <div className="space-y-1.5 pt-2 border-t border-cyan-500/20 text-[11px] text-slate-300">
                           <div className="flex items-center gap-2 text-slate-300">
                             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                             <span>Create, edit, and assign project tasks</span>
@@ -1333,21 +1439,21 @@ export function MemberProfileModal({
                         </div>
                       </div>
 
-                      <div className="pt-4 mt-3 border-t border-[#1f223f]">
+                      <div className="pt-4 mt-3 border-t border-cyan-500/20">
                         <button
                           type="button"
                           disabled={changingRank || user.role === 'co-leader'}
                           onClick={() => handleChangeRank('co-leader')}
-                          className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                          className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                             user.role === 'co-leader'
-                              ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-500/40 cursor-default opacity-85'
-                              : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-950/50 hover:scale-[1.02] active:scale-[0.98]'
+                              ? 'bg-teal-950/60 text-teal-300 border border-teal-500/40 cursor-default opacity-85'
+                              : 'btn-modern-primary text-slate-950 font-bold'
                           }`}
                         >
                           {changingRank ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           ) : (
-                            <Shield className="w-3.5 h-3.5 text-indigo-300" />
+                            <Shield className="w-3.5 h-3.5 text-teal-300" />
                           )}
                           <span>{user.role === 'co-leader' ? 'Current Active Role' : 'Assign Co-Leader Role'}</span>
                         </button>
@@ -1436,20 +1542,20 @@ export function MemberProfileModal({
           )}
 
           {/* BOTTOM ACTION BAR: Chat with Member */}
-          <div className="pt-4 mt-6 border-t border-[#1f223f] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#0d0f1e]/95 p-3.5 rounded-xl border border-[#202446]">
+          <div className="pt-4 mt-6 border-t border-cyan-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#060b1c]/90 backdrop-blur-xl p-4 rounded-2xl border border-cyan-500/30 shadow-xl shadow-cyan-950/40">
             <div className="flex items-center gap-2.5">
               <div className="relative">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                 <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping opacity-75" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+                <div className="text-xs font-sharp font-semibold text-slate-200 flex items-center gap-2">
                   <span>Direct Communication Session</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-950/70 text-purple-300 border border-purple-500/30">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold">
                     Peer-to-Peer
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 font-mono">
+                <div className="text-[11px] text-slate-400 font-sans mt-0.5">
                   {isSelf
                     ? 'Your personal workspace account profile'
                     : `Send encrypted messages directly to ${user.name}`}
@@ -1469,21 +1575,21 @@ export function MemberProfileModal({
                       window.location.hash = `messages/dm/${user.id}`;
                     }
                   }}
-                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium text-xs shadow-lg shadow-purple-950/50 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="btn-modern-primary w-full sm:w-auto px-4 py-2 text-xs font-bold shadow-lg shadow-cyan-950/40 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <MessageSquare className="w-3.5 h-3.5" />
+                  <MessageSquare className="w-3.5 h-3.5 text-slate-950 icon-anim" />
                   <span>Chat with {user.name}</span>
                 </button>
               ) : (
-                <div className="text-xs text-purple-300 font-mono flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-950/50 border border-purple-500/30">
-                  <UserCheck className="w-3.5 h-3.5 text-purple-400" />
+                <div className="text-xs text-cyan-300 font-mono flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 font-bold shadow-sm">
+                  <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
                   <span>Your Profile</span>
                 </div>
               )}
 
               <button
                 onClick={onClose}
-                className="px-3.5 py-2 rounded-xl bg-[#14162a] hover:bg-[#1c203c] border border-[#232746] text-slate-300 text-xs font-medium transition-colors"
+                className="btn-modern-secondary px-4 py-2 text-xs font-semibold cursor-pointer"
               >
                 Close
               </button>
@@ -1558,6 +1664,125 @@ export function MemberProfileModal({
         confirmLabel={deletingUser ? 'Deleting...' : 'Yes, Permanently Delete Member'}
         destructive={true}
       />
+
+      {/* Award Merit Bonus Modal (Leader Only) */}
+      <Modal
+        isOpen={isAwardBonusOpen}
+        onClose={() => setIsAwardBonusOpen(false)}
+        title={`Award Bonus Points to ${user?.name || 'Member'}`}
+        subtitle="Exclusively authorized for Workspace Leaders. Grant merit points to reward excellence."
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleAwardBonus} className="space-y-4">
+          {bonusErrorMsg && (
+            <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs">
+              {bonusErrorMsg}
+            </div>
+          )}
+
+          <div className="p-3.5 rounded-xl bg-[#0b0c16] border border-[#1f223e] flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
+              <Award className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-white">
+                Awarding to: <span className="text-amber-300">{user?.name}</span>
+              </div>
+              <div className="text-xs text-slate-400 capitalize">
+                Role: {user?.role === 'co-leader' ? 'Co-Leader' : 'Member'}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-300 text-xs font-medium mb-1.5">
+              Select Preset Bonus Points
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {[25, 50, 100, 250].map((pts) => (
+                <button
+                  key={pts}
+                  type="button"
+                  onClick={() => setBonusPoints(pts)}
+                  className={`py-2 px-3 rounded-xl border text-xs font-mono font-bold transition-all cursor-pointer ${
+                    bonusPoints === pts
+                      ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-md shadow-amber-950/30'
+                      : 'bg-[#101222] border-[#222644] text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                  }`}
+                >
+                  +{pts} PTS
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-300 text-xs font-medium mb-1">
+              Custom Bonus Points Amount
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="1000"
+              required
+              value={bonusPoints}
+              onChange={(e) => setBonusPoints(Math.max(1, parseInt(e.target.value) || 0))}
+              className="w-full px-3 py-2 rounded-xl bg-[#0e101c] border border-[#232746] text-amber-300 font-mono font-bold text-sm focus:border-amber-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-300 text-xs font-medium mb-1">
+              Merit Reason / Recognition Note *
+            </label>
+            <textarea
+              required
+              rows={3}
+              value={bonusReason}
+              onChange={(e) => setBonusReason(e.target.value)}
+              placeholder="e.g. Outstanding performance on Sprint delivery and proactive mentorship"
+              className="w-full px-3 py-2 rounded-xl bg-[#0e101c] border border-[#232746] text-slate-100 text-xs focus:border-amber-500 focus:outline-none resize-none"
+            />
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {[
+                'Leadership & Strategic Direction',
+                'Exemplary Co-Leadership',
+                'Outstanding Milestone Delivery',
+                'Critical Bug Resolution',
+                'High-Velocity Contribution',
+                'Zero-Defect Code Verification',
+              ].map((rec) => (
+                <button
+                  key={rec}
+                  type="button"
+                  onClick={() => setBonusReason(rec)}
+                  className="px-2 py-0.5 rounded-md bg-[#131528] border border-[#232748] text-[10px] text-slate-400 hover:text-amber-300 hover:border-amber-500/40 transition-colors cursor-pointer"
+                >
+                  {rec}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1f223e]">
+            <button
+              type="button"
+              onClick={() => setIsAwardBonusOpen(false)}
+              className="px-3.5 py-2 rounded-xl bg-[#14162a] hover:bg-[#1c203c] border border-[#232746] text-slate-300 text-xs font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={awardingBonus || bonusPoints <= 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-950/40 disabled:opacity-50 transition-all cursor-pointer"
+            >
+              <Award className="w-4 h-4" />
+              <span>{awardingBonus ? 'Awarding...' : `Award +${bonusPoints} Bonus Points`}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
     </Modal>
   );
 }

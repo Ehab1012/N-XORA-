@@ -175,21 +175,21 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
   const otherUsers = users.filter((u) => u.id !== user?.id);
 
   return (
-    <div className="h-[calc(100vh-13rem)] sm:h-[calc(100vh-14.5rem)] min-h-[460px] rounded-2xl glass-panel border border-[#1f223f] flex overflow-hidden shadow-xl">
+    <div className="h-[calc(100vh-13rem)] sm:h-[calc(100vh-14.5rem)] min-h-[460px] rounded-2xl sm:rounded-3xl bg-[#060b1c]/90 backdrop-blur-2xl border border-cyan-500/25 flex overflow-hidden shadow-2xl shadow-cyan-950/40">
       {/* Sidebar: Channels & Direct Messages */}
-      <div className={`w-full sm:w-72 md:w-80 border-r border-[#1c1f38] bg-[#0c0e1c] flex-col ${isMobileChatOpen ? 'hidden sm:flex' : 'flex'}`}>
-        <div className="p-4 border-b border-[#1c1f38]">
-          <h2 className="text-sm font-display font-semibold text-slate-100 mb-1">Messages & Comms</h2>
+      <div className={`w-full sm:w-72 md:w-80 border-r border-cyan-500/20 bg-[#060a18] flex-col ${isMobileChatOpen ? 'hidden sm:flex' : 'flex'}`}>
+        <div className="p-4 border-b border-cyan-500/20 bg-[#070d22]/80">
+          <h2 className="text-sm font-sharp font-bold text-slate-100 mb-0.5 tracking-tight">Messages & Comms</h2>
           <p className="text-[11px] text-slate-400 font-mono">Real-time scoped channels</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-none">
           {/* Projects Channels */}
           <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 px-2 block mb-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/80 font-bold px-2 block mb-2">
               Project Channels
             </span>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {projects.map((proj) => {
                 const isSelected = selectedTarget?.type === 'project' && selectedTarget?.id === proj.id;
                 return (
@@ -199,13 +199,13 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
                       setSelectedTarget({ type: 'project', id: proj.id, name: proj.title });
                       setIsMobileChatOpen(true);
                     }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left transition-all ${
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-purple-950/80 text-purple-200 border border-purple-500/30 font-medium'
-                        : 'text-slate-300 hover:bg-[#151830]'
+                        ? 'bg-gradient-to-r from-cyan-950/90 to-teal-950/80 text-cyan-200 border border-cyan-500/40 font-semibold shadow-md shadow-cyan-950/30'
+                        : 'text-slate-300 hover:bg-[#0c142e] hover:text-cyan-200'
                     }`}
                   >
-                    <FolderGit2 className={`w-3.5 h-3.5 ${isSelected ? 'text-purple-400' : 'text-slate-500'}`} />
+                    <FolderGit2 className={`w-3.5 h-3.5 ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`} />
                     <span className="truncate">{proj.title}</span>
                   </button>
                 );
@@ -215,10 +215,10 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
 
           {/* Direct Messages */}
           <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 px-2 block mb-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/80 font-bold px-2 block mb-2">
               Direct Messages
             </span>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {otherUsers.map((u) => {
                 const isSelected = selectedTarget?.type === 'direct' && selectedTarget?.id === u.id;
                 return (
@@ -228,14 +228,14 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
                       setSelectedTarget({ type: 'direct', id: u.id, name: u.name });
                       setIsMobileChatOpen(true);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left transition-all ${
+                    className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-purple-950/80 text-purple-200 border border-purple-500/30 font-medium'
-                        : 'text-slate-300 hover:bg-[#151830]'
+                        ? 'bg-gradient-to-r from-cyan-950/90 to-teal-950/80 text-cyan-200 border border-cyan-500/40 font-semibold shadow-md shadow-cyan-950/30'
+                        : 'text-slate-300 hover:bg-[#0c142e] hover:text-cyan-200'
                     }`}
                   >
-                    <div className="flex items-center gap-2 truncate">
-                      <div className="w-5 h-5 rounded-full bg-purple-900 text-purple-300 flex items-center justify-center text-[10px] font-bold">
+                    <div className="flex items-center gap-2.5 truncate">
+                      <div className="w-6 h-6 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-300 flex items-center justify-center text-[10px] font-bold">
                         {u.name[0]}
                       </div>
                       <span className="truncate">{u.name}</span>
@@ -250,26 +250,26 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
       </div>
 
       {/* Main Conversation Stream */}
-      <div className={`flex-1 flex-col bg-[#090a14]/80 min-w-0 ${isMobileChatOpen ? 'flex' : 'hidden sm:flex'}`}>
+      <div className={`flex-1 flex-col bg-[#040816]/95 min-w-0 ${isMobileChatOpen ? 'flex' : 'hidden sm:flex'}`}>
         {/* Stream Header */}
-        <div className="px-4 sm:px-6 py-3.5 border-b border-[#1c1f38] bg-[#0c0e1a] flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 border-b border-cyan-500/20 bg-[#060a18] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setIsMobileChatOpen(false)}
-              className="sm:hidden p-1.5 -ml-1.5 rounded-lg hover:bg-[#1a1d36] text-slate-400 transition-colors"
+              className="sm:hidden p-1.5 -ml-1.5 rounded-xl hover:bg-[#0c142e] text-slate-400 transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             {selectedTarget?.type === 'project' ? (
-              <FolderGit2 className="w-4 h-4 text-purple-400" />
+              <FolderGit2 className="w-4 h-4 text-cyan-400 icon-anim" />
             ) : (
-              <User className="w-4 h-4 text-purple-400" />
+              <User className="w-4 h-4 text-cyan-400 icon-anim" />
             )}
-            <h3 className="text-sm font-semibold text-slate-100">
+            <h3 className="text-sm font-sharp font-semibold text-slate-100">
               {selectedTarget ? selectedTarget.name : 'No Active Stream'}
             </h3>
           </div>
-          <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1.5">
+          <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1.5 font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Encrypted Session</span>
           </span>
@@ -392,36 +392,37 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
         </div>
 
         {/* Input Bar */}
-        <div className="p-3 sm:p-4 border-t border-[#1c1f38] bg-[#0c0e1a]">
+        <div className="p-3 sm:p-4 border-t border-cyan-500/20 bg-[#040816]/90 backdrop-blur-xl">
           {isRecording ? (
             <VoiceRecorder
               onRecordComplete={(audioUrl) => handleSend(undefined, audioUrl)}
               onCancel={() => setIsRecording(false)}
             />
           ) : (
-            <form onSubmit={handleSend} className="flex gap-1.5 sm:gap-2">
+            <form onSubmit={handleSend} className="flex gap-2 sm:gap-2.5">
               <input
                 ref={inputRef}
                 type="text"
                 placeholder={`Message ${selectedTarget?.name || ''}...`}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                className="flex-1 px-3 sm:px-4 py-2.5 rounded-xl bg-[#080912] border border-[#232746] text-slate-100 text-xs focus:border-purple-500 focus:outline-none"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-[#030612]/90 border border-cyan-500/20 text-slate-100 placeholder-slate-500 text-xs focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 focus:outline-none transition-all"
               />
               <button
                 type="button"
                 onClick={() => setIsRecording(true)}
-                className="p-2.5 rounded-xl bg-[#14162a] hover:bg-[#1a1d36] text-slate-400 hover:text-purple-400 border border-[#232746] hover:border-purple-500/30 transition-colors shrink-0"
+                className="p-2.5 rounded-xl bg-[#060a1a] hover:bg-[#0c142e] text-slate-400 hover:text-cyan-300 border border-cyan-500/25 hover:border-cyan-400/60 transition-all shrink-0 cursor-pointer hover:-translate-y-0.5 active:scale-95"
+                title="Record voice note"
               >
-                <Mic className="w-4 h-4" />
+                <Mic className="w-4 h-4 text-cyan-400 icon-anim" />
               </button>
               <button
                 type="submit"
                 disabled={!inputText.trim() || sending}
-                className="px-3 sm:px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium flex items-center justify-center gap-2 shadow-md shadow-purple-900/30 transition-colors shrink-0"
+                className="btn-modern-primary px-4 sm:px-5 py-2.5 text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-md shadow-cyan-950/40 shrink-0"
               >
                 <span className="hidden sm:inline">Send</span>
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-3.5 h-3.5 text-slate-950 transition-transform duration-300 group-hover:translate-x-1" />
               </button>
             </form>
           )}

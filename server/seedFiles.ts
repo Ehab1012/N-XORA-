@@ -285,4 +285,109 @@ export const SEED_PROJECT_FILES: StoredFile[] = [
     thumbnailUrl: toDataUrl(zeroTrustFlowSvg),
     createdAt: '2026-09-10T14:30:00.000Z',
   },
+  {
+    id: 'file_aria_telemetry',
+    name: 'aria1-duct-inspection-telemetry.svg',
+    mimeType: 'image/svg+xml',
+    sizeBytes: 21400,
+    uploadedById: 'usr_mtzqyn6z_3bmw',
+    uploadedByName: 'Ehab Walyaldeen',
+    projectId: 'proj_muwrg07a',
+    category: 'diagram',
+    description: 'ARIA 1 autonomous robot crawler telemetry: ultrasonic duct thickness survey, motor torque metrics, and obstacle detection map.',
+    tags: ['aria1', 'robotics', 'duct-inspection', 'ultrasonic', 'telemetry'],
+    dataUrl: toDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="ariaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080d1a"/>
+      <stop offset="100%" stop-color="#101935"/>
+    </linearGradient>
+    <pattern id="ariaGrid" width="25" height="25" patternUnits="userSpaceOnUse">
+      <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#162347" stroke-width="0.75"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="480" rx="16" fill="url(#ariaBg)"/>
+  <rect width="800" height="480" rx="16" fill="url(#ariaGrid)"/>
+  <rect x="2" y="2" width="796" height="476" rx="15" fill="none" stroke="#22d3ee" stroke-opacity="0.3" stroke-width="1.5"/>
+  <rect x="25" y="20" width="750" height="52" rx="10" fill="#0d152e" stroke="#1d2f60" stroke-width="1"/>
+  <circle cx="50" cy="46" r="10" fill="#06b6d4"/>
+  <text x="75" y="51" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="16" font-weight="700">ARIA 1: Air-Duct Inspection & Automated Repair Telemetry</text>
+  <rect x="655" y="34" width="105" height="24" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+  <text x="707" y="50" fill="#34d399" font-family="monospace" font-size="11" font-weight="700" text-anchor="middle">MISSION PASS ✓</text>
+
+  <g transform="translate(40, 95)">
+    <rect width="220" height="150" rx="12" fill="#0c1730" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="16" y="28" fill="#38bdf8" font-family="system-ui" font-size="13" font-weight="700">Robotic Crawler Core</text>
+    <line x1="16" y1="40" x2="204" y2="40" stroke="#1c305c" stroke-width="1"/>
+    <text x="16" y="65" fill="#94a3b8" font-family="monospace" font-size="11">Crawl Distance: <tspan fill="#38bdf8">148.5 m</tspan></text>
+    <text x="16" y="88" fill="#94a3b8" font-family="monospace" font-size="11">Battery Pack: <tspan fill="#34d399">24.4V (92%)</tspan></text>
+    <text x="16" y="111" fill="#94a3b8" font-family="monospace" font-size="11">Motor Torque: <tspan fill="#38bdf8">1.82 Nm (Nominal)</tspan></text>
+    <text x="16" y="134" fill="#94a3b8" font-family="monospace" font-size="11">Traction Drive: <tspan fill="#34d399">100% Grip</tspan></text>
+  </g>
+
+  <g transform="translate(285, 95)">
+    <rect width="230" height="150" rx="12" fill="#0d1a33" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="16" y="28" fill="#22d3ee" font-family="system-ui" font-size="13" font-weight="700">Ultrasonic Sensor Array</text>
+    <line x1="16" y1="40" x2="214" y2="40" stroke="#193b58" stroke-width="1"/>
+    <text x="16" y="65" fill="#94a3b8" font-family="monospace" font-size="11">Duct Wall Thick.: <tspan fill="#22d3ee">1.24 mm ± 0.02</tspan></text>
+    <text x="16" y="88" fill="#94a3b8" font-family="monospace" font-size="11">Corrosion Pits: <tspan fill="#34d399">0 Critical</tspan></text>
+    <text x="16" y="111" fill="#94a3b8" font-family="monospace" font-size="11">Seam Leak Check: <tspan fill="#34d399">0.00 CFM Loss</tspan></text>
+    <text x="16" y="134" fill="#94a3b8" font-family="monospace" font-size="11">Sampling Rate: <tspan fill="#22d3ee">1,200 Hz</tspan></text>
+  </g>
+
+  <g transform="translate(540, 95)">
+    <rect width="220" height="150" rx="12" fill="#141433" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="16" y="28" fill="#c084fc" font-family="system-ui" font-size="13" font-weight="700">Automated Repair Head</text>
+    <line x1="16" y1="40" x2="204" y2="40" stroke="#2c2357" stroke-width="1"/>
+    <text x="16" y="65" fill="#94a3b8" font-family="monospace" font-size="11">Sealer Compound: <tspan fill="#c084fc">Cartridge 94%</tspan></text>
+    <text x="16" y="88" fill="#94a3b8" font-family="monospace" font-size="11">Micro-Joint Seals: <tspan fill="#34d399">12 Applied</tspan></text>
+    <text x="16" y="111" fill="#94a3b8" font-family="monospace" font-size="11">Curing Laser: <tspan fill="#34d399">Calibrated 405nm</tspan></text>
+    <text x="16" y="134" fill="#94a3b8" font-family="monospace" font-size="11">Seal Integrity: <tspan fill="#34d399">100% Hermetic</tspan></text>
+  </g>
+
+  <g transform="translate(40, 265)">
+    <rect width="720" height="185" rx="12" fill="#090f21" stroke="#1d2a4f" stroke-width="1"/>
+    <text x="20" y="30" fill="#94a3b8" font-family="monospace" font-size="11" font-weight="700">CONTINUOUS SCAN PROFILE & TELEMETRY LOGS</text>
+    <path d="M 30 130 Q 150 70, 260 120 T 480 100 T 700 110" fill="none" stroke="#22d3ee" stroke-width="2.5"/>
+    <path d="M 30 130 Q 150 70, 260 120 T 480 100 T 700 110 L 700 150 L 30 150 Z" fill="#06b6d4" fill-opacity="0.08"/>
+    <text x="20" y="170" fill="#38bdf8" font-family="monospace" font-size="10">Scan Track: [Zone 1: Air Intake] -> [Zone 2: Baffle Assembly] -> [Zone 3: Plenum Splitter] -> [Zone 4: Riser 3B]</text>
+  </g>
+</svg>`),
+    thumbnailUrl: toDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%"><rect width="100" height="100" fill="#0d152e"/><circle cx="50" cy="50" r="30" fill="#06b6d4"/><text x="50" y="55" fill="#fff" font-family="system-ui" font-size="12" font-weight="bold" text-anchor="middle">ARIA1</text></svg>`),
+    createdAt: '2026-10-06T18:15:00.000Z',
+  },
+  {
+    id: 'file_aria_report',
+    name: 'aria1-diagnostic-inspection-report.json',
+    mimeType: 'application/json',
+    sizeBytes: 15400,
+    uploadedById: 'usr_mtzqyn6z_3bmw',
+    uploadedByName: 'Ehab Walyaldeen',
+    projectId: 'proj_muwrg07a',
+    category: 'document',
+    description: 'JSON telemetry data dump from ARIA 1 autonomous crawl run #4402.',
+    tags: ['aria1', 'telemetry', 'json', 'robotics'],
+    dataUrl: 'data:application/json;base64,' + Buffer.from(JSON.stringify({
+      missionId: 'aria1_run_4402',
+      robotUnit: 'ARIA-Mark-1-Crawler',
+      operator: 'Ehab Walyaldeen',
+      inspectionDate: '2026-10-06T18:15:00Z',
+      overallStatus: 'PASSED',
+      crawlMetrics: {
+        totalDistanceMeters: 148.5,
+        zonesTraversed: ['Intake Duct', 'Baffle Splitter', 'Plenum 4', 'Riser 3B'],
+        averageSpeedMps: 0.22,
+        batteryConsumedPercent: 8.0,
+      },
+      sensorReadings: {
+        ultrasonicWallThicknessAvgMm: 1.24,
+        minimumWallThicknessMm: 1.19,
+        microSeamsRepairedCount: 12,
+        infraredMaxTempCelsius: 22.4,
+        dustAccumulationIndex: 'Nominal Clean',
+      },
+      verificationProofHash: '0x8f2a9e4d1b7c330e2941aa893d',
+    }, null, 2)).toString('base64'),
+    createdAt: '2026-10-06T18:15:00.000Z',
+  },
 ];

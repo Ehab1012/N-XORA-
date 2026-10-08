@@ -131,34 +131,52 @@ export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
     }
   }
 
-  // 3. Proofs
-  for (const pr of proofs) {
-    if (pr.status === 'approved' && memberScoresMap.has(pr.submittedById)) {
-      const score = memberScoresMap.get(pr.submittedById)!;
-      score.breakdown.proofsApproved += 1;
-      score.breakdown.proofsScore += 40;
+    // 3. Proofs
+    for (const pr of proofs) {
+      if (pr.status === 'approved' && memberScoresMap.has(pr.submittedById)) {
+        const score = memberScoresMap.get(pr.submittedById)!;
+        score.breakdown.proofsApproved += 1;
+        score.breakdown.proofsScore += 40;
+      }
     }
-  }
 
-  // Tally total scores
-  const leaderboard: UserScoreDetail[] = [];
-  for (const score of memberScoresMap.values()) {
-    const groupPts = (score.breakdown.groupTasksScore || 0) + (score.breakdown.groupBonusScore || 0);
-    score.totalScore =
-      score.breakdown.tasksScore +
-      score.breakdown.milestonesScore +
-      score.breakdown.proofsScore +
-      score.breakdown.onTimeScore +
-      groupPts;
-    score.tasksCompleted = score.breakdown.tasksCompleted;
-    score.milestonesCompleted = score.breakdown.milestonesCompleted;
-    score.proofsApproved = score.breakdown.proofsApproved;
-    score.onTimeDeliveries = score.breakdown.onTimeDeliveries;
-    score.groupTasksCompleted = score.breakdown.groupTasksCompleted;
-    score.groupBonusCount = score.breakdown.groupBonusCount;
-    score.userRole = score.role;
-    leaderboard.push(score);
-  }
+    // 4. Leader Discretionary Merit Bonuses
+    const bonusAwards = Array.isArray(data.bonusAwards) ? data.bonusAwards : [];
+    for (const ba of bonusAwards) {
+      if (memberScoresMap.has(ba.recipientId)) {
+        if (!ba.projectId || ba.projectId === projectId) {
+          const score = memberScoresMap.get(ba.recipientId)!;
+          score.breakdown.directBonusCount = (score.breakdown.directBonusCount || 0) + 1;
+          score.breakdown.directBonusScore = (score.breakdown.directBonusScore || 0) + ba.points;
+          if (!score.bonusAwards) score.bonusAwards = [];
+          score.bonusAwards.push(ba);
+        }
+      }
+    }
+
+    // Tally total scores
+    const leaderboard: UserScoreDetail[] = [];
+    for (const score of memberScoresMap.values()) {
+      const groupPts = (score.breakdown.groupTasksScore || 0) + (score.breakdown.groupBonusScore || 0);
+      const directBonusPts = score.breakdown.directBonusScore || 0;
+      score.totalScore =
+        score.breakdown.tasksScore +
+        score.breakdown.milestonesScore +
+        score.breakdown.proofsScore +
+        score.breakdown.onTimeScore +
+        groupPts +
+        directBonusPts;
+      score.tasksCompleted = score.breakdown.tasksCompleted;
+      score.milestonesCompleted = score.breakdown.milestonesCompleted;
+      score.proofsApproved = score.breakdown.proofsApproved;
+      score.onTimeDeliveries = score.breakdown.onTimeDeliveries;
+      score.groupTasksCompleted = score.breakdown.groupTasksCompleted;
+      score.groupBonusCount = score.breakdown.groupBonusCount;
+      score.directBonusCount = score.breakdown.directBonusCount || 0;
+      score.directBonusScore = directBonusPts;
+      score.userRole = score.role;
+      leaderboard.push(score);
+    }
 
   // Sort descending by score
   leaderboard.sort((a, b) => b.totalScore - a.totalScore);
@@ -293,6 +311,13 @@ export function calculateUserOverallScore(
       (p) => p.submittedById === u.id && p.status === 'approved' && projectIds.has(p.projectId)
     );
 
+    // Evaluate Leader Direct Bonuses
+    const userBonusAwards = (Array.isArray(data.bonusAwards) ? data.bonusAwards : []).filter(
+      (ba) => ba.recipientId === u.id
+    );
+    const directBonusCount = userBonusAwards.length;
+    const directBonusScore = userBonusAwards.reduce((sum, ba) => sum + (ba.points || 0), 0);
+
     const tasksCompleted = completedTasks.length;
     const tasksScore = tasksCompleted * 25;
     const onTimeScore = onTimeDeliveries * 15;
@@ -301,7 +326,14 @@ export function calculateUserOverallScore(
     const proofsApproved = userProofs.length;
     const proofsScore = proofsApproved * 40;
 
-    const totalScore = tasksScore + onTimeScore + milestonesScore + proofsScore + groupTasksScore + groupBonusScore;
+    const totalScore =
+      tasksScore +
+      onTimeScore +
+      milestonesScore +
+      proofsScore +
+      groupTasksScore +
+      groupBonusScore +
+      directBonusScore;
 
     scoresByUserId.set(u.id, {
       userId: u.id,
@@ -316,6 +348,9 @@ export function calculateUserOverallScore(
       onTimeDeliveries,
       groupTasksCompleted,
       groupBonusCount,
+      directBonusCount,
+      directBonusScore,
+      bonusAwards: userBonusAwards,
       breakdown: {
         tasksCompleted,
         tasksScore,
@@ -329,6 +364,8 @@ export function calculateUserOverallScore(
         groupTasksScore,
         groupBonusCount,
         groupBonusScore,
+        directBonusCount,
+        directBonusScore,
       },
     });
   }
@@ -354,4 +391,11 @@ export function calculateUserOverallScore(
     totalMembers: data.users.length,
     tier,
   };
+}
+
+export function calculateWorkspaceLeaderboard(
+  userId: string,
+  workspaceId: string = 'ws_default'
+): UserScoreDetail & { rank: number; totalMembers: number; tier: string } {
+  return calculateUserOverallScore(userId, workspaceId);
 }

@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Folder, Users, MessageSquare, Settings, Activity, Command, X, ArrowRight } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { Project, User } from '../../../shared/types.js';
+import { useTheme } from '../../contexts/ThemeContext.js';
 
 interface CommandPaletteProps {
   onNavigate: (path: string) => void;
 }
 
 export function CommandPalette({ onNavigate }: CommandPaletteProps) {
+  const { themeConfig } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -77,26 +79,48 @@ export function CommandPalette({ onNavigate }: CommandPaletteProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-xl bg-[#0b0d1a] border border-[#23274c] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh]"
+        className="relative w-full max-w-xl backdrop-blur-2xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh]"
+        style={{
+          background: 'var(--surface-panel)',
+          borderColor: 'var(--border-color)',
+          borderWidth: 1,
+          boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 35px -5px ${themeConfig.accentColor}25`,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center px-4 py-3 border-b border-[#1c1f38] bg-[#0f1224]/80">
-          <Search className="w-5 h-5 text-purple-400 mr-3" />
+        <div
+          className="flex items-center px-4 py-3.5 border-b"
+          style={{
+            background: 'var(--surface-header)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
+          <Search className="w-5 h-5 mr-3 transition-colors" style={{ color: themeConfig.accentColor }} />
           <input
             ref={inputRef}
             type="text"
             placeholder="Search projects, team members, or navigate..."
-            className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm focus:outline-none"
+            className="flex-1 bg-transparent text-slate-100 placeholder-slate-400 text-sm focus:outline-none"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <div className="flex items-center gap-2 ml-3">
-            <span className="flex items-center justify-center px-1.5 py-0.5 rounded bg-[#161830] border border-[#23274c] text-[10px] font-mono text-slate-400">
+            <span
+              className="flex items-center justify-center px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold"
+              style={{
+                background: `${themeConfig.accentColor}18`,
+                color: themeConfig.accentColor,
+                border: `1px solid ${themeConfig.accentColor}40`,
+              }}
+            >
               ESC
             </span>
-            <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white p-1">
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -104,26 +128,34 @@ export function CommandPalette({ onNavigate }: CommandPaletteProps) {
 
         <div className="flex-1 overflow-y-auto p-2 scrollbar-none">
           {loading ? (
-            <div className="p-4 text-center text-xs text-slate-400 font-mono">Loading data...</div>
+            <div className="p-6 text-center text-xs text-slate-400 font-mono">Loading data...</div>
           ) : (
             <div className="space-y-4 p-2">
               
               {/* Static Navigation Navigation */}
               {staticNavigation.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-2 px-2">Navigation</div>
+                  <div
+                    className="text-[10px] font-mono font-bold uppercase tracking-wider mb-2 px-2"
+                    style={{ color: themeConfig.accentColor }}
+                  >
+                    Navigation
+                  </div>
                   <div className="space-y-1">
                     {staticNavigation.map((nav) => (
                       <button
                         key={nav.id}
                         onClick={() => handleSelect(nav.path)}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left hover:bg-[#141830] hover:text-purple-300 text-slate-300 transition-colors group"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:bg-white/5 text-slate-300 transition-all group cursor-pointer hover:translate-x-1"
                       >
                         <div className="flex items-center gap-3">
-                          <nav.icon className="w-4 h-4 text-slate-400 group-hover:text-purple-400" />
-                          <span className="text-sm">{nav.label}</span>
+                          <nav.icon className="w-4 h-4 text-slate-400 group-hover:text-slate-100 transition-colors" />
+                          <span className="text-xs font-semibold">{nav.label}</span>
                         </div>
-                        <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-purple-400" />
+                        <ArrowRight
+                          className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1"
+                          style={{ color: themeConfig.accentColor }}
+                        />
                       </button>
                     ))}
                   </div>
@@ -133,24 +165,38 @@ export function CommandPalette({ onNavigate }: CommandPaletteProps) {
               {/* Projects */}
               {filteredProjects.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-2 px-2">Projects</div>
+                  <div
+                    className="text-[10px] font-mono font-bold uppercase tracking-wider mb-2 px-2"
+                    style={{ color: themeConfig.accentColor }}
+                  >
+                    Projects
+                  </div>
                   <div className="space-y-1">
                     {filteredProjects.map((project) => (
                       <button
                         key={project.id}
                         onClick={() => handleSelect(`project/${project.id}`)}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left hover:bg-[#141830] hover:text-teal-300 text-slate-300 transition-colors group"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:bg-white/5 text-slate-300 transition-all group cursor-pointer hover:translate-x-1"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-5 h-5 rounded bg-[#090b17] border border-[#23274c] flex items-center justify-center">
-                            <Folder className="w-3 h-3 text-teal-400" />
+                          <div
+                            className="w-6 h-6 rounded-lg flex items-center justify-center border"
+                            style={{
+                              background: 'var(--surface-subtle)',
+                              borderColor: 'var(--border-color)',
+                            }}
+                          >
+                            <Folder className="w-3.5 h-3.5" style={{ color: themeConfig.accentColor }} />
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-sm">{project.title}</span>
-                            <span className="text-[10px] text-slate-500 uppercase font-mono">{project.status}</span>
+                            <span className="text-xs font-semibold">{project.title}</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-mono">{project.status}</span>
                           </div>
                         </div>
-                        <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-teal-400" />
+                        <ArrowRight
+                          className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1"
+                          style={{ color: themeConfig.accentColor }}
+                        />
                       </button>
                     ))}
                   </div>
@@ -160,24 +206,38 @@ export function CommandPalette({ onNavigate }: CommandPaletteProps) {
               {/* Users */}
               {filteredUsers.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-mono font-semibold text-slate-500 uppercase tracking-wider mb-2 px-2">Team Members</div>
+                  <div
+                    className="text-[10px] font-mono font-bold uppercase tracking-wider mb-2 px-2"
+                    style={{ color: themeConfig.accentColor }}
+                  >
+                    Team Members
+                  </div>
                   <div className="space-y-1">
                     {filteredUsers.map((user) => (
                       <button
                         key={user.id}
                         onClick={() => handleSelect(`messages`)}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left hover:bg-[#141830] hover:text-sky-300 text-slate-300 transition-colors group"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:bg-white/5 text-slate-300 transition-all group cursor-pointer hover:translate-x-1"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 rounded-full bg-[#090b17] border border-[#23274c] flex items-center justify-center">
-                            <Users className="w-3.5 h-3.5 text-sky-400" />
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center border"
+                            style={{
+                              background: 'var(--surface-subtle)',
+                              borderColor: 'var(--border-color)',
+                            }}
+                          >
+                            <Users className="w-3.5 h-3.5" style={{ color: themeConfig.accentColor }} />
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-sm">{user.name}</span>
-                            <span className="text-[10px] text-slate-500 uppercase font-mono">{user.role}</span>
+                            <span className="text-xs font-semibold">{user.name}</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-mono">{user.role}</span>
                           </div>
                         </div>
-                        <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-sky-400" />
+                        <ArrowRight
+                          className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1"
+                          style={{ color: themeConfig.accentColor }}
+                        />
                       </button>
                     ))}
                   </div>
@@ -193,13 +253,35 @@ export function CommandPalette({ onNavigate }: CommandPaletteProps) {
           )}
         </div>
         
-        <div className="px-4 py-2 border-t border-[#1c1f38] bg-[#0c0e1e] flex items-center justify-between text-[10px] font-mono text-slate-500">
+        <div
+          className="px-4 py-2 border-t flex items-center justify-between text-[10px] font-mono text-slate-500"
+          style={{
+            background: 'var(--surface-header)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
           <div className="flex items-center gap-1.5">
-            <span className="flex items-center justify-center px-1 rounded bg-[#161830] border border-[#23274c]">↑↓</span>
+            <span
+              className="flex items-center justify-center px-1 rounded border"
+              style={{
+                background: 'var(--surface-subtle)',
+                borderColor: 'var(--border-color)',
+              }}
+            >
+              ↑↓
+            </span>
             <span>to navigate</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="flex items-center justify-center px-1 rounded bg-[#161830] border border-[#23274c]">Enter</span>
+            <span
+              className="flex items-center justify-center px-1 rounded border"
+              style={{
+                background: 'var(--surface-subtle)',
+                borderColor: 'var(--border-color)',
+              }}
+            >
+              Enter
+            </span>
             <span>to select</span>
           </div>
         </div>

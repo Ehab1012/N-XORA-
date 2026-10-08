@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, CheckSquare, FileCheck2, Users, Award, Sparkles, CheckCircle2, Clock } from 'lucide-react';
+import { Calendar, CheckSquare, FileCheck2, Users, Award, Sparkles, CheckCircle2, Clock, Upload } from 'lucide-react';
 import { Task, User } from '../../../shared/types.js';
 import { StatusBadge, PriorityBadge } from '../common/Badges.js';
 import { useAuth } from '../../contexts/AuthContext.js';
@@ -35,17 +35,20 @@ export function TaskCard({ task, users, onClick, onRequestProofSubmit, onOpenGro
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl glass-panel border transition-all hover:translate-y-[-1px] space-y-3 cursor-pointer ${
+      className={`p-4 rounded-2xl bg-[#060b1c]/85 backdrop-blur-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-cyan-950/40 space-y-3 cursor-pointer group select-none overflow-hidden relative ${
         isGroup
-          ? 'border-indigo-500/30 hover:border-indigo-400/60 bg-gradient-to-br from-[#12142d]/80 via-[#0d0f22]/90 to-[#14122d]/80'
-          : 'border-[#1f223f] hover:border-purple-500/40'
+          ? 'border-indigo-500/35 hover:border-cyan-400/60 bg-gradient-to-br from-[#0e1634]/90 via-[#090e24]/90 to-[#121c38]/90'
+          : 'border-cyan-500/20 hover:border-cyan-400/60 hover:bg-[#081028]/90'
       }`}
     >
+      {/* Top card hover shimmer line */}
+      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
       {/* Group task mission banner */}
       {isGroup && (
-        <div className="flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg bg-indigo-950/70 border border-indigo-500/30 text-[11px] font-medium text-indigo-300">
+        <div className="flex items-center justify-between gap-2 px-2.5 py-1 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-[11px] font-medium text-cyan-200">
           <div className="flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-indigo-400" />
+            <Users className="w-3.5 h-3.5 text-cyan-400" />
             <span className="font-semibold tracking-wide">Group Mission</span>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-amber-300 font-mono">
@@ -58,7 +61,7 @@ export function TaskCard({ task, users, onClick, onRequestProofSubmit, onOpenGro
       )}
 
       <div className="flex items-start justify-between gap-2">
-        <h4 className="text-sm font-semibold text-slate-100 line-clamp-1">{task.title}</h4>
+        <h4 className="text-sm font-semibold text-slate-100 group-hover:text-cyan-200 transition-colors line-clamp-1">{task.title}</h4>
         <PriorityBadge priority={task.priority} />
       </div>
 
@@ -103,19 +106,29 @@ export function TaskCard({ task, users, onClick, onRequestProofSubmit, onOpenGro
             )}
           </div>
         ) : task.proofSubmittedId ? (
-          <span className="inline-flex items-center gap-1 text-[11px] text-teal-400 font-medium">
-            <FileCheck2 className="w-3.5 h-3.5" />
-            <span>Proof Filed</span>
-          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="inline-flex items-center gap-1.5 text-[11px] text-cyan-200 hover:text-white font-semibold bg-gradient-to-r from-cyan-950/80 via-teal-950/60 to-cyan-950/80 hover:from-cyan-900/80 hover:to-teal-900/80 px-2.5 py-1 rounded-xl border border-cyan-400/50 hover:border-cyan-300 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-cyan-950/50 group/proof hover:-translate-y-0.5 active:scale-95"
+            title="Inspect submitted deliverable & proof files"
+          >
+            <FileCheck2 className="w-3.5 h-3.5 text-cyan-400 group-hover/proof:scale-120 group-hover/proof:rotate-6 transition-transform" />
+            <span>View Proof & Files</span>
+          </button>
         ) : task.status === 'in_progress' || task.status === 'todo' ? (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               if (onRequestProofSubmit) onRequestProofSubmit(task);
             }}
-            className="text-[11px] text-purple-400 hover:text-purple-300 hover:underline"
+            className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-200 hover:bg-cyan-950/40 px-2 py-0.5 rounded-lg border border-transparent hover:border-cyan-500/30 transition-all cursor-pointer group/submit hover:-translate-y-0.5 active:scale-95"
           >
-            Submit Proof
+            <Upload className="w-3 h-3 group-hover/submit:scale-115 transition-transform" />
+            <span>Submit Proof</span>
           </button>
         ) : null}
       </div>

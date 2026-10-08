@@ -293,15 +293,28 @@ export function AvatarPickerModal({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex rounded-xl bg-[#0b0e20] p-1 border border-[var(--border-color)]">
+        <div
+          className="flex rounded-xl p-1 border"
+          style={{
+            background: 'var(--surface-header)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
           <button
             type="button"
             onClick={() => setSelectedTab('upload')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+            style={
               selectedTab === 'upload'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#141832]'
-            }`}
+                ? {
+                    background: `linear-gradient(135deg, ${themeConfig.accentColor}, ${themeConfig.accentColor}cc)`,
+                    color: '#020617',
+                    boxShadow: `0 4px 15px -3px ${themeConfig.accentColor}50`,
+                  }
+                : {
+                    color: 'var(--text-muted)',
+                  }
+            }
           >
             <Upload className="w-3.5 h-3.5" />
             <span>Upload Image</span>
@@ -310,11 +323,18 @@ export function AvatarPickerModal({
           <button
             type="button"
             onClick={() => setSelectedTab('presets')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+            style={
               selectedTab === 'presets'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#141832]'
-            }`}
+                ? {
+                    background: `linear-gradient(135deg, ${themeConfig.accentColor}, ${themeConfig.accentColor}cc)`,
+                    color: '#020617',
+                    boxShadow: `0 4px 15px -3px ${themeConfig.accentColor}50`,
+                  }
+                : {
+                    color: 'var(--text-muted)',
+                  }
+            }
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Preset Gallery</span>
@@ -323,11 +343,18 @@ export function AvatarPickerModal({
           <button
             type="button"
             onClick={() => setSelectedTab('url')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+            style={
               selectedTab === 'url'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#141832]'
-            }`}
+                ? {
+                    background: `linear-gradient(135deg, ${themeConfig.accentColor}, ${themeConfig.accentColor}cc)`,
+                    color: '#020617',
+                    boxShadow: `0 4px 15px -3px ${themeConfig.accentColor}50`,
+                  }
+                : {
+                    color: 'var(--text-muted)',
+                  }
+            }
           >
             <LinkIcon className="w-3.5 h-3.5" />
             <span>Image URL</span>
@@ -404,13 +431,25 @@ export function AvatarPickerModal({
                   <div
                     key={preset.id}
                     onClick={() => setPreviewUrl(preset.url)}
-                    className={`relative p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col items-center text-center group ${
+                    className="relative p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col items-center text-center group"
+                    style={
                       isSelected
-                        ? 'bg-blue-950/60 border-blue-500 ring-2 ring-blue-500/50 shadow-md shadow-blue-950/50'
-                        : 'bg-[#0c1024] border-[#1e2446] hover:border-slate-500 hover:bg-[#121630]'
-                    }`}
+                        ? {
+                            background: `${themeConfig.accentColor}18`,
+                            borderColor: themeConfig.accentColor,
+                            boxShadow: `0 0 15px ${themeConfig.accentColor}30`,
+                            transform: 'scale(1.02)',
+                          }
+                        : {
+                            background: 'var(--surface-subtle)',
+                            borderColor: 'var(--border-color)',
+                          }
+                    }
                   >
-                    <div className="w-14 h-14 rounded-xl overflow-hidden mb-2 bg-[#090d1e] border border-white/10 shadow-sm">
+                    <div
+                      className="w-14 h-14 rounded-xl overflow-hidden mb-2 border border-white/10 shadow-sm"
+                      style={{ background: 'var(--surface-card)' }}
+                    >
                       <img
                         src={preset.url}
                         alt={preset.name}
@@ -426,8 +465,11 @@ export function AvatarPickerModal({
                     </span>
 
                     {isSelected && (
-                      <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-sm">
-                        <Check className="w-2.5 h-2.5" />
+                      <div
+                        className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center shadow-sm"
+                        style={{ backgroundColor: themeConfig.accentColor }}
+                      >
+                        <Check className="w-2.5 h-2.5 text-slate-950 font-bold" />
                       </div>
                     )}
                   </div>
@@ -459,12 +501,16 @@ export function AvatarPickerModal({
                     }
                   }}
                   placeholder="https://images.unsplash.com/... or https://github.com/user.png"
-                  className="flex-1 px-3 py-2 rounded-xl bg-[#090d1e] border border-[#202648] text-slate-100 text-xs focus:border-blue-500 focus:outline-none font-mono"
+                  className="flex-1 px-3 py-2 rounded-xl border text-slate-100 text-xs focus:outline-none font-mono"
+                  style={{
+                    background: 'var(--surface-subtle)',
+                    borderColor: 'var(--border-color)',
+                  }}
                 />
                 <button
                   type="button"
                   onClick={handleApplyCustomUrl}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium shadow-md transition-colors"
+                  className="btn-modern-primary px-4 py-2 text-xs font-bold shadow-md transition-colors"
                 >
                   Preview
                 </button>
@@ -482,7 +528,7 @@ export function AvatarPickerModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#161a36] text-xs transition-colors"
+            className="btn-modern-ghost px-4 py-2 text-xs font-semibold"
           >
             Cancel
           </button>
@@ -492,7 +538,7 @@ export function AvatarPickerModal({
               type="button"
               onClick={handleSaveAvatar}
               disabled={isSaving}
-              className="glow-btn-primary px-5 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-2 disabled:opacity-50"
+              className="btn-modern-primary px-5 py-2 text-xs font-bold flex items-center gap-2 disabled:opacity-50"
             >
               {isSaving ? (
                 <>
@@ -501,7 +547,7 @@ export function AvatarPickerModal({
                 </>
               ) : (
                 <>
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="w-3.5 h-3.5 text-slate-950 font-bold" />
                   <span>Save Profile Picture</span>
                 </>
               )}

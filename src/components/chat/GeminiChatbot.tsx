@@ -18,6 +18,7 @@ import {
 import Markdown from 'react-markdown';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { useTheme } from '../../contexts/ThemeContext.js';
 import { auth, googleProvider, signInWithPopup, db, collection, addDoc, query, where, getDocs, orderBy } from '../../lib/firebase.js';
 
 export interface ChatMessage {
@@ -64,6 +65,7 @@ const ROLE_PRESETS: Record<ChatRoleMode, { name: string; icon: React.ReactNode; 
 
 export function GeminiChatbot({ isOpen, onClose, activeProjectId, activeProjectName }: GeminiChatbotProps) {
   const { user } = useAuth();
+  const { themeConfig } = useTheme();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome_1',
@@ -200,24 +202,50 @@ export function GeminiChatbot({ isOpen, onClose, activeProjectId, activeProjectN
 
   return (
     <div
-      className={`fixed z-50 transition-all duration-300 flex flex-col glass-panel bg-[#0b0d1b]/95 backdrop-blur-xl border border-purple-500/40 shadow-2xl ${
+      className={`fixed z-50 transition-all duration-300 flex flex-col backdrop-blur-2xl shadow-2xl ${
         isExpanded
           ? 'inset-4 sm:inset-10 rounded-3xl'
-          : 'bottom-4 right-4 w-[calc(100vw-2rem)] sm:w-[460px] h-[640px] max-h-[85vh] rounded-2xl'
+          : 'bottom-4 right-4 w-[calc(100vw-2rem)] sm:w-[460px] h-[640px] max-h-[85vh] rounded-2xl sm:rounded-3xl'
       }`}
+      style={{
+        background: 'var(--surface-panel)',
+        borderColor: 'var(--border-color)',
+        borderWidth: 1,
+        boxShadow: `0 20px 45px -10px rgba(0, 0, 0, 0.7), 0 0 30px -5px ${themeConfig.accentColor}25`,
+      }}
     >
       {/* Top Header Bar */}
-      <div className="px-3.5 py-2.5 border-b border-[#1f2345] flex items-center justify-between gap-2 bg-gradient-to-r from-[#141838] via-[#0f122c] to-[#181335] rounded-t-2xl min-w-0">
+      <div
+        className="px-3.5 py-2.5 border-b flex items-center justify-between gap-2 rounded-t-2xl sm:rounded-t-3xl min-w-0"
+        style={{
+          background: 'var(--surface-header)',
+          borderColor: 'var(--border-color)',
+        }}
+      >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="p-1.5 sm:p-2 rounded-xl bg-purple-900/40 border border-purple-500/50 text-purple-300 shadow-md shrink-0">
+          <div
+            className="p-1.5 sm:p-2 rounded-xl border shadow-md shrink-0"
+            style={{
+              background: `${themeConfig.accentColor}20`,
+              borderColor: `${themeConfig.accentColor}50`,
+              color: themeConfig.accentColor,
+            }}
+          >
             <Bot className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <h3 className="text-xs sm:text-sm font-bold text-white whitespace-nowrap truncate">
+              <h3 className="text-xs sm:text-sm font-sharp font-bold text-white whitespace-nowrap truncate tracking-wide">
                 Gemini AI Co-Pilot
               </h3>
-              <span className="px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[9px] sm:text-[10px] font-mono font-medium whitespace-nowrap shrink-0">
+              <span
+                className="px-1.5 py-0.5 rounded-full border text-[9px] sm:text-[10px] font-mono font-medium whitespace-nowrap shrink-0"
+                style={{
+                  background: `${themeConfig.accentColor}20`,
+                  color: themeConfig.accentColor,
+                  borderColor: `${themeConfig.accentColor}40`,
+                }}
+              >
                 {modelTier === 'pro' ? 'Pro 3.1' : modelTier === 'fast' ? 'Flash Lite' : 'Flash 3.6'}
               </span>
             </div>
@@ -373,30 +401,54 @@ export function GeminiChatbot({ isOpen, onClose, activeProjectId, activeProjectN
       </div>
 
       {/* Quick Prompt Chips */}
-      <div className="px-3 py-1.5 bg-[#0a0c1a] border-t border-[#1a1d3a] flex items-center gap-1.5 overflow-x-auto text-[11px] whitespace-nowrap scrollbar-none">
-        <span className="text-slate-500 font-mono text-[10px] uppercase">Quick:</span>
+      <div
+        className="px-3 py-2 border-t flex items-center gap-1.5 overflow-x-auto text-[11px] whitespace-nowrap scrollbar-none"
+        style={{
+          background: 'var(--surface-header)',
+          borderColor: 'var(--border-color)',
+        }}
+      >
+        <span className="text-slate-500 font-mono text-[10px] uppercase font-bold">Quick:</span>
         <button
           onClick={() => handleSendMessage('Analyze the current project bottlenecks and give recommendations.')}
-          className="px-2.5 py-1 rounded-full bg-[#131636] border border-purple-500/20 text-purple-200 hover:border-purple-500/60 hover:text-white transition-colors"
+          className="px-3 py-1 rounded-xl border text-slate-300 hover:text-white transition-all cursor-pointer"
+          style={{
+            background: 'var(--surface-subtle)',
+            borderColor: 'var(--border-color)',
+          }}
         >
           🔍 Analyze Bottlenecks
         </button>
         <button
           onClick={() => handleSendMessage('Break down tasks for a security audit sprint.')}
-          className="px-2.5 py-1 rounded-full bg-[#131636] border border-indigo-500/20 text-indigo-200 hover:border-indigo-500/60 hover:text-white transition-colors"
+          className="px-3 py-1 rounded-xl border text-slate-300 hover:text-white transition-all cursor-pointer"
+          style={{
+            background: 'var(--surface-subtle)',
+            borderColor: 'var(--border-color)',
+          }}
         >
           🛡️ Security Task Breakdown
         </button>
         <button
           onClick={() => handleSendMessage('Draft a high-level milestone progress report.')}
-          className="px-2.5 py-1 rounded-full bg-[#131636] border border-amber-500/20 text-amber-200 hover:border-amber-500/60 hover:text-white transition-colors"
+          className="px-3 py-1 rounded-xl border text-slate-300 hover:text-white transition-all cursor-pointer"
+          style={{
+            background: 'var(--surface-subtle)',
+            borderColor: 'var(--border-color)',
+          }}
         >
           📊 Milestone Status
         </button>
       </div>
 
       {/* Input Form */}
-      <div className="p-3 border-t border-[#1f2345] bg-[#0c0e21] rounded-b-2xl">
+      <div
+        className="p-3 border-t rounded-b-2xl sm:rounded-b-3xl"
+        style={{
+          background: 'var(--surface-card)',
+          borderColor: 'var(--border-color)',
+        }}
+      >
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -410,14 +462,18 @@ export function GeminiChatbot({ isOpen, onClose, activeProjectId, activeProjectN
             onChange={(e) => setInputText(e.target.value)}
             placeholder={`Ask Gemini Co-Pilot (${ROLE_PRESETS[roleMode].name})...`}
             disabled={isLoading}
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#070814] border border-[#242952] text-xs text-slate-100 placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/50 disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 rounded-xl border text-xs text-slate-100 placeholder-slate-400 focus:outline-none disabled:opacity-50 transition-all"
+            style={{
+              background: 'var(--surface-subtle)',
+              borderColor: 'var(--border-color)',
+            }}
           />
           <button
             type="submit"
             disabled={!inputText.trim() || isLoading}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium text-xs hover:from-purple-500 hover:to-indigo-500 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+            className="btn-modern-primary px-4 py-2.5 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer shadow-md"
           >
-            <Send className="w-3.5 h-3.5" />
+            <Send className="w-3.5 h-3.5 text-slate-950 transition-transform duration-300 group-hover:translate-x-1" />
             <span className="hidden sm:inline">Send</span>
           </button>
         </form>

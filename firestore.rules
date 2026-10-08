@@ -4,7 +4,13 @@ service cloud.firestore {
     match /nexora_data/{document=**} {
       allow read, write: if true;
     }
+    match /nexora_data_dev/{document=**} {
+      allow read, write: if true;
+    }
     match /nexora_file_chunks/{document=**} {
+      allow read, write: if true;
+    }
+    match /nexora_file_chunks_dev/{document=**} {
       allow read, write: if true;
     }
     match /{document=**} {

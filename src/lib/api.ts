@@ -343,6 +343,10 @@ export const api = {
     return request(`/api/proofs${query}`);
   },
 
+  async getProof(id: string): Promise<ProofSubmission> {
+    return request(`/api/proofs/${id}`);
+  },
+
   async submitProof(payload: {
     taskId: string;
     projectId: string;
@@ -544,6 +548,21 @@ export const api = {
       body: JSON.stringify({ role }),
     });
   },
+
+  async awardBonus(
+    userId: string,
+    payload: { points: number; reason?: string; projectId?: string }
+  ): Promise<{ success: boolean; bonusAward: any; updatedScore: any; message: string }> {
+    return request(`/api/users/${userId}/bonus`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getUserBonusHistory(userId: string): Promise<any[]> {
+    return request(`/api/users/${userId}/bonus-history`);
+  },
+
   async deleteUser(userId: string): Promise<{ success: boolean; deletedId: string }> {
     return request(`/api/users/${userId}`, {
       method: 'DELETE',
@@ -599,6 +618,30 @@ export const api = {
 
   async acceptProjectInvitation(token: string): Promise<{ success: boolean; projectId: string; projectTitle: string; message: string }> {
     return request(`/api/invitations/${token}/accept`, {
+      method: 'POST',
+    });
+  },
+
+  // Environment & Publishing
+  async getEnvironmentInfo(): Promise<{
+    isDev: boolean;
+    currentCollection: string;
+    publishedCollection: string;
+    appUrl: string;
+    service: string;
+    nodeEnv: string;
+  }> {
+    return request('/api/environment');
+  },
+
+  async revertToPublished(): Promise<{ success: boolean; message: string; projectCount?: number }> {
+    return request('/api/environment/revert-to-published', {
+      method: 'POST',
+    });
+  },
+
+  async promoteToPublished(): Promise<{ success: boolean; message: string }> {
+    return request('/api/environment/promote-to-published', {
       method: 'POST',
     });
   },

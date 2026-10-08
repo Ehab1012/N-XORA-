@@ -94,6 +94,7 @@ function WorkspaceRouter() {
           {activeTab === 'projects' && (
             selectedProjectId ? (
               <ProjectDetail
+                key={selectedProjectId}
                 projectId={selectedProjectId}
                 onBack={() => {
                   setSelectedProjectId(null);

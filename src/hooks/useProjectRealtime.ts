@@ -6,11 +6,14 @@ import { api } from '../lib/api.js';
 // Subtle audio chime using browser Web Audio API
 function playChime(isStatusChange: boolean) {
   try {
+    if (typeof window === 'undefined') return;
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
+
     const ctx = new AudioContextClass();
     if (ctx.state === 'suspended') {
-      ctx.resume();
+      ctx.close().catch(() => {});
+      return;
     }
 
     const osc = ctx.createOscillator();
@@ -34,6 +37,9 @@ function playChime(isStatusChange: boolean) {
 
     osc.start();
     osc.stop(ctx.currentTime + 0.36);
+    setTimeout(() => {
+      ctx.close().catch(() => {});
+    }, 450);
   } catch {
     // Ignore audio context errors if blocked by browser policy
   }

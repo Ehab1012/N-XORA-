@@ -148,4 +148,66 @@ describe('Nexora Core Suite', () => {
     expect(prefs.overdueAlerts).toBe(true);
     expect(prefs.directMessages).toBe(false);
   });
+
+  it('allows leader to award bonus points to co-leader and members', () => {
+    const leaderToken = createSession('usr_owner', 'ws_default');
+    const leaderSession = getSession(leaderToken);
+    expect(leaderSession?.role).toBe(ROLES.LEADER);
+
+    const coLeaderUser = db.getRawData().users.find((u) => u.role === ROLES.CO_LEADER);
+    const memberUser = db.getRawData().users.find((u) => u.role === ROLES.MEMBER);
+    expect(coLeaderUser).toBeDefined();
+    expect(memberUser).toBeDefined();
+
+    // Leader awards bonus to Co-leader
+    db.mutate((d) => {
+      if (!Array.isArray(d.bonusAwards)) d.bonusAwards = [];
+      d.bonusAwards.push({
+        id: 'ba_test_coleader',
+        workspaceId: 'ws_default',
+        recipientId: coLeaderUser!.id,
+        recipientName: coLeaderUser!.name,
+        awardedById: leaderSession!.user.id,
+        awardedByName: leaderSession!.user.name,
+        points: 75,
+        reason: 'Exemplary Co-Leadership & Coordination',
+        createdAt: new Date().toISOString(),
+      });
+
+      // Leader awards bonus to Member
+      d.bonusAwards.push({
+        id: 'ba_test_member',
+        workspaceId: 'ws_default',
+        recipientId: memberUser!.id,
+        recipientName: memberUser!.name,
+        awardedById: leaderSession!.user.id,
+        awardedByName: leaderSession!.user.name,
+        points: 50,
+        reason: 'High-Velocity Zero-Defect Delivery',
+        createdAt: new Date().toISOString(),
+      });
+
+      // Leader awards bonus to himself
+      d.bonusAwards.push({
+        id: 'ba_test_leader_self',
+        workspaceId: 'ws_default',
+        recipientId: leaderSession!.user.id,
+        recipientName: leaderSession!.user.name,
+        awardedById: leaderSession!.user.id,
+        awardedByName: leaderSession!.user.name,
+        points: 100,
+        reason: 'Principal Architecture & Milestone Direction',
+        createdAt: new Date().toISOString(),
+      });
+    });
+
+    const data = db.getRawData();
+    const coleaderBonus = data.bonusAwards.find((b) => b.recipientId === coLeaderUser!.id);
+    const memberBonus = data.bonusAwards.find((b) => b.recipientId === memberUser!.id);
+    const leaderSelfBonus = data.bonusAwards.find((b) => b.recipientId === leaderSession!.user.id);
+
+    expect(coleaderBonus?.points).toBe(75);
+    expect(memberBonus?.points).toBe(50);
+    expect(leaderSelfBonus?.points).toBe(100);
+  });
 });

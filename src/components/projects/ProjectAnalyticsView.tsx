@@ -12,12 +12,14 @@ import {
 } from 'lucide-react';
 import { ProjectAnalytics } from '../../../shared/types.js';
 import { api } from '../../lib/api.js';
+import { useTheme } from '../../contexts/ThemeContext.js';
 
 interface ProjectAnalyticsViewProps {
   projectId: string;
 }
 
 export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
+  const { themeConfig } = useTheme();
   const [analytics, setAnalytics] = useState<ProjectAnalytics | null>(null);
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -72,11 +74,22 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
   return (
     <div className="space-y-6">
       {/* Top Banner: Health & Export */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl glass-panel border border-[#202444]">
+      <div
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl shadow-lg"
+        style={{
+          background: 'var(--surface-panel)',
+          borderColor: 'var(--border-color)',
+          borderWidth: 1,
+          boxShadow: `0 10px 30px -5px rgba(0,0,0,0.6), 0 0 20px -5px ${themeConfig.accentColor}15`,
+        }}
+      >
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Activity className="w-4 h-4 text-purple-400" />
-            <span className="text-xs font-mono uppercase tracking-wider text-purple-300">
+            <Activity className="w-4 h-4" style={{ color: themeConfig.accentColor }} />
+            <span
+              className="text-xs font-mono uppercase tracking-wider font-bold"
+              style={{ color: themeConfig.accentColor }}
+            >
               Deterministic Project Scorecard
             </span>
           </div>
@@ -99,7 +112,7 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
         <button
           onClick={handleExport}
           disabled={exporting}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium shadow-lg shadow-purple-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="btn-modern-primary inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold shadow-md"
         >
           <Download className="w-4 h-4" />
           <span>{exporting ? 'Generating Report...' : 'Export Verified Project Report (.md)'}</span>
@@ -108,18 +121,30 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl glass-panel border border-[#1f223f]">
+        <div
+          className="p-4 rounded-xl border"
+          style={{
+            background: 'var(--surface-subtle)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
           <span className="text-[11px] font-mono text-slate-400 block mb-1">Completion Rate</span>
           <div className="text-2xl font-bold font-display text-slate-100">{analytics.completionRate}%</div>
           <div className="w-full bg-[#16182e] h-1.5 rounded-full mt-2 overflow-hidden">
             <div
-              className="bg-teal-400 h-full rounded-full transition-all"
+              className={`bg-gradient-to-r ${themeConfig.gradient} h-full rounded-full transition-all`}
               style={{ width: `${analytics.completionRate}%` }}
             />
           </div>
         </div>
 
-        <div className="p-4 rounded-xl glass-panel border border-[#1f223f]">
+        <div
+          className="p-4 rounded-xl border"
+          style={{
+            background: 'var(--surface-subtle)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
           <span className="text-[11px] font-mono text-slate-400 block mb-1">Total Deliverables</span>
           <div className="text-2xl font-bold font-display text-slate-100">
             {analytics.completedTasks} / {analytics.totalTasks}
@@ -127,9 +152,18 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
           <span className="text-[10px] text-slate-500 mt-1 block">Work items closed</span>
         </div>
 
-        <div className="p-4 rounded-xl glass-panel border border-[#1f223f]">
+        <div
+          className="p-4 rounded-xl border"
+          style={{
+            background: 'var(--surface-subtle)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
           <span className="text-[11px] font-mono text-slate-400 block mb-1">Approved Proofs</span>
-          <div className="text-2xl font-bold font-display text-teal-300">
+          <div
+            className="text-2xl font-bold font-display font-semibold"
+            style={{ color: themeConfig.accentColor }}
+          >
             {(analytics as any).proofsApproved || 0}
           </div>
           <span className="text-[10px] text-slate-500 mt-1 block">
@@ -137,7 +171,13 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
           </span>
         </div>
 
-        <div className="p-4 rounded-xl glass-panel border border-[#1f223f]">
+        <div
+          className="p-4 rounded-xl border"
+          style={{
+            background: 'var(--surface-subtle)',
+            borderColor: 'var(--border-color)',
+          }}
+        >
           <span className="text-[11px] font-mono text-slate-400 block mb-1">Overdue / Blocked</span>
           <div className="text-2xl font-bold font-display text-rose-400">
             {(analytics.overdueTasks ?? analytics.atRiskTasks ?? 0) + (analytics.blockedTasks ?? 0)}
@@ -149,22 +189,44 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
       </div>
 
       {/* Transparent Leaderboard with Formula */}
-      <div className="rounded-2xl glass-panel border border-[#202444] p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-4 border-b border-[#202444] mb-4">
+      <div
+        className="rounded-2xl border p-5 sm:p-6"
+        style={{
+          background: 'var(--surface-panel)',
+          borderColor: 'var(--border-color)',
+        }}
+      >
+        <div
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-4 border-b mb-4"
+          style={{ borderColor: 'var(--border-color)' }}
+        >
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-400" />
             <h4 className="text-base font-display font-semibold text-slate-100">
               Transparent Accountability Leaderboard
             </h4>
           </div>
-          <div className="text-[11px] font-mono text-purple-300 bg-[#161832] px-2.5 py-1 rounded-md border border-purple-500/20">
+          <div
+            className="text-[11px] font-mono px-2.5 py-1 rounded-md border font-medium"
+            style={{
+              background: 'var(--surface-subtle)',
+              borderColor: 'var(--border-color)',
+              color: themeConfig.accentColor,
+            }}
+          >
             Formula: Tasks (+25) + On-Time (+15) + Milestones (+50) + Proofs (+40)
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="text-[10px] uppercase font-mono text-slate-400 border-b border-[#1c1f38] bg-[#0c0e1a]">
+            <thead
+              className="text-[10px] uppercase font-mono text-slate-400 border-b"
+              style={{
+                borderColor: 'var(--border-color)',
+                background: 'var(--surface-header)',
+              }}
+            >
               <tr>
                 <th className="py-2.5 px-3">Rank</th>
                 <th className="py-2.5 px-3">Contributor</th>
@@ -175,7 +237,7 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
                 <th className="py-2.5 px-3 text-right">Total Merit Score</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#181b32]">
+            <tbody className="divide-y" style={{ borderColor: 'var(--border-color)' }}>
               {analytics.leaderboard.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-6 text-center text-slate-500 font-mono">
@@ -184,7 +246,7 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
                 </tr>
               ) : (
                 analytics.leaderboard.map((scorer, idx) => (
-                  <tr key={scorer.userId} className="hover:bg-[#121428] transition-colors">
+                  <tr key={scorer.userId} className="hover:bg-white/5 transition-colors">
                     <td className="py-3 px-3 font-mono">
                       {idx === 0 ? (
                         <span className="text-amber-300 font-bold">#1</span>
@@ -204,7 +266,10 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
                       {scorer.breakdown?.milestonesCompleted ?? scorer.milestonesCompleted ?? 0}
                       <span className="text-slate-500 text-[10px] ml-1">(+{scorer.breakdown?.milestonesScore ?? 0})</span>
                     </td>
-                    <td className="py-3 px-3 font-mono text-teal-300">
+                    <td
+                      className="py-3 px-3 font-mono font-semibold"
+                      style={{ color: themeConfig.accentColor }}
+                    >
                       {scorer.breakdown?.proofsApproved ?? scorer.proofsApproved ?? 0}
                       <span className="text-slate-500 text-[10px] ml-1">(+{scorer.breakdown?.proofsScore ?? 0})</span>
                     </td>
@@ -212,7 +277,10 @@ export function ProjectAnalyticsView({ projectId }: ProjectAnalyticsViewProps) {
                       {scorer.breakdown?.onTimeDeliveries ?? scorer.onTimeDeliveries ?? 0}
                       <span className="text-slate-500 text-[10px] ml-1">(+{scorer.breakdown?.onTimeScore ?? 0})</span>
                     </td>
-                    <td className="py-3 px-3 font-mono font-bold text-right text-purple-300 text-sm">
+                    <td
+                      className="py-3 px-3 font-mono font-bold text-right text-sm"
+                      style={{ color: themeConfig.accentColor }}
+                    >
                       {scorer.totalScore ?? 0} pts
                     </td>
                   </tr>

@@ -5,21 +5,21 @@ export function RoleBadge({ role }: { role: UserRole }) {
   const styles: Record<UserRole, { label: string; bg: string; text: string; border: string }> = {
     leader: {
       label: 'Leader',
-      bg: 'bg-violet-950/60',
-      text: 'text-violet-300',
-      border: 'border-violet-500/30',
+      bg: 'bg-cyan-950/80',
+      text: 'text-cyan-300',
+      border: 'border-cyan-500/40',
     },
     'co-leader': {
       label: 'Co-Leader',
-      bg: 'bg-fuchsia-950/60',
-      text: 'text-fuchsia-300',
-      border: 'border-fuchsia-500/30',
+      bg: 'bg-teal-950/80',
+      text: 'text-teal-300',
+      border: 'border-teal-500/40',
     },
     member: {
       label: 'Member',
-      bg: 'bg-slate-900/60',
+      bg: 'bg-[#0a0f24]',
       text: 'text-slate-300',
-      border: 'border-slate-700/40',
+      border: 'border-cyan-500/20',
     },
   };
 
@@ -27,7 +27,7 @@ export function RoleBadge({ role }: { role: UserRole }) {
   return (
     <span
       id={`role-badge-${role}`}
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium border ${c.bg} ${c.text} ${c.border} tracking-wide`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border ${c.bg} ${c.text} ${c.border} tracking-wide shadow-sm`}
     >
       {c.label}
     </span>

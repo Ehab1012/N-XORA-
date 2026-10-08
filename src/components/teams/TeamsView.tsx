@@ -20,6 +20,7 @@ import {
   Layers,
   Trophy,
   Crown,
+  Award,
 } from 'lucide-react';
 import { Team, User, Project, UserRole } from '../../../shared/types.js';
 import { api } from '../../lib/api.js';
@@ -68,7 +69,7 @@ export function TeamsView({
   const [deleteTeamTarget, setDeleteTeamTarget] = useState<Team | null>(null);
   const [deletingTeam, setDeletingTeam] = useState(false);
 
-  const canManage = role === 'leader';
+  const canManage = role === 'leader' || role === 'co-leader';
 
   const fetchData = async () => {
     try {
@@ -192,33 +193,34 @@ export function TeamsView({
       {/* View Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-100 tracking-tight">
-            Teams & Members
+          <h1 className="text-2xl sm:text-3xl font-sharp font-bold text-slate-100 tracking-tight flex items-center gap-3">
+            <span>Teams & Members</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.85)] animate-pulse hidden sm:inline-block" />
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 font-sans">
             Role-bounded engineering squads and comprehensive workspace member credentials.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
           {/* View Tab Selector */}
-          <div className="inline-flex p-1 rounded-xl bg-[#0e101d] border border-[#232746]">
+          <div className="inline-flex p-1 rounded-2xl bg-[#060b1e]/90 border border-cyan-500/25 backdrop-blur-md shadow-inner">
             <button
               onClick={() => setActiveTab('teams')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 cursor-pointer ${
                 activeTab === 'teams'
-                  ? 'bg-purple-600 text-white shadow-md shadow-purple-950/40'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-bold shadow-md shadow-cyan-950/40'
+                  : 'text-slate-400 hover:text-cyan-200'
               }`}
             >
               Squads ({teams.length})
             </button>
             <button
               onClick={() => setActiveTab('profiles')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 cursor-pointer ${
                 activeTab === 'profiles'
-                  ? 'bg-purple-600 text-white shadow-md shadow-purple-950/40'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-bold shadow-md shadow-cyan-950/40'
+                  : 'text-slate-400 hover:text-cyan-200'
               }`}
             >
               Member Profiles ({users.length})
@@ -228,9 +230,9 @@ export function TeamsView({
           {canManage && activeTab === 'teams' && (
             <button
               onClick={() => setIsCreateTeamOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium shadow-md shadow-purple-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="btn-modern-primary px-3.5 py-1.5 text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md shadow-cyan-950/40"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5 text-slate-950 transition-transform duration-300 group-hover:scale-125 group-hover:rotate-90" />
               <span>Create Team</span>
             </button>
           )}
@@ -248,12 +250,12 @@ export function TeamsView({
             return (
               <div
                 key={team.id}
-                className="glass-panel p-6 rounded-2xl border border-[#202444] space-y-5 flex flex-col justify-between"
+                className="p-6 rounded-2xl bg-[#060b1c]/85 backdrop-blur-xl border border-cyan-500/20 hover:border-cyan-400/50 shadow-xl space-y-5 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-cyan-950/40"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
-                      <h3 className="text-lg font-display font-semibold text-slate-100">{team.name}</h3>
+                      <h3 className="text-lg font-sharp font-semibold text-slate-100">{team.name}</h3>
                       <p className="text-xs text-slate-400 mt-0.5">{team.description}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -261,15 +263,15 @@ export function TeamsView({
                         <>
                           <button
                             onClick={() => setInviteModalTeam(team)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14162a] border border-[#232746] hover:border-purple-500/40 text-purple-300 text-xs font-medium transition-colors"
+                            className="btn-modern-secondary px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
                             title="Add Member to Squad"
                           >
-                            <UserPlus className="w-3.5 h-3.5" />
+                            <UserPlus className="w-3.5 h-3.5 text-cyan-400 icon-anim" />
                             <span>Add Member</span>
                           </button>
                           <button
                             onClick={() => setDeleteTeamTarget(team)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 border border-[#232746] hover:border-rose-500/40 transition-all"
+                            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 border border-cyan-500/20 hover:border-rose-500/40 transition-all cursor-pointer"
                             title={`Delete squad ${team.name}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -280,44 +282,70 @@ export function TeamsView({
                   </div>
 
                   {/* Team Leadership with clickable profiles */}
-                  <div className="grid grid-cols-2 gap-3 py-3 border-y border-[#1c1f38] text-xs">
+                  <div className="grid grid-cols-2 gap-3 py-3 border-y border-cyan-500/20 text-xs">
                     <div
                       onClick={() => leader && handleOpenProfile(leader.id)}
-                      className="cursor-pointer p-2 rounded-xl hover:bg-[#15172c] border border-transparent hover:border-purple-500/30 transition-all group"
+                      className="cursor-pointer p-2.5 rounded-xl hover:bg-[#0c142e] border border-cyan-500/10 hover:border-cyan-500/30 transition-all group"
                       title="Click to view Squad Leader profile"
                     >
-                      <span className="text-[10px] uppercase font-mono text-slate-500 block mb-1">Squad Leader</span>
-                      <div className="font-medium text-slate-200 group-hover:text-purple-300 transition-colors flex items-center gap-1">
+                      <span className="text-[10px] uppercase font-mono text-slate-400 font-semibold block mb-1">Squad Leader</span>
+                      <div className="font-semibold text-slate-100 group-hover:text-cyan-300 transition-colors flex items-center gap-1">
                         <span>{leader ? leader.name : 'Not assigned'}</span>
-                        <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-purple-300 group-hover:translate-x-0.5 transition-all" />
+                        <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all" />
                       </div>
-                      <span className="text-[10px] text-purple-300 font-mono truncate block">{leader?.title || leader?.email}</span>
+                      <span className="text-[10px] text-cyan-300 font-mono font-medium truncate block">{leader?.title || leader?.email}</span>
                     </div>
 
                     <div
                       onClick={() => coLeader && handleOpenProfile(coLeader.id)}
-                      className={`p-2 rounded-xl transition-all ${
+                      className={`p-2.5 rounded-xl transition-all ${
                         coLeader
-                          ? 'cursor-pointer hover:bg-[#15172c] border border-transparent hover:border-purple-500/30 group'
-                          : ''
+                          ? 'cursor-pointer hover:bg-[#0c142e] border border-cyan-500/10 hover:border-cyan-500/30 group'
+                          : 'border border-cyan-500/10'
                       }`}
                       title={coLeader ? 'Click to view Co-Leader profile' : undefined}
                     >
-                      <span className="text-[10px] uppercase font-mono text-slate-500 block mb-1">Co-Leader</span>
-                      <div className="font-medium text-slate-200 group-hover:text-purple-300 transition-colors flex items-center gap-1">
-                        <span>{coLeader ? coLeader.name : 'None'}</span>
-                        {coLeader && (
-                          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-purple-300 group-hover:translate-x-0.5 transition-all" />
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] uppercase font-mono text-slate-400 font-semibold">Co-Leader</span>
+                        {canManage && !coLeader && (
+                          <select
+                            onChange={(e) => {
+                              const userId = e.target.value;
+                              if (userId) {
+                                api.updateTeam(team.id, { coLeaderId: userId }).then(() => fetchData());
+                              }
+                            }}
+                            className="bg-[#0c0d18] border border-cyan-500/20 rounded-lg py-1 px-2 text-[10px] text-cyan-400 font-mono font-bold cursor-pointer hover:border-cyan-400/50"
+                            value=""
+                          >
+                            <option value="" disabled>ASSIGN CO-LEADER</option>
+                            {team.memberIds
+                              .filter((mId) => mId !== team.leaderId)
+                              .map((mId) => {
+                                const memberUser = users.find((u) => u.id === mId);
+                                return (
+                                  <option key={mId} value={mId}>
+                                    {memberUser ? memberUser.name : mId}
+                                  </option>
+                                );
+                              })}
+                          </select>
                         )}
                       </div>
-                      <span className="text-[10px] text-fuchsia-300 font-mono truncate block">{coLeader?.title || coLeader?.email || '—'}</span>
+                      <div className="font-semibold text-slate-100 group-hover:text-cyan-300 transition-colors flex items-center gap-1">
+                        <span>{coLeader ? coLeader.name : 'None'}</span>
+                        {coLeader && (
+                          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all" />
+                        )}
+                      </div>
+                      <span className="text-[10px] text-teal-300 font-mono font-medium truncate block">{coLeader?.title || coLeader?.email || '—'}</span>
                     </div>
                   </div>
 
                   {/* Member roster */}
                   <div className="pt-3">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-mono uppercase text-slate-400">
+                      <span className="text-xs font-mono uppercase text-slate-400 font-semibold">
                         Assigned Contributors ({team.memberIds.length})
                       </span>
                     </div>
@@ -328,15 +356,15 @@ export function TeamsView({
                         return (
                           <div
                             key={mId}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-[#0c0d18] border border-[#1a1c32] hover:border-purple-500/40 text-xs transition-colors group cursor-pointer"
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-[#060a18] border border-cyan-500/20 hover:border-cyan-400/50 text-xs transition-all group cursor-pointer hover:-translate-y-0.5"
                             onClick={() => memberUser && handleOpenProfile(memberUser.id)}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-7 h-7 rounded-full bg-purple-950 border border-purple-500/30 text-purple-300 flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                              <div className="w-7 h-7 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300 flex items-center justify-center font-bold text-[10px] flex-shrink-0 shadow-sm">
                                 {memberUser ? memberUser.name[0] : 'U'}
                               </div>
                               <div className="min-w-0">
-                                <div className="font-medium text-slate-200 group-hover:text-purple-300 transition-colors truncate">
+                                <div className="font-semibold text-slate-200 group-hover:text-cyan-300 transition-colors truncate">
                                   {memberUser ? memberUser.name : mId}
                                 </div>
                                 <div className="text-[10px] text-slate-400 font-mono truncate">
@@ -357,7 +385,7 @@ export function TeamsView({
                                     })
                                   }
                                   title="Remove member from team"
-                                  className="text-slate-500 hover:text-rose-400 p-1 transition-colors"
+                                  className="text-slate-500 hover:text-rose-400 p-1 transition-colors cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -371,14 +399,14 @@ export function TeamsView({
                 </div>
 
                 {/* Projects in this team */}
-                <div className="pt-3 border-t border-[#1c1f38] text-xs text-slate-400 flex items-center justify-between">
+                <div className="pt-3 border-t border-cyan-500/20 text-xs text-slate-400 flex items-center justify-between">
                   <button
                     onClick={() => onNavigateToProjects && onNavigateToProjects(team.id)}
-                    className="flex items-center gap-1.5 hover:text-purple-300 transition-colors text-left group"
+                    className="flex items-center gap-1.5 hover:text-cyan-300 transition-colors text-left group cursor-pointer"
                   >
-                    <FolderGit2 className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
-                    <span className="font-medium">{teamProjects.length} Active Project Scopes</span>
-                    <span className="text-[10px] text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity">→ View</span>
+                    <FolderGit2 className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                    <span className="font-semibold">{teamProjects.length} Active Project Scopes</span>
+                    <span className="text-[10px] text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">→ View</span>
                   </button>
                   <span className="font-mono text-[10px] text-slate-500">{team.id}</span>
                 </div>
@@ -571,6 +599,17 @@ export function TeamsView({
                           <option value="co-leader">Co-Leader</option>
                           <option value="leader">Leader</option>
                         </select>
+                      )}
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenProfile(member.id)}
+                          title={isCurrentUser ? 'Award bonus points to yourself' : `Award Leader Merit Bonus to ${member.name}`}
+                          className="px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Award className="w-3 h-3 text-amber-400" />
+                          <span>+Bonus</span>
+                        </button>
                       )}
                       <button
                         onClick={() => handleOpenProfile(member.id)}

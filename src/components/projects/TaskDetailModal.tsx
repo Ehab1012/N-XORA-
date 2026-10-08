@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   CheckSquare,
@@ -21,13 +21,17 @@ import {
   X,
   MessageSquare,
   HelpCircle,
+  Upload,
+  Paperclip,
+  Loader2,
 } from 'lucide-react';
-import { Modal } from '../common/Modal.js';
-import { Task, User as UserType, Milestone, GroupTaskSubmission } from '../../../shared/types.js';
-import { StatusBadge, PriorityBadge } from '../common/Badges.js';
+import { Modal, ConfirmModal } from '../common/Modal.js';
+import { Task, User as UserType, Milestone, GroupTaskSubmission, ProofSubmission } from '../../../shared/types.js';
+import { StatusBadge, PriorityBadge, ProofBadge } from '../common/Badges.js';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { TASK_STATUSES, TASK_PRIORITIES, TaskStatus, TaskPriority } from '../../../shared/const.js';
+import { ProofFilesViewer } from './ProofFilesViewer.js';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -57,14 +61,62 @@ export function TaskDetailModal({
   // Group task submission state
   const [groupNote, setGroupNote] = useState('');
   const [groupProofLinks, setGroupProofLinks] = useState('');
+  const [groupFile, setGroupFile] = useState<{ name: string; mimeType: string; dataUrl: string } | null>(null);
   const [isSubmittingGroupPart, setIsSubmittingGroupPart] = useState(false);
   const [submissionFeedback, setSubmissionFeedback] = useState<string | null>(null);
+
+  // Delivered Proof of Work state for task
+  const [submittedProof, setSubmittedProof] = useState<ProofSubmission | null>(null);
+  const [loadingProof, setLoadingProof] = useState(false);
+
+  // Automatically load submitted proof deliverable when viewing task
+  useEffect(() => {
+    if (!isOpen || !task) {
+      setSubmittedProof(null);
+      return;
+    }
+
+    let isMounted = true;
+    if (task.proofSubmittedId) {
+      setLoadingProof(true);
+      api.getProof(task.proofSubmittedId)
+        .then((p) => {
+          if (isMounted) setSubmittedProof(p);
+        })
+        .catch((err) => {
+          console.warn('Could not fetch proof by ID, trying query:', err);
+          api.getProofs(task.projectId, task.id)
+            .then((proofs) => {
+              if (isMounted && proofs.length > 0) setSubmittedProof(proofs[0]);
+            })
+            .catch(() => {});
+        })
+        .finally(() => {
+          if (isMounted) setLoadingProof(false);
+        });
+    } else {
+      // Check if there is a matching proof filed for this task
+      api.getProofs(task.projectId, task.id)
+        .then((proofs) => {
+          if (isMounted && proofs.length > 0) setSubmittedProof(proofs[0]);
+          else if (isMounted) setSubmittedProof(null);
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, task?.id, task?.proofSubmittedId]);
 
   // Participant management for leader
   const [selectedUserToAdd, setSelectedUserToAdd] = useState('');
   const [reviewNoteInput, setReviewNoteInput] = useState<Record<string, string>>({});
   const [isReviewingUser, setIsReviewingUser] = useState<string | null>(null);
   const [isFinalizingBonus, setIsFinalizingBonus] = useState(false);
+  const [isConfirmFinalizeOpen, setIsConfirmFinalizeOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   if (!isOpen || !task) return null;
 
@@ -156,8 +208,8 @@ export function TaskDetailModal({
   // Submit current user contribution to group task
   const handleSubmitGroupContribution = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!groupNote.trim() && !groupProofLinks.trim()) {
-      alert('Please provide a brief note or proof link detailing your completed part.');
+    if (!groupNote.trim() && !groupProofLinks.trim() && !groupFile) {
+      setSubmissionFeedback('Please provide a brief note, proof link, or attach a proof file detailing your completed part.');
       return;
     }
 
@@ -169,6 +221,12 @@ export function TaskDetailModal({
         .map((l) => l.trim())
         .filter(Boolean);
 
+      // If user attached a file, upload it to project files
+      if (groupFile) {
+        const uploaded = await api.uploadFile(groupFile.name, groupFile.mimeType, groupFile.dataUrl, task.projectId);
+        proofArray.push(`/api/files/${uploaded.id}/content?name=${encodeURIComponent(uploaded.name)}`);
+      }
+
       const res = await api.submitGroupTaskPart(task.id, {
         note: groupNote.trim(),
         proofLinks: proofArray,
@@ -178,32 +236,28 @@ export function TaskDetailModal({
       setSubmissionFeedback(res.message);
       setGroupNote('');
       setGroupProofLinks('');
+      setGroupFile(null);
     } catch (err: any) {
       console.error('Failed to submit group task contribution', err);
-      alert(err.message || 'Failed to submit group task contribution');
+      setSubmissionFeedback(err.message || 'Failed to submit group task contribution');
     } finally {
       setIsSubmittingGroupPart(false);
     }
   };
 
   // Leader finalize group task and trigger collective bonus
-  const handleFinalizeGroupTask = async () => {
-    if (
-      !confirm(
-        `Finalize this group task and award the collective bonus (+${bonusPts} pts) to all ${participantIds.length} participants?`
-      )
-    ) {
-      return;
-    }
-
+  const handleDoFinalize = async () => {
     setIsFinalizingBonus(true);
+    setActionError(null);
+    setActionSuccess(null);
     try {
       const res = await api.completeGroupTask(task.id);
       onTaskUpdated(res.task);
-      alert(res.message);
+      setActionSuccess(res.message);
+      setIsConfirmFinalizeOpen(false);
     } catch (err: any) {
       console.error('Failed to finalize group task', err);
-      alert(err.message || 'Failed to finalize group task');
+      setActionError(err.message || 'Failed to finalize group task');
     } finally {
       setIsFinalizingBonus(false);
     }
@@ -215,6 +269,8 @@ export function TaskDetailModal({
     action: 'approved' | 'rejected' | 'changes_requested'
   ) => {
     setIsReviewingUser(targetUserId);
+    setActionError(null);
+    setActionSuccess(null);
     try {
       const note = reviewNoteInput[targetUserId] || '';
       const res = await api.reviewGroupTaskSubmission(task.id, {
@@ -223,9 +279,10 @@ export function TaskDetailModal({
         reviewNote: note,
       });
       onTaskUpdated(res.task);
+      setActionSuccess(`Submission marked as ${action}.`);
     } catch (err: any) {
       console.error('Failed to review submission', err);
-      alert(err.message || 'Failed to review submission');
+      setActionError(err.message || 'Failed to review submission');
     } finally {
       setIsReviewingUser(null);
     }
@@ -248,7 +305,7 @@ export function TaskDetailModal({
   // Leader remove participant
   const handleRemoveParticipant = async (pId: string) => {
     if (participantIds.length <= 1) {
-      alert('A group task must have at least one participant.');
+      setActionError('A group task must have at least one participant.');
       return;
     }
     const updatedParticipants = participantIds.filter((id) => id !== pId);
@@ -262,7 +319,8 @@ export function TaskDetailModal({
   };
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={task.title}
@@ -270,6 +328,26 @@ export function TaskDetailModal({
       maxWidth={isGroup ? 'max-w-4xl' : 'max-w-2xl'}
     >
       <div className="space-y-6">
+        {actionError && (
+          <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 text-xs flex items-center justify-between">
+            <span>{actionError}</span>
+            <button type="button" onClick={() => setActionError(null)} className="text-rose-400 hover:text-rose-200">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        {actionSuccess && (
+          <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between">
+            <span className="flex items-center gap-1.5 font-medium">
+              <Check className="w-4 h-4 text-emerald-400" />
+              {actionSuccess}
+            </span>
+            <button type="button" onClick={() => setActionSuccess(null)} className="text-emerald-400 hover:text-emerald-200">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Collaborative Mission Banner */}
         {isGroup && (
           <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-950/90 via-[#181636] to-purple-950/80 border border-indigo-500/40 space-y-3 shadow-lg">
@@ -381,16 +459,23 @@ export function TaskDetailModal({
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            {isGroup && isLeaderOrOwner && task.status !== 'complete' && (
+            {isGroup && role === 'leader' && task.status !== 'complete' && (
               <button
                 type="button"
-                onClick={handleFinalizeGroupTask}
+                onClick={() => setIsConfirmFinalizeOpen(true)}
                 disabled={isFinalizingBonus}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-900/40 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-900/40 transition-colors cursor-pointer"
               >
                 <Award className="w-3.5 h-3.5" />
-                <span>Finalize Task & Award Bonus (+{bonusPts} pts)</span>
+                <span>{isFinalizingBonus ? 'Finalizing...' : `Finalize Task & Award Bonus (+${bonusPts} pts)`}</span>
               </button>
+            )}
+
+            {isGroup && role !== 'leader' && task.status !== 'complete' && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#131528] border border-[#232748] text-slate-400 text-xs">
+                <Shield className="w-3.5 h-3.5 text-amber-400" />
+                <span>Team bonus (+{bonusPts} pts) can only be awarded by the Leader</span>
+              </div>
             )}
 
             {!isGroup && task.proofSubmittedId ? (
@@ -399,9 +484,9 @@ export function TaskDetailModal({
                   onClose();
                   if (onRequestProofReview) onRequestProofReview(task.proofSubmittedId!);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-950/80 hover:bg-teal-900 border border-teal-500/40 text-teal-300 text-xs font-medium transition-colors"
+                className="btn-modern-secondary px-3.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer shadow-md"
               >
-                <FileCheck2 className="w-3.5 h-3.5" />
+                <FileCheck2 className="w-3.5 h-3.5 text-cyan-400 icon-anim" />
                 <span>Inspect Submitted Proof</span>
               </button>
             ) : !isGroup && (task.status === 'in_progress' || task.status === 'todo') ? (
@@ -410,9 +495,9 @@ export function TaskDetailModal({
                   onClose();
                   if (onRequestProofSubmit) onRequestProofSubmit(task);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium shadow-md shadow-purple-900/30 transition-colors"
+                className="btn-modern-primary px-3.5 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-md shadow-cyan-950/40"
               >
-                <FileCheck2 className="w-3.5 h-3.5" />
+                <FileCheck2 className="w-3.5 h-3.5 text-slate-950 icon-anim" />
                 <span>Submit Proof of Work</span>
               </button>
             ) : null}
@@ -426,6 +511,160 @@ export function TaskDetailModal({
             {task.description || 'No detailed description provided for this work item.'}
           </p>
         </div>
+
+        {/* ---------------------------------------------------- */}
+        {/* DELIVERED PROOF OF WORK & ARTIFACT FILES */}
+        {/* ---------------------------------------------------- */}
+        {loadingProof && (
+          <div className="p-4 rounded-2xl bg-[#090d1c] border border-cyan-500/20 flex items-center gap-2.5 text-xs text-slate-400">
+            <Loader2 className="w-4 h-4 animate-spin text-cyan-400 shrink-0" />
+            <span>Loading verified proof deliverable and files...</span>
+          </div>
+        )}
+
+        {!loadingProof && !submittedProof && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#090d1c] to-[#050711] border border-cyan-500/30 space-y-3.5 shadow-lg shadow-cyan-950/20">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <FileCheck2 className="w-4 h-4 text-cyan-400 icon-anim" />
+                <h4 className="text-xs font-mono uppercase tracking-wider text-cyan-300 font-semibold">
+                  Proof of Work Deliverable
+                </h4>
+              </div>
+              <span className="text-[11px] font-mono text-slate-400 bg-slate-900/60 px-2.5 py-0.5 rounded-full border border-slate-700/40">
+                Awaiting Submission
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed bg-[#060914] p-3.5 rounded-xl border border-[#141b34]">
+              No cryptographic proof of work or verification artifact files have been submitted for this work item yet.
+            </p>
+            {onRequestProofSubmit && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onRequestProofSubmit(task);
+                }}
+                className="btn-modern-primary px-4 py-2 text-xs inline-flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <Upload className="w-3.5 h-3.5 text-slate-950 icon-anim" />
+                <span>Submit Deliverable & Attach Proof Files</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {submittedProof && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#091124] to-[#050814] border border-cyan-500/35 space-y-4 shadow-xl shadow-cyan-950/30">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <FileCheck2 className="w-4 h-4 text-cyan-400 icon-anim" />
+                <h4 className="text-xs font-mono uppercase tracking-wider text-cyan-300 font-semibold">
+                  Delivered Proof of Work
+                </h4>
+                <ProofBadge status={submittedProof.status} />
+              </div>
+              <div className="text-xs text-slate-400">
+                Submitted by <strong className="text-cyan-300">{users.find((u) => u.id === submittedProof.submittedById)?.name || submittedProof.submittedById}</strong> on{' '}
+                {new Date(submittedProof.createdAt).toLocaleDateString()}
+              </div>
+            </div>
+
+            {/* Explanation & Methodology */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-mono uppercase text-slate-400 block tracking-wider font-semibold">
+                Methodology & Verification Details
+              </span>
+              <p className="p-3.5 rounded-xl bg-[#060914] border border-[#141d3b] text-xs text-slate-100 leading-relaxed whitespace-pre-wrap">
+                {submittedProof.explanation}
+              </p>
+            </div>
+
+            {/* Attached Proof Files & Artifacts */}
+            <ProofFilesViewer
+              attachments={submittedProof.attachments}
+              attachmentIds={submittedProof.attachmentIds}
+              projectId={task.projectId}
+              onAttachFileClick={() => {
+                onClose();
+                if (onRequestProofSubmit) onRequestProofSubmit(task);
+              }}
+            />
+
+            {/* Verified External Links */}
+            {submittedProof.links && submittedProof.links.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10px] font-mono uppercase text-cyan-300 block tracking-wider font-semibold">
+                  Verified Verification Links ({submittedProof.links.length})
+                </span>
+                <div className="space-y-1">
+                  {submittedProof.links.map((link, lIdx) => (
+                    <a
+                      key={lIdx}
+                      href={link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 p-2.5 rounded-xl bg-[#060914] border border-[#141d3b] hover:border-cyan-500/40 text-cyan-300 hover:text-cyan-200 text-xs font-mono transition-all hover:-translate-y-0.5"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0 icon-anim" />
+                      <span className="truncate">{link}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Review Note Audit Trail */}
+            {submittedProof.reviewNote && (
+              <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs text-cyan-200 space-y-1">
+                <span className="font-semibold text-cyan-300 flex items-center gap-1.5 font-mono">
+                  <Shield className="w-3.5 h-3.5 icon-anim" />
+                  <span>Lead Attestation Decision ({submittedProof.status.replace('_', ' ').toUpperCase()}):</span>
+                </span>
+                <p className="text-slate-300 text-xs leading-relaxed">{submittedProof.reviewNote}</p>
+              </div>
+            )}
+
+            {/* Replace & Resubmit Proof for Member / Assignee when changes requested or rejected */}
+            {onRequestProofSubmit && (submittedProof.status === 'rejected' || submittedProof.status === 'changes_requested' || !isLeaderOrOwner) && (
+              <div className="pt-2 flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-[11px] text-amber-300 font-mono">
+                  {submittedProof.status === 'rejected' || submittedProof.status === 'changes_requested'
+                    ? '⚠️ Changes requested or proof rejected. Please replace with a verified deliverable.'
+                    : 'Need to update your proof? You can replace it anytime before final leader approval.'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onRequestProofSubmit(task);
+                  }}
+                  className="btn-modern-primary px-4 py-2 text-xs inline-flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-950 icon-anim" />
+                  <span>Replace & Resubmit Proof of Work</span>
+                </button>
+              </div>
+            )}
+
+            {/* Quick Leader Action button */}
+            {isLeaderOrOwner && (
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onRequestProofReview) onRequestProofReview(submittedProof.id);
+                  }}
+                  className="btn-modern-pill px-4 py-2 text-xs inline-flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <FileCheck2 className="w-3.5 h-3.5 text-slate-950 icon-anim" />
+                  <span>Open Attestation & Review Decision</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ---------------------------------------------------- */}
         {/* GROUP MISSION: Member Submissions & Participation Table */}
@@ -638,10 +877,53 @@ export function TaskDetailModal({
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-slate-300 mb-1 font-medium flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Paperclip className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Attach Proof / Deliverable File (Optional)</span>
+                      </span>
+                    </label>
+                    {groupFile ? (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-[#0e101c] border border-teal-500/30 text-teal-300 text-xs">
+                        <span className="truncate max-w-[280px] font-mono">{groupFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setGroupFile(null)}
+                          className="text-rose-400 hover:text-rose-300 ml-2"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-[#0c0e1c] border border-dashed border-[#232746] hover:border-purple-500/40 cursor-pointer text-slate-400 hover:text-slate-200 transition-colors text-xs">
+                        <Upload className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Upload artifact, screenshot, or log (Max 1GB)</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const selected = e.target.files?.[0];
+                            if (!selected) return;
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setGroupFile({
+                                name: selected.name,
+                                mimeType: selected.type || 'application/octet-stream',
+                                dataUrl: reader.result as string,
+                              });
+                            };
+                            reader.readAsDataURL(selected);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
                   <div className="flex justify-end">
                     <button
                       type="submit"
-                      disabled={isSubmittingGroupPart || (!groupNote.trim() && !groupProofLinks.trim())}
+                      disabled={isSubmittingGroupPart || (!groupNote.trim() && !groupProofLinks.trim() && !groupFile)}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-900/40 disabled:opacity-50 transition-all cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
@@ -773,5 +1055,15 @@ export function TaskDetailModal({
         )}
       </div>
     </Modal>
+
+    <ConfirmModal
+      isOpen={isConfirmFinalizeOpen}
+      onClose={() => setIsConfirmFinalizeOpen(false)}
+      onConfirm={handleDoFinalize}
+      title="Finalize Group Task"
+      message={`Finalize this collaborative task and award the collective bonus (+${bonusPts} pts) to all ${participantIds.length} participants?`}
+      confirmLabel={isFinalizingBonus ? 'Finalizing...' : 'Finalize & Award Bonus'}
+    />
+  </>
   );
 }

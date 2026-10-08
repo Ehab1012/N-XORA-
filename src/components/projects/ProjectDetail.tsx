@@ -60,12 +60,13 @@ import { TaskManagementView } from './TaskManagementView.js';
 import { TaskDetailModal } from './TaskDetailModal.js';
 import { ProofSubmissionModal } from './ProofSubmissionModal.js';
 import { ProofReviewModal } from './ProofReviewModal.js';
+import { ProofFilesViewer } from './ProofFilesViewer.js';
 import { ResourceLibrary } from './ResourceLibrary.js';
 import { ProjectDiscussion } from './ProjectDiscussion.js';
 import { ProjectAnalyticsView } from './ProjectAnalyticsView.js';
 import { ProjectTimeline } from './ProjectTimeline.js';
 import { ProjectPDFExport } from './ProjectPDFExport.js';
-import { Modal } from '../common/Modal.js';
+import { Modal, ConfirmModal } from '../common/Modal.js';
 import { MemberProfileModal } from '../profile/MemberProfileModal.js';
 import { ToastContainer } from '../common/Toast.js';
 import { TeamInvitationModal } from '../invitations/TeamInvitationModal.js';
@@ -80,7 +81,7 @@ interface ProjectDetailProps {
 }
 
 export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage }: ProjectDetailProps) {
-  const { user, role } = useAuth();
+  const { user, role, workspace } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -132,6 +133,11 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
   // Member profile state
   const [selectedMemberProfileId, setSelectedMemberProfileId] = useState<string | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Delete project modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [deleteProjectError, setDeleteProjectError] = useState<string | null>(null);
 
   // Real-time notification system hook
   const { toasts, dismissToast, clearAllToasts, connectionStatus, simulateEvent } =
@@ -227,7 +233,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
 
   const team = teams.find((t) => t.id === project.teamId);
   const leader = users.find((u) => u.id === project.leaderId);
-  const isLeaderOrOwner = role === 'leader' || role === 'co-leader';
+  const isLeaderOrOwner = role === 'leader' || role === 'co-leader' || project.leaderId === user?.id || (workspace && workspace.ownerId === user?.id) || (user?.id ? project.memberIds?.includes(user.id) : false);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -656,23 +662,23 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           <div className="relative group">
             <button
               id="test-realtime-alert-btn"
-              className="px-3 py-2 rounded-lg bg-[#14162a] border border-[#272b50] hover:border-purple-500/50 text-purple-300 text-xs font-mono font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+              className="px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 hover:border-cyan-400/60 text-cyan-300 text-xs font-mono font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 active:scale-95"
               title="Test real-time alert toast notifications"
             >
-              <Bell className="w-3.5 h-3.5 text-purple-400 animate-bounce" />
+              <Bell className="w-3.5 h-3.5 text-cyan-400 group-hover:animate-icon-wiggle" />
               <span>Simulate Alert</span>
-              <ChevronDown className="w-3 h-3 text-purple-400 opacity-70" />
+              <ChevronDown className="w-3 h-3 text-cyan-400 opacity-70 group-hover:rotate-180 transition-transform duration-200" />
             </button>
-            <div className="absolute right-0 top-full mt-1 w-60 rounded-xl bg-[#0d1024] border border-[#252a55] shadow-2xl p-1.5 hidden group-hover:block z-50">
-              <div className="text-[10px] font-mono text-slate-400 px-2.5 py-1 uppercase tracking-wider border-b border-white/5 mb-1">
+            <div className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl bg-[#060a18]/95 backdrop-blur-2xl border border-cyan-500/35 shadow-2xl p-1.5 hidden group-hover:block z-50 animate-in fade-in zoom-in-95">
+              <div className="text-[10px] font-mono text-cyan-400 px-2.5 py-1 uppercase tracking-wider border-b border-cyan-900/30 mb-1 font-bold">
                 Trigger Real-Time Toast
               </div>
               <button
                 id="trigger-status-alert-btn"
                 onClick={() => simulateEvent('status_change')}
-                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-slate-200 hover:bg-violet-950/70 hover:text-violet-200 flex items-center gap-2 transition-colors"
+                className="w-full text-left px-2.5 py-2 rounded-xl text-xs text-slate-200 hover:bg-cyan-950/70 hover:text-cyan-200 flex items-center gap-2 transition-all cursor-pointer"
               >
-                <Activity className="w-3.5 h-3.5 text-violet-400" />
+                <Activity className="w-3.5 h-3.5 text-cyan-400" />
                 <div>
                   <div className="font-medium">Status Change Alert</div>
                   <div className="text-[10px] text-slate-400">Broadcasts status transition toast</div>
@@ -681,7 +687,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
               <button
                 id="trigger-member-alert-btn"
                 onClick={() => simulateEvent('member_assignment')}
-                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-slate-200 hover:bg-emerald-950/70 hover:text-emerald-200 flex items-center gap-2 transition-colors"
+                className="w-full text-left px-2.5 py-2 rounded-xl text-xs text-slate-200 hover:bg-emerald-950/70 hover:text-emerald-200 flex items-center gap-2 transition-all cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
                 <div>
@@ -695,10 +701,10 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           <button
             id="invite-members-header-btn"
             onClick={() => setIsInviteModalOpen(true)}
-            className="px-3 py-2 rounded-lg bg-gradient-to-r from-purple-600/90 to-indigo-600/90 border border-purple-500/50 hover:border-purple-400 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-purple-950/40"
+            className="btn-modern-secondary px-3 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md"
             title="Generate unique invite links or email invitations"
           >
-            <UserPlus className="w-3.5 h-3.5" />
+            <UserPlus className="w-3.5 h-3.5 text-cyan-400 icon-anim" />
             <span>Invite Members</span>
           </button>
 
@@ -706,10 +712,10 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
             <button
               id="assign-member-header-btn"
               onClick={() => setIsAssignMemberOpen(true)}
-              className="px-3 py-2 rounded-lg bg-[#14162a] border border-[#232748] text-emerald-300 hover:text-emerald-200 hover:border-emerald-500/40 text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+              className="px-3 py-2 rounded-xl bg-[#060a1a] border border-emerald-500/30 text-emerald-300 hover:text-emerald-200 hover:border-emerald-400 text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 active:scale-95"
               title="Assign team member to this project"
             >
-              <UserPlus className="w-3.5 h-3.5" />
+              <UserPlus className="w-3.5 h-3.5 text-emerald-400 icon-anim" />
               <span>Assign Member</span>
             </button>
           )}
@@ -717,75 +723,68 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           <button
             id="btn-download-project-report"
             onClick={handleDownloadReport}
-            className="px-3 py-2 rounded-lg bg-[#14162a] border border-[#232748] hover:border-cyan-500/40 text-cyan-300 hover:text-cyan-200 text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+            className="px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 hover:border-cyan-400 text-cyan-300 hover:text-cyan-100 text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 active:scale-95"
             title="Download structured JSON audit report with all tasks, priorities, and statuses"
           >
-            <Download className="w-3.5 h-3.5 text-cyan-400" />
+            <Download className="w-3.5 h-3.5 text-cyan-400 icon-anim" />
             <span>Download Report</span>
           </button>
 
           <button
             onClick={() => setIsExporting(true)}
             disabled={isExporting}
-            className="px-3 py-2 rounded-lg bg-[#14162a] border border-[#232748] text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            className="px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 text-slate-300 hover:text-white hover:border-cyan-400 text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer hover:-translate-y-0.5 active:scale-95"
             title="Export Project Summary"
           >
-            {isExporting ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
+            {isExporting ? <Clock className="w-3.5 h-3.5 animate-spin text-cyan-400" /> : <BookOpen className="w-3.5 h-3.5 text-cyan-400 icon-anim" />}
             <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
           </button>
 
           {isLeaderOrOwner && (
             <button
               onClick={() => onEditProject && onEditProject(project)}
-              className="px-3 py-2 rounded-lg bg-[#14162a] border border-[#232748] text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 text-slate-300 hover:text-white hover:border-cyan-400 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:-translate-y-0.5 active:scale-95"
             >
-              <Edit className="w-3.5 h-3.5" />
+              <Edit className="w-3.5 h-3.5 icon-anim" />
               <span>Edit</span>
             </button>
           )}
 
           {isLeaderOrOwner && (
             <button
-              onClick={async () => {
-                if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
-                  try {
-                    await api.deleteProject(projectId);
-                    onBack();
-                  } catch (err) {
-                    console.error('Failed to delete project', err);
-                    alert('Failed to delete project');
-                  }
-                }
+              onClick={() => {
+                setDeleteProjectError(null);
+                setIsDeleteModalOpen(true);
               }}
-              className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="btn-modern-danger px-3 py-2 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5 icon-anim" />
               <span>Delete</span>
             </button>
           )}
 
           <button
             onClick={() => setIsCreateTaskOpen(true)}
-            className="px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-md shadow-purple-900/30 transition-colors"
+            className="btn-modern-primary px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-cyan-950/40"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-slate-950 transition-transform duration-300 group-hover:scale-125 group-hover:rotate-90" />
             <span>New Task</span>
           </button>
         </div>
       </div>
 
       {/* Local Task Quick Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-[#0e1022] border border-[#1e2242]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-2xl bg-[#060b1e]/85 backdrop-blur-xl border border-cyan-500/25 shadow-md">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-3.5 h-3.5 text-cyan-400/70 absolute left-3 top-2.5" />
             <input
               id="project-detail-header-search"
               type="text"
               value={taskSearchQuery}
               onChange={(e) => setTaskSearchQuery(e.target.value)}
               placeholder="Search tasks by name or status..."
-              className="w-full bg-[#14162e] border border-[#222648] rounded-lg py-1.5 pl-8 pr-8 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-[#030612]/90 border border-cyan-500/20 rounded-xl py-1.5 pl-8 pr-8 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all"
             />
             {taskSearchQuery && (
               <button
@@ -803,7 +802,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
             id="project-detail-header-status-filter"
             value={taskStatusFilter}
             onChange={(e) => setTaskStatusFilter(e.target.value)}
-            className="bg-[#14162e] border border-[#222648] rounded-lg py-1.5 px-2.5 text-slate-200 text-xs focus:outline-none focus:border-purple-500 capitalize shrink-0"
+            className="bg-[#030612]/90 border border-cyan-500/20 rounded-xl py-1.5 px-2.5 text-slate-200 text-xs focus:outline-none focus:border-cyan-400 capitalize shrink-0 cursor-pointer"
           >
             <option value="all">All Statuses</option>
             <option value="todo">To Do</option>
@@ -836,14 +835,14 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                 setTaskSearchQuery('');
                 setTaskStatusFilter('all');
               }}
-              className="text-purple-400 hover:text-purple-300 underline text-[11px] font-medium"
+              className="text-cyan-400 hover:text-cyan-300 underline text-[11px] font-medium"
             >
               Clear
             </button>
             {activeTab !== 'tasks' && (
               <button
                 onClick={() => setActiveTab('tasks')}
-                className="px-2 py-1 rounded bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[11px] font-medium hover:bg-purple-600/50 transition-colors"
+                className="px-2 py-1 rounded-lg bg-cyan-950/50 text-cyan-300 border border-cyan-500/35 text-[11px] font-medium hover:bg-cyan-900/60 transition-colors"
               >
                 View in Tasks Tab →
               </button>
@@ -853,7 +852,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
       </div>
 
       {/* Tabs navigation */}
-      <div className="flex items-center gap-1 overflow-x-auto max-w-full pb-1 border-b border-[#1c1f38] text-xs font-medium scrollbar-none">
+      <div className="flex items-center gap-1.5 overflow-x-auto max-w-full p-1.5 rounded-2xl bg-[#060b1e]/90 backdrop-blur-xl border border-cyan-500/25 text-xs font-medium scrollbar-none shadow-inner">
         {[
           { id: 'overview', label: 'Overview', icon: Target },
           { id: 'tasks', label: `Tasks (${tasks.length})`, icon: Layers },
@@ -870,13 +869,13 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl whitespace-nowrap transition-all duration-300 cursor-pointer group select-none ${
                 isActive
-                  ? 'bg-purple-950/80 text-purple-200 border border-purple-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#14162a]'
+                  ? 'bg-gradient-to-b from-cyan-950/80 to-[#0e1634] text-cyan-100 border border-cyan-500/50 shadow-md shadow-cyan-950/50 font-bold'
+                  : 'text-slate-400 hover:text-cyan-200 hover:bg-[#0c142e] hover:-translate-y-0.5'
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-purple-400' : 'text-slate-400'}`} />
+              <Icon className={`w-3.5 h-3.5 transition-all duration-300 ${isActive ? 'text-cyan-300 scale-110 drop-shadow-[0_0_6px_rgba(34,211,238,0.8)]' : 'text-slate-400 group-hover:text-cyan-300 group-hover:scale-115 group-hover:rotate-6'}`} />
               <span>{tab.label}</span>
             </button>
           );
@@ -1511,6 +1510,16 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                     <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed bg-[#0c0d18] p-3 rounded-xl border border-[#191b32]">
                       {proof.explanation}
                     </p>
+
+                    {/* Attached Proof Deliverable Files */}
+                    <div onClick={(e) => e.stopPropagation()} className="pt-1">
+                      <ProofFilesViewer
+                        attachments={proof.attachments}
+                        attachmentIds={proof.attachmentIds}
+                        projectId={projectId}
+                        compact={false}
+                      />
+                    </div>
 
                     {proof.reviewNote && (
                       <div className="p-2.5 rounded-lg bg-[#14162a] border border-purple-500/20 text-xs text-purple-200">
@@ -2207,6 +2216,39 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           onInvitationCreated={fetchData}
         />
       )}
+
+      {/* Delete Project Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!isDeletingProject) {
+            setIsDeleteModalOpen(false);
+            setDeleteProjectError(null);
+          }
+        }}
+        onConfirm={async () => {
+          setIsDeletingProject(true);
+          setDeleteProjectError(null);
+          try {
+            await api.deleteProject(projectId);
+            setIsDeleteModalOpen(false);
+            onBack();
+          } catch (err: any) {
+            console.error('Failed to delete project', err);
+            setDeleteProjectError(err.message || 'Failed to delete project');
+          } finally {
+            setIsDeletingProject(false);
+          }
+        }}
+        title="Delete Project"
+        message={
+          deleteProjectError
+            ? `Failed to delete project: ${deleteProjectError}`
+            : `Are you sure you want to permanently delete "${project?.title}"? All associated tasks, milestones, proofs, resources, and discussions will be permanently deleted.`
+        }
+        confirmLabel={isDeletingProject ? 'Deleting...' : 'Delete Project Permanently'}
+        destructive
+      />
     </div>
   );
 }

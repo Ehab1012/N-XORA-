@@ -15,9 +15,11 @@ import {
   ExternalLink,
   ChevronRight,
   Terminal,
+  Zap,
 } from 'lucide-react';
 import { PRODUCT_NAME, PRODUCT_STYLIZED_NAME, PRODUCT_TAGLINE } from '../../../shared/const.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { Web3HeroCard } from './Web3HeroCard.js';
 
 interface LandingPageProps {
   onOpenAuthModal: () => void;
@@ -61,105 +63,78 @@ export function LandingPage({ onOpenAuthModal }: LandingPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0c14] text-slate-100 selection:bg-purple-600/30 selection:text-purple-200">
+    <div className="min-h-screen web3-outer-slashes text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Background glow atmospheric effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-purple-900/15 rounded-full blur-[120px]" />
-        <div className="absolute top-1/3 -left-40 w-[500px] h-[400px] bg-indigo-900/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-10 right-0 w-[500px] h-[500px] bg-violet-950/20 rounded-full blur-[130px]" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-cyan-900/15 rounded-full blur-[130px]" />
+        <div className="absolute top-1/3 -left-40 w-[500px] h-[400px] bg-teal-900/10 rounded-full blur-[110px]" />
+        <div className="absolute bottom-10 right-0 w-[500px] h-[500px] bg-sky-950/20 rounded-full blur-[140px]" />
       </div>
 
-      {/* Navigation Bar */}
-      <header className="relative z-10 border-b border-[#1c1f36] bg-[#0d0f1c]/80 backdrop-blur-md">
+      {/* Top Global Navigation Bar */}
+      <header className="relative z-20 border-b border-cyan-900/30 bg-[#060a14]/85 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-700 p-0.5 flex items-center justify-center shadow-lg shadow-purple-600/20">
-              <div className="w-full h-full bg-[#0d0f1c] rounded-[7px] flex items-center justify-center">
-                <Cpu className="w-5 h-5 text-purple-400" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 via-teal-500 to-blue-600 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+              <div className="w-full h-full bg-[#070b16] rounded-[9px] flex items-center justify-center">
+                <Cpu className="w-5 h-5 text-cyan-300 icon-anim" />
               </div>
             </div>
             <div>
-              <span className="font-sharp font-bold text-xl tracking-tight text-white flex items-center gap-1.5">
+              <span className="font-sharp font-bold text-lg sm:text-xl tracking-tight text-white flex items-center gap-1.5">
                 {PRODUCT_NAME}
-                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-500/30">
-                  v3.2
+                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/30">
+                  WEB 3.0
                 </span>
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-6 text-sm text-slate-400 mr-2">
-              <a href="#signals" className="hover:text-slate-200 transition-colors">Architecture</a>
-              <a href="#principles" className="hover:text-slate-200 transition-colors">Core Pillars</a>
-              <a href="#roles" className="hover:text-slate-200 transition-colors">Role Matrix</a>
+            <div className="hidden sm:flex items-center gap-6 text-sm text-slate-300 mr-2">
+              <a href="#signals" className="hover:text-cyan-300 transition-colors">Architecture</a>
+              <a href="#principles" className="hover:text-cyan-300 transition-colors">Core Pillars</a>
+              <a href="#roles" className="hover:text-cyan-300 transition-colors">Role Matrix</a>
             </div>
 
             {user ? (
               <button
                 onClick={onOpenAuthModal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/25 transition-all"
+                className="btn-modern-primary px-4 py-2 text-xs font-bold flex items-center gap-2 cursor-pointer"
               >
                 <span>Enter Workspace</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-slate-950" />
               </button>
             ) : (
               <button
                 onClick={onOpenAuthModal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/25 hover:shadow-purple-600/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="btn-modern-pill group cursor-pointer"
               >
-                <span>Sign In / Demo Roles</span>
-                <ArrowRight className="w-4 h-4" />
+                <Sparkles className="w-3.5 h-3.5 text-slate-950 icon-anim" />
+                <span>Connect Us</span>
               </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative z-10 pt-20 pb-16 sm:pt-28 sm:pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#171930] border border-purple-500/30 text-purple-300 text-xs font-mono mb-8">
-          <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-          <span>{PRODUCT_TAGLINE}</span>
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl font-display font-bold tracking-tight text-slate-100 leading-[1.15] mb-6">
-          Where complex engineering execution meets{' '}
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-violet-300 to-teal-300">
-            verifiable proof of work.
-          </span>
-        </h1>
-
-        <p className="text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10 font-normal">
-          NΞXORA gives leaders and engineering teams a calm, structured environment to coordinate milestones,
-          submit verifiable proofs, enforce strict role-based access, and maintain shared contextual accountability.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button
-            onClick={onOpenAuthModal}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-medium text-base bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-xl shadow-purple-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <span>Launch NΞXORA Workspace</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-          <a
-            href="#signals"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-medium text-base text-slate-300 hover:text-white bg-[#141629] hover:bg-[#1a1d36] border border-[#262a4a] transition-colors"
-          >
-            <span>Inspect System Signal Flow</span>
-            <ChevronRight className="w-4 h-4" />
-          </a>
-        </div>
+      {/* Featured Web 3.0 Hero Window (Matching User's Reference Screenshot) */}
+      <section className="relative z-10 pt-8 sm:pt-12 pb-12 px-4 sm:px-6 lg:px-8">
+        <Web3HeroCard
+          onLoginClick={onOpenAuthModal}
+          onConnectClick={onOpenAuthModal}
+          isLoggedIn={!!user}
+          onEnterWorkspace={onOpenAuthModal}
+        />
       </section>
 
       {/* Visual Workspace Signal Panel */}
       <section id="signals" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="rounded-2xl border border-purple-500/25 bg-[#0e101f]/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-6 border-b border-[#202444]">
+        <div className="rounded-2xl sm:rounded-3xl border border-cyan-500/25 bg-[#090d1a]/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-6 border-b border-[#1b2544]">
             <div>
-              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-purple-400 mb-1">
-                <Workflow className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-cyan-400 mb-1">
+                <Workflow className="w-4 h-4 icon-anim" />
                 <span>Connected Workspace Signal Architecture</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-display font-semibold text-slate-100">
@@ -167,7 +142,7 @@ export function LandingPage({ onOpenAuthModal }: LandingPageProps) {
               </h2>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
               <span>Real-time Operational Pipeline</span>
             </div>
           </div>
@@ -187,49 +162,56 @@ export function LandingPage({ onOpenAuthModal }: LandingPageProps) {
                 <button
                   key={node.id}
                   onClick={() => setActiveSignalNode(node.id as any)}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  className={`p-3.5 rounded-xl border text-left transition-all duration-300 group cursor-pointer ${
                     isActive
-                      ? 'bg-purple-950/60 border-purple-500 text-white shadow-lg shadow-purple-900/30 ring-1 ring-purple-400'
-                      : 'bg-[#121426] border-[#222646] text-slate-400 hover:text-slate-200 hover:bg-[#171930]'
+                      ? 'bg-cyan-950/60 border-cyan-400 text-white shadow-[0_0_20px_rgba(6,182,212,0.35)] ring-1 ring-cyan-400/50'
+                      : 'bg-[#0e1428] border-[#1d2746] text-slate-400 hover:text-cyan-200 hover:bg-[#141d38] hover:border-cyan-500/40'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 mb-2 ${isActive ? 'text-purple-300' : 'text-slate-500'}`} />
-                  <div className="text-xs font-medium">{node.label}</div>
+                  <Icon className={`w-5 h-5 mb-2 icon-anim ${isActive ? 'text-cyan-300' : 'text-slate-500 group-hover:text-cyan-400'}`} />
+                  <div className="text-xs font-semibold">{node.label}</div>
                 </button>
               );
             })}
           </div>
 
           {/* Dynamic Inspector Box */}
-          <div className="bg-[#090a12] rounded-xl border border-[#202444] p-5">
-            <div className="flex items-center justify-between text-xs font-mono text-slate-400 pb-3 border-b border-[#1c2038] mb-4">
-              <div className="flex items-center gap-2 text-purple-300">
-                <Terminal className="w-4 h-4 text-purple-400" />
+          <div className="bg-[#060914] rounded-xl border border-cyan-950/80 p-5">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-400 pb-3 border-b border-[#18223c] mb-4">
+              <div className="flex items-center gap-2 text-cyan-300">
+                <Terminal className="w-4 h-4 text-cyan-400 icon-anim" />
                 <span>ACTIVE PIPELINE INSPECTOR: {signalDetails[activeSignalNode].title}</span>
               </div>
-              <span className="text-slate-500">Live Stage Node</span>
+              <span className="text-cyan-400/80 font-mono text-[10px]">VERIFIED STAGE</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2 space-y-2">
-                <h4 className="text-base font-display font-medium text-slate-200">
+                <h4 className="text-base font-display font-medium text-slate-100">
                   {signalDetails[activeSignalNode].title}
                 </h4>
-                <p className="text-sm text-slate-400 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed font-light">
                   {signalDetails[activeSignalNode].desc}
                 </p>
-                <div className="p-3 bg-[#111322] rounded-lg border border-[#1f223d] font-mono text-xs text-purple-300">
-                  <code>{signalDetails[activeSignalNode].code}</code>
+                <div className="pt-2">
+                  <div className="text-[11px] font-mono text-cyan-300 bg-[#090e1c] p-2.5 rounded-lg border border-cyan-500/20">
+                    {signalDetails[activeSignalNode].code}
+                  </div>
                 </div>
               </div>
-              <div className="bg-[#121528] rounded-xl border border-purple-500/20 p-4 flex flex-col justify-between">
-                <span className="text-xs text-slate-400 uppercase tracking-wider font-mono">Real Work Example</span>
-                <span className="text-sm font-medium text-teal-300 my-2">
+
+              <div className="rounded-xl bg-[#080d1c] border border-cyan-500/20 p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Live Objective Telemetry</span>
+                <div className="text-sm font-semibold text-cyan-200 py-2">
                   {signalDetails[activeSignalNode].metric}
-                </span>
-                <div className="text-[11px] text-slate-500">
-                  Strictly attested in database record
                 </div>
+                <button
+                  onClick={onOpenAuthModal}
+                  className="btn-modern-primary py-2 px-3 text-[11px] flex items-center justify-center gap-1.5 cursor-pointer mt-2"
+                >
+                  <span>Test in Workspace</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-950" />
+                </button>
               </div>
             </div>
           </div>

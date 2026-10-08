@@ -131,52 +131,55 @@ export function ProofSubmissionModal({
         </div>
 
         <div>
-          <label className="block text-xs font-mono uppercase tracking-wider text-purple-300 mb-1 flex items-center gap-1.5">
-            <Upload className="w-3.5 h-3.5" />
-            <span>Attach Proof File (Log, Binary output, or Report)</span>
+          <label className="block text-xs font-mono uppercase tracking-wider text-cyan-300 mb-1 flex items-center gap-1.5 font-semibold">
+            <Upload className="w-3.5 h-3.5 icon-anim text-cyan-400" />
+            <span>Attach Proof File (Log, Binary output, SVG, or Report)</span>
           </label>
-          <div className="p-4 border border-dashed border-[#262a4a] hover:border-purple-500/40 rounded-xl bg-[#0e101c] text-center">
+          <div className="p-4 border border-dashed border-cyan-500/30 hover:border-cyan-400/60 rounded-2xl bg-[#090d1c] text-center transition-colors">
             {file ? (
-              <div className="flex items-center justify-between text-xs text-teal-300">
-                <span className="truncate max-w-[300px]">{file.name}</span>
+              <div className="flex items-center justify-between text-xs text-cyan-200 bg-[#0f1730] p-3 rounded-xl border border-cyan-500/30">
+                <div className="flex items-center gap-2 truncate">
+                  <FileCheck2 className="w-4 h-4 text-cyan-400 shrink-0 icon-anim" />
+                  <span className="truncate max-w-[280px] font-semibold">{file.name}</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setFile(null)}
-                  className="text-rose-400 hover:text-rose-300 ml-2 text-xs"
+                  className="text-rose-400 hover:text-rose-300 ml-2 text-xs font-medium px-2 py-1 rounded-lg hover:bg-rose-950/40 cursor-pointer transition-colors"
                 >
                   Remove
                 </button>
               </div>
             ) : (
-              <label className="cursor-pointer block">
-                <span className="text-xs text-slate-400 block mb-1">
-                  Drag & drop file or <span className="text-purple-400 underline">browse</span>
+              <label className="cursor-pointer block group">
+                <span className="text-xs text-slate-300 block mb-1">
+                  Drag & drop file or <span className="text-cyan-400 font-semibold underline group-hover:text-cyan-300">browse file</span>
                 </span>
-                <span className="text-[10px] text-slate-500 block">Up to 5MB (JSON, TXT, PDF, PNG)</span>
+                <span className="text-[10px] text-slate-500 block font-mono">Supports all formats: SVG, PNG, JSON, PDF, TXT (up to 1GB)</span>
                 <input type="file" className="hidden" onChange={handleFileChange} />
               </label>
             )}
           </div>
         </div>
 
-        <div className="pt-4 border-t border-[#202444] flex items-center justify-end gap-3">
+        <div className="pt-4 border-t border-[#18203c] flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-slate-400 hover:bg-[#1c1f38] transition-colors"
+            className="btn-modern-secondary px-4 py-2 text-xs cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium text-xs shadow-md shadow-purple-900/30 transition-colors"
+            className="btn-modern-primary px-5 py-2.5 text-xs inline-flex items-center gap-2 cursor-pointer shadow-lg shadow-cyan-950/40"
           >
             {isSubmitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
             ) : (
               <>
-                <FileCheck2 className="w-4 h-4" />
+                <FileCheck2 className="w-4 h-4 text-slate-950 icon-anim" />
                 <span>Submit Deliverable for Review</span>
               </>
             )}

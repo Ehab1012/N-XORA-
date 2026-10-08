@@ -427,19 +427,28 @@ export function TaskManagementView({
           <StatusBadge status={task.status} />
 
           {task.proofSubmittedId ? (
-            <span className="inline-flex items-center gap-1 text-[11px] text-teal-400 font-medium">
-              <FileCheck2 className="w-3.5 h-3.5" />
-              <span>Proof Filed</span>
-            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTaskClick(task);
+              }}
+              className="inline-flex items-center gap-1.5 text-[11px] text-cyan-200 hover:text-white font-semibold bg-gradient-to-r from-cyan-950/80 via-teal-950/60 to-cyan-950/80 hover:from-cyan-900/80 hover:to-teal-900/80 px-2.5 py-1 rounded-xl border border-cyan-400/50 hover:border-cyan-300 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-cyan-950/50 group/proof hover:-translate-y-0.5 active:scale-95"
+              title="Inspect deliverable & proof files"
+            >
+              <FileCheck2 className="w-3.5 h-3.5 text-cyan-400 group-hover/proof:scale-120 group-hover/proof:rotate-6 transition-transform" />
+              <span>View Proof & Files</span>
+            </button>
           ) : task.status === 'in_progress' || task.status === 'todo' ? (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 if (onRequestProofSubmit) onRequestProofSubmit(task);
               }}
-              className="text-[11px] text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1"
+              className="inline-flex items-center gap-1.5 text-[11px] text-cyan-400 hover:text-cyan-200 hover:bg-cyan-950/40 px-2 py-0.5 rounded-lg border border-transparent hover:border-cyan-500/30 transition-all cursor-pointer group/submit hover:-translate-y-0.5 active:scale-95"
             >
-              <Sparkles className="w-3 h-3" />
+              <Sparkles className="w-3 h-3 group-hover/submit:scale-115 transition-transform" />
               <span>Submit Proof</span>
             </button>
           ) : null}

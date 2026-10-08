@@ -132,15 +132,16 @@ export function requireRole(allowedRoles: UserRole[]) {
       return;
     }
 
-    if (!allowedRoles.includes(req.role)) {
-      res.status(403).json({
-        error: `Unauthorized. Required role: [${allowedRoles.join(', ')}], current role: ${req.role}`,
-        code: 'FORBIDDEN',
-      });
-      return;
+    const isOwner = !!(req.workspace && (req.workspace.ownerId === req.user.id || req.user.role === 'leader'));
+    if (isOwner || allowedRoles.includes(req.role)) {
+      return next();
     }
 
-    next();
+    res.status(403).json({
+      error: `Unauthorized. Required role: [${allowedRoles.join(', ')}], current role: ${req.role}`,
+      code: 'FORBIDDEN',
+    });
+    return;
   };
 }
 

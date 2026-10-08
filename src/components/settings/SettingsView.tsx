@@ -40,13 +40,22 @@ export function SettingsView() {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
+  // Environment sync states
+  const [envInfo, setEnvInfo] = useState<{ isDev: boolean; currentCollection: string; publishedCollection: string } | null>(null);
+  const [isRevertEnvOpen, setIsRevertEnvOpen] = useState(false);
+  const [isPromoteEnvOpen, setIsPromoteEnvOpen] = useState(false);
+  const [envSyncLoading, setEnvSyncLoading] = useState(false);
+  const [envSyncFeedback, setEnvSyncFeedback] = useState<string | null>(null);
+
   useEffect(() => {
     Promise.all([
       api.getNotificationPreferences(),
       api.getAuditLogs(),
-    ]).then(([p, logs]) => {
+      api.getEnvironmentInfo().catch(() => null),
+    ]).then(([p, logs, env]) => {
       setPrefs(p);
       setAuditLogs(logs);
+      if (env) setEnvInfo(env);
     });
   }, []);
 
@@ -133,9 +142,9 @@ export function SettingsView() {
             <div className="relative group">
               <div
                 onClick={() => setIsAvatarPickerOpen(true)}
-                className={`w-16 h-16 rounded-2xl bg-gradient-to-tr ${themeConfig.gradient} p-[2px] shadow-lg cursor-pointer overflow-hidden`}
+                className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-400 via-teal-400 to-indigo-500 p-[2px] shadow-lg shadow-cyan-950/50 cursor-pointer overflow-hidden"
               >
-                <div className="w-full h-full bg-[#0d0f1e] rounded-[14px] flex items-center justify-center text-white font-bold text-2xl font-display overflow-hidden relative">
+                <div className="w-full h-full bg-[#050814] rounded-[14px] flex items-center justify-center text-white font-bold text-2xl font-sharp overflow-hidden relative">
                   {user?.avatarUrl ? (
                     <img
                       src={user.avatarUrl}
@@ -153,29 +162,29 @@ export function SettingsView() {
                   )}
                   {/* Hover overlay */}
                   <div className="absolute inset-0 bg-black/60 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
-                    <Camera className="w-4 h-4 text-blue-300" />
-                    <span className="text-[8px] font-mono tracking-tighter mt-0.5 text-blue-200">Edit</span>
+                    <Camera className="w-4 h-4 text-cyan-300" />
+                    <span className="text-[8px] font-mono tracking-tighter mt-0.5 text-cyan-200">Edit</span>
                   </div>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAvatarPickerOpen(true)}
-                className="absolute -bottom-1 -right-1 p-1 rounded-full bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-colors"
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 ring-2 ring-[#060b1c] shadow-md shadow-cyan-950/50 transition-all cursor-pointer hover:scale-110 active:scale-95"
                 title="Change profile picture"
               >
-                <Camera className="w-3 h-3" />
+                <Camera className="w-3 h-3 text-slate-950" />
               </button>
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-display font-semibold text-slate-100">
+                <h3 className="text-base font-sharp font-bold text-slate-100 tracking-tight">
                   {user?.name}
                 </h3>
                 <RoleBadge role={role || 'member'} />
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 mt-0.5 font-sans">
                 {user?.title || 'Active Platform Contributor'} • {user?.department || 'Engineering'}
               </p>
             </div>
@@ -184,25 +193,25 @@ export function SettingsView() {
           <button
             type="button"
             onClick={() => setIsAvatarPickerOpen(true)}
-            className="glow-btn-primary px-3.5 py-1.5 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5"
+            className="btn-modern-primary px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-cyan-950/40"
           >
-            <Camera className="w-3.5 h-3.5" />
+            <Camera className="w-3.5 h-3.5 text-slate-950 icon-anim" />
             <span>Change Profile Picture</span>
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-2 border-t border-[#1f223f]">
-          <div className="p-3.5 rounded-xl bg-[#0e101c] border border-[#1f223f]">
+          <div className="p-3.5 rounded-xl bg-[#060a18] border border-cyan-500/15">
             <span className="text-slate-500 font-mono block mb-1">Full Name</span>
             <span className="font-semibold text-slate-200 text-sm">{user?.name}</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-[#0e101c] border border-[#1f223f]">
+          <div className="p-3.5 rounded-xl bg-[#060a18] border border-cyan-500/15">
             <span className="text-slate-500 font-mono block mb-1">Workspace Email</span>
-            <span className="font-mono text-purple-300 text-sm">{user?.email}</span>
+            <span className="font-mono text-cyan-300 text-sm">{user?.email}</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-[#0e101c] border border-[#1f223f]">
+          <div className="p-3.5 rounded-xl bg-[#060a18] border border-cyan-500/15">
             <span className="text-slate-500 font-mono block mb-1">Enforced Role</span>
             <div className="mt-1">
               <RoleBadge role={role || 'member'} />
@@ -407,15 +416,128 @@ export function SettingsView() {
               <button
                 type="submit"
                 disabled={savingWs}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium shadow-md shadow-purple-900/30"
+                className="btn-modern-primary px-4 py-2 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-md shadow-cyan-950/40"
               >
-                <Save className="w-3.5 h-3.5" />
+                <Save className="w-3.5 h-3.5 text-slate-950 icon-anim" />
                 <span>{savingWs ? 'Saving...' : 'Save Workspace Policies'}</span>
               </button>
             </div>
           </form>
         </div>
       )}
+
+      {/* Environment & Publishing Synchronization */}
+      <div className="glass-panel p-6 rounded-2xl border border-blue-500/30 space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-display font-semibold text-slate-100 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-blue-400" />
+                <span>Environment Isolation & Publishing Sync</span>
+              </h3>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                envInfo?.isDev
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+              }`}>
+                {envInfo?.isDev ? 'Development Sandbox' : 'Published Production'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              {envInfo?.isDev
+                ? 'Your changes in this development environment are isolated in dev storage. Your published app remains 100% untouched.'
+                : 'This is the published production app running live data.'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {envInfo?.isDev && (
+              <button
+                type="button"
+                onClick={() => setIsRevertEnvOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-[#14182e] border border-blue-500/40 text-blue-300 hover:text-white hover:bg-blue-600/30 text-xs font-medium transition-colors"
+              >
+                Revert to Published State
+              </button>
+            )}
+
+            {role === 'leader' && envInfo?.isDev && (
+              <button
+                type="button"
+                onClick={() => setIsPromoteEnvOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition-colors shadow-sm shadow-purple-900/40"
+              >
+                Promote Dev to Published
+              </button>
+            )}
+          </div>
+        </div>
+
+        {envSyncFeedback && (
+          <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/30 text-blue-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{envSyncFeedback}</span>
+          </div>
+        )}
+
+        <div className="p-3 rounded-xl bg-[#0b0c16] border border-[#1f2342] text-[11px] text-slate-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 font-mono">
+          <div>
+            Active Collection:{' '}
+            <span className="text-purple-300 font-semibold">{envInfo?.currentCollection || 'nexora_data'}</span>
+          </div>
+          <div>
+            Published Collection:{' '}
+            <span className="text-cyan-300 font-semibold">{envInfo?.publishedCollection || 'nexora_data'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirm Modal: Revert to Published */}
+      <ConfirmModal
+        isOpen={isRevertEnvOpen}
+        onClose={() => {
+          if (!envSyncLoading) setIsRevertEnvOpen(false);
+        }}
+        onConfirm={async () => {
+          setEnvSyncLoading(true);
+          try {
+            const res = await api.revertToPublished();
+            setEnvSyncFeedback(res.message);
+            setIsRevertEnvOpen(false);
+            setTimeout(() => window.location.reload(), 1200);
+          } catch (err: any) {
+            setEnvSyncFeedback(err.message || 'Failed to revert to published state');
+          } finally {
+            setEnvSyncLoading(false);
+          }
+        }}
+        title="Revert to Published State?"
+        message="This will restore all projects, tasks, squads, and milestones from your published version (ais-pre). Any uncommitted test changes in this development sandbox will be discarded. Your published app will NOT be modified."
+        confirmLabel={envSyncLoading ? 'Reverting...' : 'Revert Dev Workspace'}
+      />
+
+      {/* Confirm Modal: Promote Dev to Published */}
+      <ConfirmModal
+        isOpen={isPromoteEnvOpen}
+        onClose={() => {
+          if (!envSyncLoading) setIsPromoteEnvOpen(false);
+        }}
+        onConfirm={async () => {
+          setEnvSyncLoading(true);
+          try {
+            const res = await api.promoteToPublished();
+            setEnvSyncFeedback(res.message);
+            setIsPromoteEnvOpen(false);
+          } catch (err: any) {
+            setEnvSyncFeedback(err.message || 'Failed to promote state');
+          } finally {
+            setEnvSyncLoading(false);
+          }
+        }}
+        title="Promote Dev State to Published App?"
+        message="This will copy your current development workspace data into the published production application (ais-pre). Are you sure you want to promote this data to live?"
+        confirmLabel={envSyncLoading ? 'Promoting...' : 'Promote to Live'}
+      />
 
       {/* Security & Audit Trail */}
       <div className="glass-panel p-6 rounded-2xl border border-[#202444] space-y-4">
@@ -473,7 +595,7 @@ export function SettingsView() {
 
             <button
               onClick={() => setIsResetConfirmOpen(true)}
-              className="px-4 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-medium transition-colors shrink-0"
+              className="btn-modern-danger px-4 py-2 text-xs font-semibold cursor-pointer shrink-0"
             >
               Clear Workspace Data
             </button>

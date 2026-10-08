@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, FileCheck2, CheckCircle2, XCircle, AlertTriangle, ExternalLink, Download, Clock } from 'lucide-react';
 import { Modal } from '../common/Modal.js';
 import { ProofSubmission, User } from '../../../shared/types.js';
 import { api } from '../../lib/api.js';
 import { ProofBadge } from '../common/Badges.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { ProofFilesViewer } from './ProofFilesViewer.js';
 
 interface ProofReviewModalProps {
   isOpen: boolean;
@@ -22,15 +23,41 @@ export function ProofReviewModal({
   onReviewCompleted,
 }: ProofReviewModalProps) {
   const { role } = useAuth();
+  const [currentProof, setCurrentProof] = useState<ProofSubmission | null>(proof);
   const [action, setAction] = useState<'approved' | 'changes_requested' | 'rejected'>('approved');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen || !proof) return null;
+  // Sync and fetch full proof with attachments
+  useEffect(() => {
+    if (!isOpen || !proof) {
+      setCurrentProof(null);
+      return;
+    }
+    setCurrentProof(proof);
 
-  const submitter = users.find((u) => u.id === proof.submittedById);
-  const reviewer = users.find((u) => u.id === proof.reviewedById);
+    // Fetch full proof to ensure attachments are loaded
+    let isMounted = true;
+    api.getProof(proof.id)
+      .then((full) => {
+        if (isMounted && full) {
+          setCurrentProof(full);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not refresh full proof:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, proof?.id]);
+
+  if (!isOpen || !currentProof) return null;
+
+  const submitter = users.find((u) => u.id === currentProof.submittedById);
+  const reviewer = users.find((u) => u.id === currentProof.reviewedById);
   const canReview = role === 'leader' || role === 'co-leader';
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,7 +70,7 @@ export function ProofReviewModal({
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.reviewProof(proof.id, action, reason.trim());
+      await api.reviewProof(currentProof.id, action, reason.trim());
       onReviewCompleted();
       onClose();
     } catch (err: any) {
@@ -58,8 +85,8 @@ export function ProofReviewModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Proof of Work Attestation"
-      subtitle={`Submission ID: ${proof.id}`}
-      maxWidth="max-w-2xl"
+      subtitle={`Submission ID: ${currentProof.id}`}
+      maxWidth="max-w-3xl"
     >
       <div className="space-y-6 text-sm">
         {error && (
@@ -72,13 +99,13 @@ export function ProofReviewModal({
         <div className="flex items-center justify-between p-4 rounded-xl bg-[#0f1122] border border-[#202444]">
           <div className="space-y-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Status</span>
-            <ProofBadge status={proof.status} />
+            <ProofBadge status={currentProof.status} />
           </div>
           <div className="text-right text-xs">
             <span className="text-slate-400 block">Submitted By</span>
-            <span className="text-purple-300 font-medium">{submitter ? submitter.name : proof.submittedById}</span>
+            <span className="text-purple-300 font-medium">{submitter ? submitter.name : currentProof.submittedById}</span>
             <span className="text-[10px] text-slate-500 block">
-              {new Date(proof.createdAt).toLocaleString()}
+              {new Date(currentProof.createdAt).toLocaleString()}
             </span>
           </div>
         </div>
@@ -86,21 +113,28 @@ export function ProofReviewModal({
         {/* Submitter's explanation */}
         <div>
           <h4 className="text-xs font-mono uppercase tracking-wider text-purple-300 mb-1.5">
-            Deliverable Explanation
+            Deliverable Explanation & Methodology
           </h4>
           <p className="p-4 rounded-xl bg-[#0e101c] border border-[#1e2240] text-slate-200 leading-relaxed text-xs sm:text-sm whitespace-pre-wrap">
-            {proof.explanation}
+            {currentProof.explanation}
           </p>
         </div>
 
+        {/* Proof Files & Attachments */}
+        <ProofFilesViewer
+          attachments={currentProof.attachments}
+          attachmentIds={currentProof.attachmentIds}
+          projectId={currentProof.projectId}
+        />
+
         {/* Artifact Links */}
-        {proof.links && proof.links.length > 0 && (
+        {currentProof.links && currentProof.links.length > 0 && (
           <div>
             <h4 className="text-xs font-mono uppercase tracking-wider text-purple-300 mb-1.5">
               Verified Verification Links
             </h4>
             <div className="space-y-1.5">
-              {proof.links.map((link, idx) => (
+              {currentProof.links.map((link, idx) => (
                 <a
                   key={idx}
                   href={link}
@@ -117,7 +151,7 @@ export function ProofReviewModal({
         )}
 
         {/* Previous Review History */}
-        {proof.reviewHistory && proof.reviewHistory.length > 0 && (
+        {currentProof.reviewHistory && currentProof.reviewHistory.length > 0 && (
           <div>
             <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -161,49 +195,49 @@ export function ProofReviewModal({
               </h4>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
                 type="button"
                 onClick={() => setAction('approved')}
-                className={`flex items-center justify-center gap-1.5 p-2.5 rounded-lg border text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition-all duration-200 cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
                   action === 'approved'
-                    ? 'bg-teal-950/80 border-teal-500 text-teal-200 ring-1 ring-teal-400'
-                    : 'bg-[#121426] border-[#222544] text-slate-400 hover:bg-[#181a30]'
+                    ? 'bg-emerald-950/80 border-emerald-400 text-emerald-200 shadow-lg shadow-emerald-950/50 ring-2 ring-emerald-500/50'
+                    : 'bg-[#0a0f20] border-[#1c264a] text-slate-300 hover:bg-[#0f1838] hover:border-emerald-500/40'
                 }`}
               >
-                <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 icon-anim" />
                 <span>Approve & Verify</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setAction('changes_requested')}
-                className={`flex items-center justify-center gap-1.5 p-2.5 rounded-lg border text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition-all duration-200 cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
                   action === 'changes_requested'
-                    ? 'bg-amber-950/80 border-amber-500 text-amber-200 ring-1 ring-amber-400'
-                    : 'bg-[#121426] border-[#222544] text-slate-400 hover:bg-[#181a30]'
+                    ? 'bg-amber-950/80 border-amber-400 text-amber-200 shadow-lg shadow-amber-950/50 ring-2 ring-amber-500/50'
+                    : 'bg-[#0a0f20] border-[#1c264a] text-slate-300 hover:bg-[#0f1838] hover:border-amber-500/40'
                 }`}
               >
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                <AlertTriangle className="w-4 h-4 text-amber-400 icon-anim" />
                 <span>Request Changes</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setAction('rejected')}
-                className={`flex items-center justify-center gap-1.5 p-2.5 rounded-lg border text-xs font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition-all duration-200 cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
                   action === 'rejected'
-                    ? 'bg-rose-950/80 border-rose-500 text-rose-200 ring-1 ring-rose-400'
-                    : 'bg-[#121426] border-[#222544] text-slate-400 hover:bg-[#181a30]'
+                    ? 'bg-rose-950/80 border-rose-400 text-rose-200 shadow-lg shadow-rose-950/50 ring-2 ring-rose-500/50'
+                    : 'bg-[#0a0f20] border-[#1c264a] text-slate-300 hover:bg-[#0f1838] hover:border-rose-500/40'
                 }`}
               >
-                <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                <XCircle className="w-4 h-4 text-rose-400 icon-anim" />
                 <span>Reject</span>
               </button>
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label className="block text-xs font-semibold text-slate-300 mb-1 font-mono uppercase tracking-wider">
                 Review Attestation Criteria / Reason *
               </label>
               <textarea
@@ -212,7 +246,7 @@ export function ProofReviewModal({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Detail verification findings, test outcomes, or specific changes required..."
-                className="w-full px-3 py-2 rounded-lg bg-[#0e101c] border border-[#232746] text-slate-100 placeholder-slate-500 text-xs focus:border-purple-500 focus:outline-none"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#080c1c] border border-cyan-500/30 text-slate-100 placeholder-slate-500 text-xs focus:border-cyan-400 focus:outline-none leading-relaxed"
               />
             </div>
 
@@ -220,14 +254,14 @@ export function ProofReviewModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg text-slate-400 hover:bg-[#1c1f38] text-xs"
+                className="btn-modern-secondary px-4 py-2 text-xs cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs shadow-md shadow-purple-900/30"
+                className="btn-modern-primary px-5 py-2.5 text-xs inline-flex items-center gap-2 cursor-pointer shadow-lg shadow-cyan-950/40"
               >
                 {isSubmitting ? 'Recording...' : 'Submit Review Decision'}
               </button>

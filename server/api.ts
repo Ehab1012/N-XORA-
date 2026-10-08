@@ -1,8 +1,41 @@
+import fs from 'fs';
+import path from 'path';
 import { Router, Response, Request } from 'express';
-import { db, DatabaseSchema, firestore } from './db.js';
+import {
+  db,
+  DatabaseSchema,
+  firestore,
+  CURRENT_CHUNKS_COLLECTION_NAME,
+  CURRENT_COLLECTION_NAME,
+  PUBLISHED_COLLECTION_NAME,
+  isDevEnvironment,
+} from './db.js';
 import { collection, doc, setDoc, getDoc, getDocs, writeBatch, query, orderBy } from 'firebase/firestore';
+import { SEED_PROJECT_FILES } from './seedFiles.js';
+
+// Global in-memory cache for ultra-fast, robust file retrieval
+const inMemoryFileContent = new Map<string, string>();
+for (const sf of SEED_PROJECT_FILES) {
+  if (sf.dataUrl && (sf.dataUrl.startsWith('data:') || sf.dataUrl.startsWith('http'))) {
+    inMemoryFileContent.set(sf.id, sf.dataUrl);
+  }
+}
 
 async function saveFileChunks(fileId: string, dataUrl: string) {
+  // Always cache in memory
+  inMemoryFileContent.set(fileId, dataUrl);
+
+  // Always cache locally so retrieval is instantaneous and 100% resilient
+  try {
+    const chunksDir = path.join(process.cwd(), 'data', 'file_chunks');
+    if (!fs.existsSync(chunksDir)) {
+      fs.mkdirSync(chunksDir, { recursive: true });
+    }
+    fs.writeFileSync(path.join(chunksDir, `${fileId}.txt`), dataUrl, 'utf-8');
+  } catch (fsErr) {
+    console.warn('Could not write local chunk cache:', fsErr);
+  }
+
   const chunkSize = 750000; // ~750KB per chunk
   const numChunks = Math.ceil(dataUrl.length / chunkSize);
   const BATCH_LIMIT = 400; // Firestore maximum is 500 operations per batch
@@ -13,7 +46,7 @@ async function saveFileChunks(fileId: string, dataUrl: string) {
       const batch = writeBatch(firestore);
       for (let i = b; i < end; i++) {
         const chunk = dataUrl.substring(i * chunkSize, (i + 1) * chunkSize);
-        batch.set(doc(firestore, 'nexora_file_chunks', fileId + '_' + i), {
+        batch.set(doc(firestore, CURRENT_CHUNKS_COLLECTION_NAME, fileId + '_' + i), {
           data: chunk,
           index: i,
           total: numChunks,
@@ -26,7 +59,7 @@ async function saveFileChunks(fileId: string, dataUrl: string) {
       console.warn('Batch write failed for file chunks, falling back to individual chunk saves:', batchErr);
       for (let i = b; i < end; i++) {
         const chunk = dataUrl.substring(i * chunkSize, (i + 1) * chunkSize);
-        await setDoc(doc(firestore, 'nexora_file_chunks', fileId + '_' + i), {
+        await setDoc(doc(firestore, CURRENT_CHUNKS_COLLECTION_NAME, fileId + '_' + i), {
           data: chunk,
           index: i,
           total: numChunks,
@@ -47,7 +80,7 @@ async function deleteFileChunks(fileId: string) {
         batchIndices.push(index + k);
       }
       const chunkDocs = await Promise.all(
-        batchIndices.map((idx) => getDoc(doc(firestore, 'nexora_file_chunks', fileId + '_' + idx)))
+        batchIndices.map((idx) => getDoc(doc(firestore, CURRENT_CHUNKS_COLLECTION_NAME, fileId + '_' + idx)))
       );
 
       const existingDocs = chunkDocs.filter((d) => d.exists());
@@ -77,9 +110,9 @@ import {
   logActivity,
   rateLimit,
 } from './auth.js';
-import { calculateProjectAnalytics, generateProjectMarkdownReport, calculateUserOverallScore } from './analytics.js';
+import { calculateProjectAnalytics, generateProjectMarkdownReport, calculateUserOverallScore, calculateWorkspaceLeaderboard } from './analytics.js';
 import { ROLES, PRODUCT_NAME } from '../shared/const.js';
-import { UserRole, TaskStatus, Task, ProjectInvitation } from '../shared/types.js';
+import { UserRole, TaskStatus, Task, ProjectInvitation, BonusAward } from '../shared/types.js';
 import { realtimeHub } from './realtime.js';
 
 export const apiRouter = Router();
@@ -209,6 +242,55 @@ apiRouter.get('/health', (req, res) => {
       tasksCount: data.tasks.length,
     },
   });
+});
+
+// ----------------------------------------------------
+// Environment & Publishing Isolation
+// ----------------------------------------------------
+apiRouter.get('/environment', (req, res) => {
+  const isDev = isDevEnvironment();
+  res.json({
+    isDev,
+    currentCollection: CURRENT_COLLECTION_NAME,
+    publishedCollection: PUBLISHED_COLLECTION_NAME,
+    appUrl: process.env.APP_URL || '',
+    service: process.env.K_SERVICE || '',
+    nodeEnv: process.env.NODE_ENV || 'development',
+  });
+});
+
+apiRouter.post('/environment/revert-to-published', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await db.revertToPublishedState();
+    logActivity({
+      workspaceId: req.workspace?.id || 'ws_default',
+      userId: req.user!.id,
+      action: 'Reverted Dev to Published State',
+      entityType: 'setting',
+      entityId: 'env_revert',
+      details: `${req.user!.name} restored development workspace state from published snapshot (${result.projectCount} projects)`,
+    });
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to revert to published state' });
+  }
+});
+
+apiRouter.post('/environment/promote-to-published', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await db.promoteDevToPublished();
+    logActivity({
+      workspaceId: req.workspace?.id || 'ws_default',
+      userId: req.user!.id,
+      action: 'Promoted Dev Data to Published App',
+      entityType: 'setting',
+      entityId: 'env_promote',
+      details: `${req.user!.name} promoted development workspace data into the published production application`,
+    });
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to promote data to published app' });
+  }
 });
 
 // ----------------------------------------------------
@@ -532,7 +614,7 @@ apiRouter.get('/teams', requireAuth, (req: AuthenticatedRequest, res: Response) 
   res.json(teams);
 });
 
-apiRouter.post('/teams', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/teams', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER, ROLES.MEMBER]), async (req: AuthenticatedRequest, res: Response) => {
   const { name, description, leaderId, coLeaderId } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Team name is required' });
@@ -854,7 +936,7 @@ apiRouter.patch('/users/:id', requireAuth, async (req: AuthenticatedRequest, res
 apiRouter.patch(
   ['/users/:id/rank', '/users/:id/role'],
   requireAuth,
-  requireRole([ROLES.LEADER]),
+  requireRole([ROLES.LEADER, ROLES.CO_LEADER]),
   async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     const currentUserId = req.user!.id;
@@ -1010,6 +1092,123 @@ apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.LEADER]), async (
   });
 
   res.json({ success: true, deletedId: id });
+});
+
+// ----------------------------------------------------
+// Award Merit Bonus to a Co-Leader or Member (Leader-exclusive feature)
+// ----------------------------------------------------
+apiRouter.post('/users/:id/bonus', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const currentUserId = req.user!.id;
+  const currentUserName = req.user!.name;
+  const { points, reason, projectId } = req.body;
+
+  const bonusPoints = Number(points);
+  if (isNaN(bonusPoints) || bonusPoints <= 0 || !Number.isInteger(bonusPoints)) {
+    res.status(400).json({ error: 'Bonus points must be a positive whole number (e.g. 25, 50, 100).' });
+    return;
+  }
+
+  if (bonusPoints > 1000) {
+    res.status(400).json({ error: 'Maximum bonus points per award is 1,000 points.' });
+    return;
+  }
+
+  const data = db.getRawData();
+  const targetUser = data.users.find((u) => u.id === id);
+  if (!targetUser) {
+    res.status(404).json({ error: 'Member not found' });
+    return;
+  }
+
+  const isSelfAward = targetUser.id === currentUserId;
+  const bonusReason = typeof reason === 'string' && reason.trim() ? reason.trim() : (isSelfAward ? 'Leader Self-Awarded Merit Bonus' : 'Leader Discretionary Merit Bonus');
+
+  const bonusAward: BonusAward = {
+    id: `ba_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    workspaceId: req.workspace?.id || 'ws_default',
+    projectId: projectId || undefined,
+    recipientId: targetUser.id,
+    recipientName: targetUser.name,
+    awardedById: currentUserId,
+    awardedByName: currentUserName,
+    points: bonusPoints,
+    reason: bonusReason,
+    createdAt: new Date().toISOString(),
+  };
+
+  await db.mutateAsync((d) => {
+    if (!Array.isArray(d.bonusAwards)) {
+      d.bonusAwards = [];
+    }
+    d.bonusAwards.push(bonusAward);
+
+    // Create notification for recipient
+    if (!Array.isArray(d.notifications)) {
+      d.notifications = [];
+    }
+    d.notifications.unshift({
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId: targetUser.id,
+      title: '🌟 Bonus Points Awarded!',
+      message: isSelfAward
+        ? `You awarded yourself a +${bonusPoints} pts leadership bonus! (${bonusReason})`
+        : `Leader ${currentUserName} awarded you a +${bonusPoints} pts merit bonus! (${bonusReason})`,
+      type: 'score_bonus',
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    return d;
+  });
+
+  // Realtime notification
+  realtimeHub.broadcast('workspace', {
+    id: `rt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    type: 'user:bonus_awarded',
+    projectId: projectId || 'workspace',
+    title: 'Merit Bonus Awarded',
+    message: isSelfAward
+      ? `Leader ${currentUserName} awarded themselves +${bonusPoints} bonus points!`
+      : `Leader ${currentUserName} awarded +${bonusPoints} bonus points to ${targetUser.name} (${targetUser.role === 'co-leader' ? 'Co-Leader' : 'Member'})!`,
+    entityId: targetUser.id,
+    entityTitle: targetUser.name,
+    actorName: currentUserName,
+    timestamp: new Date().toISOString(),
+  });
+
+  logActivity({
+    workspaceId: req.workspace!.id,
+    projectId: projectId || undefined,
+    userId: currentUserId,
+    action: 'Awarded Merit Bonus',
+    entityType: 'setting',
+    entityId: targetUser.id,
+    details: isSelfAward
+      ? `Leader ${currentUserName} awarded +${bonusPoints} bonus points to themselves. Reason: "${bonusReason}"`
+      : `Leader ${currentUserName} awarded +${bonusPoints} bonus points to ${targetUser.name} (${targetUser.role}). Reason: "${bonusReason}"`,
+  });
+
+  // Calculate updated leaderboard / score for response
+  const updatedLeaderboard = calculateWorkspaceLeaderboard(targetUser.id);
+
+  res.json({
+    success: true,
+    bonusAward,
+    updatedScore: updatedLeaderboard,
+    message: isSelfAward
+      ? `Successfully awarded +${bonusPoints} bonus points to yourself!`
+      : `Successfully awarded +${bonusPoints} bonus points to ${targetUser.name}!`,
+  });
+});
+
+apiRouter.get('/users/:id/bonus-history', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const data = db.getRawData();
+  const awards = (Array.isArray(data.bonusAwards) ? data.bonusAwards : []).filter(
+    (ba) => ba.recipientId === id
+  );
+  res.json(awards);
 });
 
 apiRouter.delete('/teams/:id/members/:userId', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
@@ -1246,24 +1445,57 @@ apiRouter.post('/projects/:id/simulate-event', requireAuth, (req: AuthenticatedR
   res.json({ success: true, event: eventPayload, activeSubscribers: realtimeHub.getActiveCount(id) });
 });
 
-apiRouter.post('/projects', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/projects', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER, ROLES.MEMBER]), async (req: AuthenticatedRequest, res: Response) => {
   const { title, description, teamId, objectives, status, deadline, accentColor, visibility, memberIds } = req.body;
 
-  if (!title || !teamId) {
-    res.status(400).json({ error: 'Project title and team are required' });
+  const cleanTitle = typeof title === 'string' ? title.trim() : '';
+  if (!cleanTitle) {
+    res.status(400).json({ error: 'Project title is required' });
     return;
   }
 
   const newProject = await db.mutateAsync((data) => {
+    // Resolve valid team
+    let resolvedTeamId = typeof teamId === 'string' ? teamId.trim() : '';
+    const existingTeam = data.teams.find((t) => t.id === resolvedTeamId && t.workspaceId === req.workspace!.id);
+    if (!existingTeam) {
+      const anyWorkspaceTeam = data.teams.find((t) => t.workspaceId === req.workspace!.id);
+      if (anyWorkspaceTeam) {
+        resolvedTeamId = anyWorkspaceTeam.id;
+      } else {
+        // Create initial default squad for the workspace if none exists
+        const defaultTeam = {
+          id: 'team_' + Date.now().toString(36),
+          workspaceId: req.workspace!.id,
+          name: 'Core Squad',
+          description: 'Primary engineering squad for workspace projects',
+          leaderId: req.user!.id,
+          memberIds: [req.user!.id],
+          isArchived: false,
+          createdAt: new Date().toISOString(),
+        };
+        data.teams.push(defaultTeam);
+        resolvedTeamId = defaultTeam.id;
+      }
+    }
+
+    let validDeadline = new Date(Date.now() + 30 * 86400000).toISOString();
+    if (deadline) {
+      const parsed = new Date(deadline);
+      if (!isNaN(parsed.getTime())) {
+        validDeadline = parsed.toISOString();
+      }
+    }
+
     const project = {
       id: 'proj_' + Date.now().toString(36),
       workspaceId: req.workspace!.id,
-      teamId,
-      title: title.trim(),
-      description: description?.trim() || '',
-      objectives: Array.isArray(objectives) ? objectives : [],
+      teamId: resolvedTeamId,
+      title: cleanTitle,
+      description: typeof description === 'string' ? description.trim() : '',
+      objectives: Array.isArray(objectives) ? objectives.map((o) => String(o).trim()).filter(Boolean) : [],
       status: status || 'planned',
-      deadline: deadline || new Date(Date.now() + 30 * 86400000).toISOString(),
+      deadline: validDeadline,
       accentColor: accentColor || '#8b5cf6',
       leaderId: req.user!.id,
       visibility: visibility || 'workspace',
@@ -1384,9 +1616,28 @@ apiRouter.patch('/projects/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.C
   res.json(updated);
 });
 
-apiRouter.delete('/projects/:id', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+apiRouter.delete('/projects/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const currentData = db.getRawData();
+  const targetProject = currentData.projects.find((p) => p.id === id);
+
+  if (!targetProject) {
+    res.status(404).json({ error: 'Project not found' });
+    return;
+  }
+
+  const isOwner = !!(req.workspace && (req.workspace.ownerId === req.user!.id));
+  const isLeaderOrCoLeader = req.role === ROLES.LEADER || req.role === ROLES.CO_LEADER;
+  const isCreator = targetProject.leaderId === req.user!.id;
+  const isMember = Array.isArray(targetProject.memberIds) && targetProject.memberIds.includes(req.user!.id);
+
+  if (!isOwner && !isLeaderOrCoLeader && !isCreator && !isMember) {
+    res.status(403).json({
+      error: 'Permission denied. Only project creators, squad leaders, assigned members, or workspace owners can delete projects.',
+    });
+    return;
+  }
+
   const projectFiles = (currentData.files || []).filter((f) => f.projectId === id);
   for (const f of projectFiles) {
     deleteFileChunks(f.id).catch((err) => console.error('Failed to delete file chunks for project file:', err));
@@ -1720,6 +1971,12 @@ apiRouter.patch('/tasks/:id', requireAuth, async (req: AuthenticatedRequest, res
   const oldParticipants = existingTask.participantIds || [];
   let bonusTriggeredJustNow = false;
 
+  // Group task finalization & bonus awarding is strictly leader-only
+  if (existingTask.isGroupTask && updates.status === 'complete' && existingTask.status !== 'complete' && req.role !== ROLES.LEADER) {
+    res.status(403).json({ error: 'Only the Leader can finalize collaborative tasks and award completion bonuses.' });
+    return;
+  }
+
   const updated = await db.mutateAsync((data) => {
     const task = data.tasks.find((t) => t.id === id);
     if (!task) return null;
@@ -2029,8 +2286,8 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: Authenticated
   });
 });
 
-// Finalize/Complete a group task directly (awarding team bonus)
-apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+// Finalize/Complete a group task directly (awarding team bonus) - Leader only
+apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const rawData = db.getRawData();
   const existingTask = rawData.tasks.find((t) => t.id === id);
@@ -2282,7 +2539,32 @@ apiRouter.get('/proofs', requireAuth, (req: AuthenticatedRequest, res: Response)
   if (projectId) proofs = proofs.filter((p) => p.projectId === projectId);
   if (taskId) proofs = proofs.filter((p) => p.taskId === taskId);
 
-  res.json(proofs);
+  const populated = proofs.map((p) => {
+    const attIds = Array.isArray(p.attachmentIds) ? p.attachmentIds : [];
+    const attachments = data.files.filter((f) => attIds.includes(f.id));
+    return {
+      ...p,
+      attachments,
+    };
+  });
+
+  res.json(populated);
+});
+
+apiRouter.get('/proofs/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const data = db.getRawData();
+  const proof = data.proofSubmissions.find((p) => p.id === id);
+  if (!proof) {
+    res.status(404).json({ error: 'Proof not found' });
+    return;
+  }
+  const attIds = Array.isArray(proof.attachmentIds) ? proof.attachmentIds : [];
+  const attachments = data.files.filter((f) => attIds.includes(f.id));
+  res.json({
+    ...proof,
+    attachments,
+  });
 });
 
 apiRouter.post('/proofs', requireAuth, rateLimit(20, 60000), async (req: AuthenticatedRequest, res: Response) => {
@@ -2333,6 +2615,10 @@ apiRouter.post('/proofs', requireAuth, rateLimit(20, 60000), async (req: Authent
     return proof;
   });
 
+  const allFiles = db.getRawData().files;
+  const attIds = Array.isArray(newProof.attachmentIds) ? newProof.attachmentIds : [];
+  const attachments = allFiles.filter((f) => attIds.includes(f.id));
+
   logActivity({
     workspaceId: req.workspace!.id,
     projectId,
@@ -2343,7 +2629,10 @@ apiRouter.post('/proofs', requireAuth, rateLimit(20, 60000), async (req: Authent
     details: `Submitted proof for review: "${newProof.explanation.slice(0, 60)}..."`,
   });
 
-  res.status(201).json(newProof);
+  res.status(201).json({
+    ...newProof,
+    attachments,
+  });
 });
 
 apiRouter.post('/proofs/:id/review', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
@@ -2921,27 +3210,52 @@ apiRouter.post('/onboarding/dismiss', requireAuth, async (req: AuthenticatedRequ
 apiRouter.get('/files/:id/content', async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   try {
-    let fullDataUrl = '';
-    let index = 0;
-    let keepGoing = true;
+    let fullDataUrl = inMemoryFileContent.get(id) || '';
 
-    // Fetch chunks in parallel batches of 20 for high performance
-    while (keepGoing) {
-      const batchIndices = [];
-      for (let k = 0; k < 20; k++) {
-        batchIndices.push(index + k);
-      }
-      const chunkDocs = await Promise.all(
-        batchIndices.map((idx) => getDoc(doc(firestore, 'nexora_file_chunks', id + '_' + idx)))
-      );
-
-      for (const chunkDoc of chunkDocs) {
-        if (!chunkDoc.exists()) {
-          keepGoing = false;
-          break;
+    // 1. Check local file chunks cache
+    if (!fullDataUrl) {
+      const localChunkPath = path.join(process.cwd(), 'data', 'file_chunks', `${id}.txt`);
+      if (fs.existsSync(localChunkPath)) {
+        try {
+          fullDataUrl = fs.readFileSync(localChunkPath, 'utf-8');
+        } catch (err) {
+          // ignore and fallback
         }
-        fullDataUrl += chunkDoc.data().data;
-        index++;
+      }
+    }
+
+    // 2. Check in-memory/db.files record for inline dataUrl
+    if (!fullDataUrl) {
+      const data = db.getRawData();
+      const fileRecord = data.files.find((f) => f.id === id);
+      if (fileRecord && fileRecord.dataUrl && (fileRecord.dataUrl.startsWith('data:') || fileRecord.dataUrl.startsWith('http'))) {
+        fullDataUrl = fileRecord.dataUrl;
+      }
+    }
+
+    // 3. Fallback to Firestore chunks if not found locally
+    if (!fullDataUrl) {
+      let index = 0;
+      let keepGoing = true;
+
+      // Fetch chunks in parallel batches of 20 for high performance
+      while (keepGoing) {
+        const batchIndices = [];
+        for (let k = 0; k < 20; k++) {
+          batchIndices.push(index + k);
+        }
+        const chunkDocs = await Promise.all(
+          batchIndices.map((idx) => getDoc(doc(firestore, CURRENT_CHUNKS_COLLECTION_NAME, id + '_' + idx)))
+        );
+
+        for (const chunkDoc of chunkDocs) {
+          if (!chunkDoc.exists()) {
+            keepGoing = false;
+            break;
+          }
+          fullDataUrl += chunkDoc.data().data;
+          index++;
+        }
       }
     }
 
@@ -2956,9 +3270,15 @@ apiRouter.get('/files/:id/content', async (req: AuthenticatedRequest, res: Respo
         const mime = match[1];
         const buffer = Buffer.from(match[2], 'base64');
         res.setHeader('Content-Type', mime);
+        res.setHeader('Content-Disposition', 'inline');
         res.send(buffer);
         return;
       }
+    }
+
+    if (fullDataUrl.startsWith('http://') || fullDataUrl.startsWith('https://')) {
+      res.redirect(fullDataUrl);
+      return;
     }
 
     res.send(fullDataUrl);
@@ -3186,11 +3506,12 @@ apiRouter.get('/files/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
     return;
   }
 
-  // Access check: uploader, workspace leader, or project member
+  // Access check: uploader, workspace leader, co-leader, or proof attachment
   const user = req.user!;
   const role = req.role!;
-  if (role !== 'leader' && file.uploadedById !== user.id) {
-    if (file.projectId) {
+  if (role !== 'leader' && role !== 'co-leader' && file.uploadedById !== user.id) {
+    const isProofAttachment = (data.proofSubmissions || []).some((p) => (p.attachmentIds || []).includes(file.id));
+    if (!isProofAttachment && file.projectId) {
       const proj = data.projects.find((p) => p.id === file.projectId);
       if (proj && !proj.memberIds.includes(user.id)) {
         res.status(403).json({ error: 'Access denied to this file' });
