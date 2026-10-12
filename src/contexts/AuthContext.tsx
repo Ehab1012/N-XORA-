@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { User, Workspace, UserRole, NotificationItem } from '../../shared/types.js';
 import { api } from '../lib/api.js';
 
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const refreshNotifications = async () => {
+  const refreshNotifications = useCallback(async () => {
     try {
       if (user) {
         const list = await api.getNotifications();
@@ -38,9 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore silently
     }
-  };
+  }, [user]);
 
-  const refreshMe = async () => {
+  const refreshMe = useCallback(async () => {
     try {
       const res = await api.getMe();
       if (res.authenticated && res.user && res.workspace) {
@@ -62,11 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refreshMe();
-  }, []);
+  }, [refreshMe]);
 
   useEffect(() => {
     if (user) {
@@ -74,9 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const interval = setInterval(refreshNotifications, 15000); // 15s polling for notification stream
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, refreshNotifications]);
 
-  const login = async (email: string) => {
+  const login = useCallback(async (email: string) => {
     setLoading(true);
     try {
       const res = await api.login(email);
@@ -87,9 +87,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshMe]);
 
-  const register = async (payload: { name: string; email: string; title?: string; role?: UserRole; department?: string; password?: string }) => {
+  const register = useCallback(async (payload: { name: string; email: string; title?: string; role?: UserRole; department?: string; password?: string }) => {
     setLoading(true);
     try {
       const res = await api.register(payload);
@@ -100,9 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshMe]);
 
-  const simulateOAuth = async (provider: string, userId?: string) => {
+  const simulateOAuth = useCallback(async (provider: string, userId?: string) => {
     setLoading(true);
     try {
       // Secure random state parameter for OAuth CSRF protection
@@ -115,9 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshMe]);
 
-  const switchRole = async (targetUserId: string) => {
+  const switchRole = useCallback(async (targetUserId: string) => {
     setLoading(true);
     try {
       const res = await api.switchRole(targetUserId);
@@ -128,9 +128,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshMe]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setLoading(true);
     try {
       await api.logout();
@@ -141,29 +141,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
+
+  const contextValue = useMemo(
+    () => ({
+      user,
+      workspace,
+      role,
+      loading,
+      availableUsers,
+      notifications,
+      unreadCount,
+      login,
+      register,
+      simulateOAuth,
+      switchRole,
+      logout,
+      refreshMe,
+      refreshNotifications,
+    }),
+    [
+      user,
+      workspace,
+      role,
+      loading,
+      availableUsers,
+      notifications,
+      unreadCount,
+      login,
+      register,
+      simulateOAuth,
+      switchRole,
+      logout,
+      refreshMe,
+      refreshNotifications,
+    ]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        workspace,
-        role,
-        loading,
-        availableUsers,
-        notifications,
-        unreadCount,
-        login,
-        register,
-        simulateOAuth,
-        switchRole,
-        logout,
-        refreshMe,
-        refreshNotifications,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

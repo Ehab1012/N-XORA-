@@ -110,7 +110,13 @@ import {
   logActivity,
   rateLimit,
 } from './auth.js';
-import { calculateProjectAnalytics, generateProjectMarkdownReport, calculateUserOverallScore, calculateWorkspaceLeaderboard } from './analytics.js';
+import {
+  calculateProjectAnalytics,
+  generateProjectMarkdownReport,
+  calculateUserOverallScore,
+  calculateWorkspaceLeaderboard,
+  calculateAllWorkspaceScores,
+} from './analytics.js';
 import { ROLES, PRODUCT_NAME } from '../shared/const.js';
 import { UserRole, TaskStatus, Task, ProjectInvitation, BonusAward } from '../shared/types.js';
 import { realtimeHub } from './realtime.js';
@@ -770,13 +776,10 @@ apiRouter.post('/teams/:id/members', requireAuth, requireRole([ROLES.LEADER]), a
 apiRouter.get('/users', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const data = db.getRawData();
   const workspaceId = req.workspace?.id || 'ws_default';
+  const scoresMap = calculateAllWorkspaceScores(workspaceId);
   const enrichedUsers = data.users.map((u) => {
-    try {
-      const score = calculateUserOverallScore(u.id, workspaceId);
-      return { ...u, overallScore: score.totalScore };
-    } catch {
-      return u;
-    }
+    const score = scoresMap.get(u.id);
+    return { ...u, overallScore: score ? score.totalScore : 0 };
   });
   res.json(enrichedUsers);
 });
@@ -799,6 +802,18 @@ apiRouter.get('/users/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
     (t) => t.memberIds.includes(id) || t.leaderId === id || t.coLeaderId === id
   );
 
+  // Pre-index tasks by projectId and projects by id to eliminate N+1 scans
+  const tasksByProjectId = new Map<string, typeof data.tasks>();
+  for (const t of data.tasks) {
+    let list = tasksByProjectId.get(t.projectId);
+    if (!list) {
+      list = [];
+      tasksByProjectId.set(t.projectId, list);
+    }
+    list.push(t);
+  }
+  const projectsById = new Map(data.projects.map((p) => [p.id, p]));
+
   // Find projects this member is associated with
   const memberProjects = data.projects
     .filter(
@@ -807,7 +822,7 @@ apiRouter.get('/users/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
         (p.memberIds.includes(id) || p.leaderId === id || p.coLeaderId === id)
     )
     .map((p) => {
-      const projTasks = data.tasks.filter((t) => t.projectId === p.id);
+      const projTasks = tasksByProjectId.get(p.id) || [];
       const doneTasks = projTasks.filter((t) => t.status === 'complete').length;
       return {
         id: p.id,
@@ -826,7 +841,7 @@ apiRouter.get('/users/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
   const memberTasks = data.tasks
     .filter((t) => t.assigneeId === id)
     .map((t) => {
-      const proj = data.projects.find((p) => p.id === t.projectId);
+      const proj = projectsById.get(t.projectId);
       return {
         id: t.id,
         title: t.title,
@@ -1846,9 +1861,10 @@ apiRouter.post('/tasks', requireAuth, async (req: AuthenticatedRequest, res: Res
   const newTask = await db.mutateAsync((data) => {
     const taskId = 'task_' + Date.now().toString(36);
 
+    const userMap = new Map(data.users.map((u) => [u.id, u]));
     const initialSubmissions = isGroupTask
       ? participants.map((pId: string) => {
-          const u = data.users.find((user) => user.id === pId);
+          const u = userMap.get(pId);
           return {
             id: `gsub_${taskId}_${pId}`,
             taskId,
@@ -1907,8 +1923,9 @@ apiRouter.post('/tasks', requireAuth, async (req: AuthenticatedRequest, res: Res
 
   // Real-time broadcast: Task assignment
   if (newTask.isGroupTask && Array.isArray(newTask.participantIds) && newTask.participantIds.length > 0) {
+    const rawUserMap = new Map(rawData.users.map((u) => [u.id, u.name]));
     const participantNames = newTask.participantIds
-      .map((pId: string) => rawData.users.find((u) => u.id === pId)?.name || pId)
+      .map((pId: string) => rawUserMap.get(pId) || pId)
       .join(', ');
 
     realtimeHub.broadcast(projectId, {
@@ -2539,9 +2556,10 @@ apiRouter.get('/proofs', requireAuth, (req: AuthenticatedRequest, res: Response)
   if (projectId) proofs = proofs.filter((p) => p.projectId === projectId);
   if (taskId) proofs = proofs.filter((p) => p.taskId === taskId);
 
+  const filesById = new Map(data.files.map((f) => [f.id, f]));
   const populated = proofs.map((p) => {
     const attIds = Array.isArray(p.attachmentIds) ? p.attachmentIds : [];
-    const attachments = data.files.filter((f) => attIds.includes(f.id));
+    const attachments = attIds.map((id) => filesById.get(id)).filter(Boolean);
     return {
       ...p,
       attachments,
@@ -2559,8 +2577,9 @@ apiRouter.get('/proofs/:id', requireAuth, (req: AuthenticatedRequest, res: Respo
     res.status(404).json({ error: 'Proof not found' });
     return;
   }
+  const filesById = new Map(data.files.map((f) => [f.id, f]));
   const attIds = Array.isArray(proof.attachmentIds) ? proof.attachmentIds : [];
-  const attachments = data.files.filter((f) => attIds.includes(f.id));
+  const attachments = attIds.map((id) => filesById.get(id)).filter(Boolean);
   res.json({
     ...proof,
     attachments,

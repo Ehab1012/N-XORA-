@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FolderGit2,
   Plus,
@@ -89,14 +89,29 @@ export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
     }
   };
 
-  const filteredProjects = projects.filter((p) => {
-    const matchesSearch =
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    const matchesTeam = teamFilter === 'all' || p.teamId === teamFilter;
-    return matchesSearch && matchesStatus && matchesTeam;
-  });
+  // Debounce search query to prevent unnecessary re-filtering and card re-renders
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const teamMap = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+
+  const filteredProjects = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    return projects.filter((p) => {
+      const matchesSearch =
+        !q ||
+        p.title.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q);
+      const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+      const matchesTeam = teamFilter === 'all' || p.teamId === teamFilter;
+      return matchesSearch && matchesStatus && matchesTeam;
+    });
+  }, [projects, debouncedSearch, statusFilter, teamFilter]);
 
   const getUrgency = (deadlineStr: string, status: string) => {
     if (status === 'complete') return { label: 'Completed', color: 'text-teal-400' };
@@ -207,7 +222,7 @@ export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProjects.map((project) => {
-            const team = teams.find((t) => t.id === project.teamId);
+            const team = project.teamId ? teamMap.get(project.teamId) : undefined;
             const urgency = getUrgency(project.deadline, project.status);
 
             return (

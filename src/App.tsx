@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext.js';
 import { ThemeProvider } from './contexts/ThemeContext.js';
 import { Shell, ActiveTab } from './components/layout/Shell.js';
@@ -41,16 +41,31 @@ function WorkspaceRouter() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const handleNavigate = (path: string) => {
+  const handleNavigate = useCallback((path: string) => {
     window.location.hash = path;
-  };
+  }, []);
 
-  const handleOpenChat = (userId: string, userName?: string) => {
+  const handleOpenChat = useCallback((userId: string, userName?: string) => {
     setChatTarget({ type: 'direct', id: userId, name: userName });
     setSelectedProjectId(null);
     setActiveTab('messages');
     window.location.hash = `messages/dm/${userId}`;
-  };
+  }, []);
+
+  const handleSelectTab = useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    setSelectedProjectId(null);
+    window.location.hash = tab;
+  }, []);
+
+  const handleSelectProject = useCallback((id: string | null) => {
+    setSelectedProjectId(id);
+    if (id) {
+      window.location.hash = `project/${id}`;
+    } else {
+      window.location.hash = 'projects';
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -73,20 +88,9 @@ function WorkspaceRouter() {
     <>
       <Shell
         activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          setSelectedProjectId(null);
-          window.location.hash = tab;
-        }}
+        onSelectTab={handleSelectTab}
         selectedProjectId={selectedProjectId}
-        onSelectProject={(id) => {
-          setSelectedProjectId(id);
-          if (id) {
-            window.location.hash = `project/${id}`;
-          } else {
-            window.location.hash = 'projects';
-          }
-        }}
+        onSelectProject={handleSelectProject}
         onSendMessage={handleOpenChat}
       >
         {/* App Page Router */}

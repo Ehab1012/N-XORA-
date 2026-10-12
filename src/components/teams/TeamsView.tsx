@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Users,
   Plus,
@@ -158,27 +158,40 @@ export function TeamsView({
     }
   };
 
-  // Distinct departments for filter
-  const departments = Array.from(
-    new Set(users.map((u) => u.department).filter(Boolean))
-  ) as string[];
+  // Debounce profile search input to eliminate unnecessary re-renders on keystrokes
+  const [debouncedProfileSearch, setDebouncedProfileSearch] = useState(profileSearch);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedProfileSearch(profileSearch);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [profileSearch]);
 
-  // Filtered members list
-  const filteredUsers = users.filter((u) => {
-    const q = profileSearch.toLowerCase();
-    const matchesSearch =
-      !profileSearch ||
-      u.name.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      (u.title && u.title.toLowerCase().includes(q)) ||
-      (u.department && u.department.toLowerCase().includes(q)) ||
-      (u.skills && u.skills.some((s) => s.toLowerCase().includes(q)));
+  // Distinct departments for filter (memoized)
+  const departments = useMemo(() => {
+    return Array.from(
+      new Set(users.map((u) => u.department).filter(Boolean))
+    ) as string[];
+  }, [users]);
 
-    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
-    const matchesDept = departmentFilter === 'all' || u.department === departmentFilter;
+  // Filtered members list (memoized)
+  const filteredUsers = useMemo(() => {
+    const q = debouncedProfileSearch.trim().toLowerCase();
+    return users.filter((u) => {
+      const matchesSearch =
+        !q ||
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (u.title && u.title.toLowerCase().includes(q)) ||
+        (u.department && u.department.toLowerCase().includes(q)) ||
+        (u.skills && u.skills.some((s) => s.toLowerCase().includes(q)));
 
-    return matchesSearch && matchesRole && matchesDept;
-  });
+      const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+      const matchesDept = departmentFilter === 'all' || u.department === departmentFilter;
+
+      return matchesSearch && matchesRole && matchesDept;
+    });
+  }, [users, debouncedProfileSearch, roleFilter, departmentFilter]);
 
   if (loading) {
     return (

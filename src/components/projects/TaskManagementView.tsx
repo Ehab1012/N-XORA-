@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Plus,
   Download,
@@ -170,10 +170,22 @@ export function TaskManagementView({
     setMilestoneFilter('all');
   };
 
+  // Debounce search query to eliminate unnecessary re-filtering on rapid keystrokes
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Memoize users lookup map to avoid O(N) array search inside every card render
+  const userMap = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
+
   // Filter tasks
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
-      const query = searchQuery.trim().toLowerCase();
+      const query = debouncedSearch.trim().toLowerCase();
 
       // Matches task title, description, tags, or status
       const matchesSearch =
@@ -195,7 +207,7 @@ export function TaskManagementView({
 
       return matchesSearch && matchesStatus && matchesPriority && matchesAssignee && matchesMilestone;
     });
-  }, [tasks, searchQuery, statusFilter, priorityFilter, assigneeFilter, milestoneFilter]);
+  }, [tasks, debouncedSearch, statusFilter, priorityFilter, assigneeFilter, milestoneFilter]);
 
   // Ranked tasks: order by custom rank if present, then priority weight
   const rankedTasks = useMemo(() => {
@@ -301,45 +313,51 @@ export function TaskManagementView({
   };
 
   // Quick Priority Shift
-  const handleQuickPriorityChange = async (taskId: string, newPriority: TaskPriority) => {
-    setIsUpdating(true);
-    try {
-      await api.updateTask(taskId, { priority: newPriority });
-      onTasksChanged();
-    } catch (err) {
-      console.error('Failed to change priority:', err);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  const handleQuickPriorityChange = useCallback(
+    async (taskId: string, newPriority: TaskPriority) => {
+      setIsUpdating(true);
+      try {
+        await api.updateTask(taskId, { priority: newPriority });
+        onTasksChanged();
+      } catch (err) {
+        console.error('Failed to change priority:', err);
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [onTasksChanged]
+  );
 
   // Quick Status Transition (Move left/right in status pipeline)
-  const handleMoveStatus = async (taskId: string, direction: 'prev' | 'next') => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
+  const handleMoveStatus = useCallback(
+    async (taskId: string, direction: 'prev' | 'next') => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return;
 
-    const statusOrder: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'in_review', 'complete'];
-    const currentIndex = statusOrder.indexOf(task.status);
-    if (currentIndex === -1) return;
+      const statusOrder: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'in_review', 'complete'];
+      const currentIndex = statusOrder.indexOf(task.status);
+      if (currentIndex === -1) return;
 
-    let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-    if (newIndex < 0 || newIndex >= statusOrder.length) return;
+      let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+      if (newIndex < 0 || newIndex >= statusOrder.length) return;
 
-    const nextStatus = statusOrder[newIndex];
-    setIsUpdating(true);
-    try {
-      await api.updateTask(taskId, { status: nextStatus });
-      onTasksChanged();
-    } catch (err) {
-      console.error('Failed to transition status:', err);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+      const nextStatus = statusOrder[newIndex];
+      setIsUpdating(true);
+      try {
+        await api.updateTask(taskId, { status: nextStatus });
+        onTasksChanged();
+      } catch (err) {
+        console.error('Failed to transition status:', err);
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [tasks, onTasksChanged]
+  );
 
   // Render a Drag-and-Drop Task Card
   const renderDraggableCard = (task: Task, index?: number, showRankBadge = false) => {
-    const assignee = users.find((u) => u.id === task.assigneeId);
+    const assignee = userMap.get(task.assigneeId);
     const checklistCompleted = task.checklist.filter((c) => c.isCompleted).length;
     const checklistTotal = task.checklist.length;
     const isOverdue = new Date(task.dueDate).getTime() < Date.now() && task.status !== 'complete';

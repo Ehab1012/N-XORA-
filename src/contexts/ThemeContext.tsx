@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
 export type ThemeId = 'normal' | 'dark' | 'light';
 
@@ -67,16 +67,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return 'normal';
   });
 
-  const activeConfig = THEME_OPTIONS.find((t) => t.id === currentTheme) || THEME_OPTIONS[0];
+  const activeConfig = useMemo(
+    () => THEME_OPTIONS.find((t) => t.id === currentTheme) || THEME_OPTIONS[0],
+    [currentTheme]
+  );
 
-  const setTheme = (themeId: ThemeId) => {
-    setCurrentThemeState(themeId);
-    localStorage.setItem('nexora-theme', themeId);
-    localStorage.setItem('theme', themeId === 'light' ? 'light' : 'dark');
-    applyThemeClass(themeId);
-  };
-
-  const applyThemeClass = (themeId: ThemeId) => {
+  const applyThemeClass = useCallback((themeId: ThemeId) => {
     const root = document.documentElement;
     THEME_OPTIONS.forEach((t) => {
       root.classList.remove(`theme-${t.id}`);
@@ -93,21 +89,34 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       root.classList.add('dark');
     }
-  };
+  }, []);
+
+  const setTheme = useCallback(
+    (themeId: ThemeId) => {
+      setCurrentThemeState(themeId);
+      localStorage.setItem('nexora-theme', themeId);
+      localStorage.setItem('theme', themeId === 'light' ? 'light' : 'dark');
+      applyThemeClass(themeId);
+    },
+    [applyThemeClass]
+  );
 
   useEffect(() => {
     applyThemeClass(currentTheme);
-  }, [currentTheme]);
+  }, [currentTheme, applyThemeClass]);
+
+  const contextValue = useMemo(
+    () => ({
+      currentTheme,
+      setTheme,
+      isDark: activeConfig.isDark,
+      themeConfig: activeConfig,
+    }),
+    [currentTheme, setTheme, activeConfig]
+  );
 
   return (
-    <ThemeContext.Provider
-      value={{
-        currentTheme,
-        setTheme,
-        isDark: activeConfig.isDark,
-        themeConfig: activeConfig,
-      }}
-    >
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

@@ -51,10 +51,11 @@ export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
   // - Approved proof of work: +40 pts
   // - On-time task completion (completedAt <= dueDate): +15 pts bonus
   const memberScoresMap = new Map<string, UserScoreDetail>();
+  const userMap = new Map(data.users.map((u) => [u.id, u]));
 
   // Initialize for all project members
   for (const memberId of project.memberIds) {
-    const user = data.users.find((u) => u.id === memberId);
+    const user = userMap.get(memberId);
     if (!user) continue;
 
     memberScoresMap.set(memberId, {
@@ -250,29 +251,90 @@ ${analytics.leaderboard.map((l) => `| ${l.userName} | ${l.role} | **${l.totalSco
 `;
 }
 
+// In-memory score cache to avoid re-evaluating identical workspace states
+let cachedWorkspaceId = '';
+let cachedScoresTimestamp = 0;
+let cachedScoresMap = new Map<string, UserScoreDetail & { rank: number; totalMembers: number; tier: string }>();
+
 /**
- * Calculate transparent overall merit score for an individual workspace member
+ * Calculate transparent overall merit score for all workspace members in a single indexed pass.
+ * Eliminates N+1 scans across users, tasks, milestones, and proofs.
  */
-export function calculateUserOverallScore(
-  userId: string,
+export function calculateAllWorkspaceScores(
   workspaceId: string
-): UserScoreDetail & { rank: number; totalMembers: number; tier: string } {
-  const data = db.getRawData();
-  const targetUser = data.users.find((u) => u.id === userId);
-  if (!targetUser) {
-    throw new Error('User not found');
+): Map<string, UserScoreDetail & { rank: number; totalMembers: number; tier: string }> {
+  const nowMs = Date.now();
+  if (cachedWorkspaceId === workspaceId && nowMs - cachedScoresTimestamp < 3000) {
+    return cachedScoresMap;
   }
 
-  // Get all projects in workspace
+  const data = db.getRawData();
   const workspaceProjects = data.projects.filter((p) => p.workspaceId === workspaceId);
   const projectIds = new Set(workspaceProjects.map((p) => p.id));
 
-  // Compute for all members in workspace to get relative rank
+  // Index tasks by assignee and collect group tasks in single pass
+  const tasksByAssignee = new Map<string, typeof data.tasks>();
+  const workspaceGroupTasks: typeof data.tasks = [];
+
+  for (const t of data.tasks) {
+    if (!projectIds.has(t.projectId)) continue;
+    if (t.isGroupTask) {
+      workspaceGroupTasks.push(t);
+    }
+    if (t.assigneeId) {
+      let list = tasksByAssignee.get(t.assigneeId);
+      if (!list) {
+        list = [];
+        tasksByAssignee.set(t.assigneeId, list);
+      }
+      list.push(t);
+    }
+  }
+
+  // Index milestones by owner in single pass
+  const milestonesByOwner = new Map<string, typeof data.milestones>();
+  for (const m of data.milestones) {
+    if (m.status === 'completed' && projectIds.has(m.projectId)) {
+      let list = milestonesByOwner.get(m.ownerId);
+      if (!list) {
+        list = [];
+        milestonesByOwner.set(m.ownerId, list);
+      }
+      list.push(m);
+    }
+  }
+
+  // Index approved proofs by submitter in single pass
+  const proofsBySubmitter = new Map<string, typeof data.proofSubmissions>();
+  for (const p of data.proofSubmissions) {
+    if (p.status === 'approved' && projectIds.has(p.projectId)) {
+      let list = proofsBySubmitter.get(p.submittedById);
+      if (!list) {
+        list = [];
+        proofsBySubmitter.set(p.submittedById, list);
+      }
+      list.push(p);
+    }
+  }
+
+  // Index bonus awards by recipient in single pass
+  const bonusAwardsByRecipient = new Map<string, typeof data.bonusAwards>();
+  const bonusAwards = Array.isArray(data.bonusAwards) ? data.bonusAwards : [];
+  for (const ba of bonusAwards) {
+    let list = bonusAwardsByRecipient.get(ba.recipientId);
+    if (!list) {
+      list = [];
+      bonusAwardsByRecipient.set(ba.recipientId, list);
+    }
+    list.push(ba);
+  }
+
   const scoresByUserId = new Map<string, UserScoreDetail>();
 
+  // Process all users in O(U) time using indexed lookups
   for (const u of data.users) {
-    const userTasks = data.tasks.filter((t) => (t.assigneeId === u.id || (t.isGroupTask && t.participantIds?.includes(u.id))) && projectIds.has(t.projectId));
-    const completedTasks = userTasks.filter((t) => !t.isGroupTask && t.status === 'complete');
+    const assignedTasks = tasksByAssignee.get(u.id) || [];
+    const completedTasks = assignedTasks.filter((t) => !t.isGroupTask && t.status === 'complete');
 
     let onTimeDeliveries = 0;
     for (const t of completedTasks) {
@@ -286,8 +348,6 @@ export function calculateUserOverallScore(
     let groupBonusCount = 0;
     let groupBonusScore = 0;
 
-    // Evaluate group tasks
-    const workspaceGroupTasks = data.tasks.filter((t) => t.isGroupTask && projectIds.has(t.projectId));
     for (const gt of workspaceGroupTasks) {
       if (Array.isArray(gt.submissions)) {
         for (const sub of gt.submissions) {
@@ -297,24 +357,20 @@ export function calculateUserOverallScore(
           }
         }
       }
-      if ((gt.status === 'complete' || gt.bonusAwarded) && Array.isArray(gt.participantIds) && gt.participantIds.includes(u.id)) {
+      if (
+        (gt.status === 'complete' || gt.bonusAwarded) &&
+        Array.isArray(gt.participantIds) &&
+        gt.participantIds.includes(u.id)
+      ) {
         groupBonusCount += 1;
         groupBonusScore += gt.groupBonusPoints || 60;
       }
     }
 
-    const userMilestones = data.milestones.filter(
-      (m) => m.ownerId === u.id && m.status === 'completed' && projectIds.has(m.projectId)
-    );
+    const userMilestones = milestonesByOwner.get(u.id) || [];
+    const userProofs = proofsBySubmitter.get(u.id) || [];
+    const userBonusAwards = bonusAwardsByRecipient.get(u.id) || [];
 
-    const userProofs = data.proofSubmissions.filter(
-      (p) => p.submittedById === u.id && p.status === 'approved' && projectIds.has(p.projectId)
-    );
-
-    // Evaluate Leader Direct Bonuses
-    const userBonusAwards = (Array.isArray(data.bonusAwards) ? data.bonusAwards : []).filter(
-      (ba) => ba.recipientId === u.id
-    );
     const directBonusCount = userBonusAwards.length;
     const directBonusScore = userBonusAwards.reduce((sum, ba) => sum + (ba.points || 0), 0);
 
@@ -370,27 +426,85 @@ export function calculateUserOverallScore(
     });
   }
 
-  // Sort all scores descending to determine rank
+  // Sort scores descending to determine rank
   const sorted = Array.from(scoresByUserId.values()).sort((a, b) => b.totalScore - a.totalScore);
-  const userRankIndex = sorted.findIndex((s) => s.userId === userId);
-  const rank = userRankIndex >= 0 ? userRankIndex + 1 : sorted.length;
-  const userScore = scoresByUserId.get(userId)!;
+  const resultMap = new Map<string, UserScoreDetail & { rank: number; totalMembers: number; tier: string }>();
 
-  let tier = 'Bronze Contributor';
-  if (userScore.totalScore >= 500) {
-    tier = 'Platinum Titan';
-  } else if (userScore.totalScore >= 250) {
-    tier = 'Gold Master';
-  } else if (userScore.totalScore >= 100) {
-    tier = 'Silver Specialist';
+  sorted.forEach((userScore, idx) => {
+    let tier = 'Bronze Contributor';
+    if (userScore.totalScore >= 500) {
+      tier = 'Platinum Titan';
+    } else if (userScore.totalScore >= 250) {
+      tier = 'Gold Master';
+    } else if (userScore.totalScore >= 100) {
+      tier = 'Silver Specialist';
+    }
+
+    resultMap.set(userScore.userId, {
+      ...userScore,
+      rank: idx + 1,
+      totalMembers: data.users.length,
+      tier,
+    });
+  });
+
+  cachedWorkspaceId = workspaceId;
+  cachedScoresTimestamp = nowMs;
+  cachedScoresMap = resultMap;
+
+  return resultMap;
+}
+
+/**
+ * Calculate transparent overall merit score for an individual workspace member
+ */
+export function calculateUserOverallScore(
+  userId: string,
+  workspaceId: string
+): UserScoreDetail & { rank: number; totalMembers: number; tier: string } {
+  const scoresMap = calculateAllWorkspaceScores(workspaceId);
+  const userScore = scoresMap.get(userId);
+  if (!userScore) {
+    const data = db.getRawData();
+    const targetUser = data.users.find((u) => u.id === userId);
+    if (!targetUser) throw new Error('User not found');
+    return {
+      userId,
+      userName: targetUser.name,
+      userAvatar: targetUser.avatarUrl,
+      role: targetUser.role,
+      userRole: targetUser.role,
+      totalScore: 0,
+      tasksCompleted: 0,
+      milestonesCompleted: 0,
+      proofsApproved: 0,
+      onTimeDeliveries: 0,
+      groupTasksCompleted: 0,
+      groupBonusCount: 0,
+      directBonusCount: 0,
+      directBonusScore: 0,
+      breakdown: {
+        tasksCompleted: 0,
+        tasksScore: 0,
+        milestonesCompleted: 0,
+        milestonesScore: 0,
+        proofsApproved: 0,
+        proofsScore: 0,
+        onTimeDeliveries: 0,
+        onTimeScore: 0,
+        groupTasksCompleted: 0,
+        groupTasksScore: 0,
+        groupBonusCount: 0,
+        groupBonusScore: 0,
+        directBonusCount: 0,
+        directBonusScore: 0,
+      },
+      rank: data.users.length,
+      totalMembers: data.users.length,
+      tier: 'Bronze Contributor',
+    };
   }
-
-  return {
-    ...userScore,
-    rank,
-    totalMembers: data.users.length,
-    tier,
-  };
+  return userScore;
 }
 
 export function calculateWorkspaceLeaderboard(
