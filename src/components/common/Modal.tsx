@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -14,6 +15,7 @@ export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = '
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
+        e.stopPropagation();
         onClose();
       }
     };
@@ -23,49 +25,57 @@ export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = '
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto"
     >
       <div
-        className={`relative w-full ${maxWidth} glass-panel rounded-2xl shadow-2xl my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150`}
+        className={`relative w-full ${maxWidth} glass-panel rounded-t-3xl sm:rounded-2xl shadow-2xl sm:my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150`}
         style={{
           background: 'var(--surface-panel)',
           borderColor: 'var(--border-color)',
           borderWidth: 1,
+          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
+        {/* Mobile sheet grabber handle */}
+        <div className="sm:hidden pt-2.5 pb-1 flex justify-center" style={{ background: 'var(--surface-header)' }}>
+          <span className="w-10 h-1 rounded-full bg-slate-600/70" />
+        </div>
+
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-4 border-b"
+          className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-6 sm:py-4 border-b"
           style={{
             background: 'var(--surface-header)',
             borderColor: 'var(--border-color)',
           }}
         >
-          <div>
-            <h3 id="modal-title" className="text-lg font-display font-semibold text-slate-100">
+          <div className="min-w-0 flex-1">
+            <h3 id="modal-title" className="text-base sm:text-lg font-display font-semibold text-slate-100 truncate">
               {title}
             </h3>
-            {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="text-xs text-slate-400 mt-0.5 truncate">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors"
+            className="min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0 p-2 sm:p-1.5 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div>
+        <div className="p-4 sm:p-6 max-h-[82dvh] sm:max-h-[80vh] overflow-y-auto">{children}</div>
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }
 
 export function ConfirmModal({

@@ -16,6 +16,7 @@ import {
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { RoleBadge } from '../common/Badges.js';
+import { AcceptInvitationSkeleton } from '../common/Skeleton.js';
 import { ProjectInvitation, UserRole } from '../../../shared/types.js';
 
 interface AcceptInvitationModalProps {
@@ -103,10 +104,7 @@ export function AcceptInvitationModal({ token, isOpen, onClose, onJoinedProject 
 
         {/* Content Loading */}
         {loading ? (
-          <div className="py-12 flex flex-col items-center justify-center space-y-3 text-slate-400 font-mono text-xs">
-            <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-            <span>Validating Project Invitation Token...</span>
-          </div>
+          <AcceptInvitationSkeleton />
         ) : error ? (
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-3">

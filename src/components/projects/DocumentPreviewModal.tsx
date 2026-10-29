@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { StoredFile } from '../../../shared/types.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { CodeViewerSkeleton } from '../common/Skeleton.js';
 
 interface DocumentPreviewModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
   const [copied, setCopied] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [textPreview, setTextPreview] = useState('');
+  const [loadingText, setLoadingText] = useState(false);
 
   const isCode = !!file && (
     file.mimeType.includes('json') ||
@@ -47,6 +49,7 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
   useEffect(() => {
     if (!isOpen || !file || !isCode) {
       setTextPreview('');
+      setLoadingText(false);
       return;
     }
 
@@ -64,6 +67,7 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
         setTextPreview('Unable to decode raw file data for preview.');
       }
     } else if (file.dataUrl.startsWith('/api/files/')) {
+      setLoadingText(true);
       fetch(file.dataUrl)
         .then((res) => res.text())
         .then((text) => {
@@ -72,7 +76,8 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
           }
           setTextPreview(text);
         })
-        .catch(() => setTextPreview('Unable to load file content.'));
+        .catch(() => setTextPreview('Unable to load file content.'))
+        .finally(() => setLoadingText(false));
     }
   }, [isOpen, file, isCode]);
 
@@ -339,9 +344,15 @@ export function DocumentPreviewModal({ isOpen, onClose, file, onDelete }: Docume
                 <span>{file.name}</span>
                 <span className="text-slate-500">Read-only code inspection</span>
               </div>
-              <pre className="p-4 overflow-auto max-h-[50vh] text-xs font-mono text-teal-300 leading-relaxed bg-[#080a14] whitespace-pre-wrap">
-                {textPreview || file.description || 'Code / telemetry payload loaded.'}
-              </pre>
+              {loadingText ? (
+                <div className="bg-[#080a14]">
+                  <CodeViewerSkeleton lines={10} />
+                </div>
+              ) : (
+                <pre className="p-4 overflow-auto max-h-[50vh] text-xs font-mono text-teal-300 leading-relaxed bg-[#080a14] whitespace-pre-wrap">
+                  {textPreview || file.description || 'Code / telemetry payload loaded.'}
+                </pre>
+              )}
             </div>
           )}
         </div>

@@ -45,32 +45,32 @@ export function BottomNavBar({
       label: 'Projects',
       icon: FolderGit2,
       badge: activeProjectsCount > 0 ? activeProjectsCount : undefined,
-      hoverAnimClass: 'group-hover:scale-125 group-hover:-translate-y-1 group-hover:rotate-6',
+      hoverAnimClass: 'group-hover:-translate-y-0.5',
     },
     {
       id: 'teams',
       label: 'Teams',
       icon: Users,
-      hoverAnimClass: 'group-hover:scale-125 group-hover:-translate-y-1 group-hover:-rotate-6',
+      hoverAnimClass: 'group-hover:-translate-y-0.5',
     },
     {
       id: 'messages',
       label: 'Messages',
       icon: MessageSquare,
       badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined,
-      hoverAnimClass: 'group-hover:scale-125 group-hover:-translate-y-1 group-hover:animate-icon-wiggle',
+      hoverAnimClass: 'group-hover:-translate-y-0.5',
     },
     {
       id: 'analytics',
       label: 'Analytics',
       icon: BarChart3,
-      hoverAnimClass: 'group-hover:scale-125 group-hover:-translate-y-1.5 group-hover:text-emerald-400',
+      hoverAnimClass: 'group-hover:-translate-y-0.5',
     },
     {
       id: 'settings',
       label: 'Settings',
       icon: Settings,
-      hoverAnimClass: 'group-hover:scale-125 group-hover:-translate-y-0.5 group-hover:rotate-90',
+      hoverAnimClass: 'group-hover:-translate-y-0.5',
     },
   ];
 
@@ -95,7 +95,7 @@ export function BottomNavBar({
         }}
       />
 
-      <div className="flex items-center justify-around gap-1 sm:gap-3">
+      <div className="flex items-center justify-around gap-0.5 sm:gap-3">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -105,7 +105,7 @@ export function BottomNavBar({
               key={tab.id}
               id={`bottom-nav-${tab.id}`}
               onClick={() => onSelectTab(tab.id)}
-              className={`relative flex-1 flex flex-col items-center justify-center py-2 px-2 sm:px-3.5 rounded-2xl transition-all duration-300 ease-out group cursor-pointer select-none overflow-hidden ${
+              className={`relative flex-1 min-w-0 min-h-[48px] flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 sm:px-3.5 rounded-2xl transition-all duration-300 ease-out group cursor-pointer select-none overflow-hidden ${
                 isActive
                   ? 'text-white font-bold'
                   : 'text-slate-400 hover:text-white hover:-translate-y-1 active:scale-90 active:translate-y-0.5'
@@ -131,7 +131,7 @@ export function BottomNavBar({
               {isActive && (
                 <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
                   <span
-                    className="w-10 h-1 rounded-full animate-in fade-in zoom-in-90 duration-300"
+                    className="w-8 sm:w-10 h-1 rounded-full animate-in fade-in zoom-in-90 duration-300"
                     style={{
                       background: `linear-gradient(to right, transparent, ${themeConfig.accentColor}, transparent)`,
                       boxShadow: `0 0 14px ${themeConfig.accentColor}`,
@@ -147,16 +147,16 @@ export function BottomNavBar({
               {/* Icon Container with Badge & Custom Dynamic Motion */}
               <div className="relative p-1">
                 <Icon
-                  className={`w-5 h-5 transition-all duration-300 cubic-bezier(0.16,1,0.3,1) ${
+                  className={`w-5 h-5 transition-transform duration-200 ${
                     isActive
-                      ? 'scale-120 stroke-[2.4] animate-float-slow'
-                      : `text-slate-400 group-hover:scale-125 ${tab.hoverAnimClass}`
+                      ? 'scale-105 stroke-[2.25]'
+                      : `text-slate-400 group-hover:text-slate-100 ${tab.hoverAnimClass}`
                   }`}
                   style={
                     isActive
                       ? {
                           color: themeConfig.accentColor,
-                          filter: `drop-shadow(0 0 12px ${themeConfig.accentColor})`,
+                          filter: `drop-shadow(0 0 8px ${themeConfig.accentColor}80)`,
                         }
                       : undefined
                   }
@@ -169,7 +169,7 @@ export function BottomNavBar({
                       style={{ backgroundColor: themeConfig.accentColor }}
                     />
                     <span
-                      className={`relative min-w-[17px] h-4 px-1 rounded-full bg-gradient-to-r ${themeConfig.gradient} text-white font-mono text-[9px] font-black flex items-center justify-center border shadow-md`}
+                      className={`relative min-w-[17px] h-4 px-1 rounded-full bg-gradient-to-r ${themeConfig.gradient} text-white font-mono text-[9px] font-black flex items-center justify-center border shadow-md tabular-nums`}
                       style={{
                         borderColor: 'var(--canvas-bg)',
                         boxShadow: `0 0 10px ${themeConfig.accentColor}`,
@@ -183,10 +183,10 @@ export function BottomNavBar({
 
               {/* Label with micro-typography and active glow */}
               <span
-                className={`text-[10px] tracking-tight font-medium mt-0.5 transition-all duration-200 select-none ${
+                className={`text-[10px] tracking-tight font-medium mt-0.5 truncate max-w-full transition-all duration-200 select-none ${
                   isActive
-                    ? 'font-bold scale-105'
-                    : 'text-slate-400 group-hover:text-white group-hover:font-semibold group-hover:scale-105'
+                    ? 'font-bold'
+                    : 'text-slate-400 group-hover:text-white group-hover:font-semibold'
                 }`}
                 style={
                   isActive
@@ -208,7 +208,7 @@ export function BottomNavBar({
           <button
             id="bottom-nav-profile"
             onClick={onOpenProfile}
-            className="relative flex-1 flex flex-col items-center justify-center py-2 px-2 sm:px-3 rounded-2xl transition-all duration-300 ease-out group text-slate-400 hover:text-white hover:-translate-y-1 active:scale-90 active:translate-y-0.5 cursor-pointer overflow-hidden"
+            className="relative flex-1 min-w-0 min-h-[48px] flex flex-col items-center justify-center py-1.5 sm:py-2 px-1 sm:px-3 rounded-2xl transition-all duration-300 ease-out group text-slate-400 hover:text-white hover:-translate-y-1 active:scale-90 active:translate-y-0.5 cursor-pointer overflow-hidden"
             title="My Profile"
           >
             {/* Subtle hover background glow */}
@@ -232,6 +232,7 @@ export function BottomNavBar({
                     src={user.avatarUrl}
                     alt={user.name || 'User'}
                     className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                 ) : (
                   user?.name?.[0]?.toUpperCase() || <User className="w-3.5 h-3.5" />
@@ -239,7 +240,7 @@ export function BottomNavBar({
               </div>
             </div>
             <span
-              className="text-[10px] tracking-tight font-medium mt-0.5 group-hover:text-white group-hover:font-semibold group-hover:scale-105 transition-all select-none"
+              className="text-[10px] tracking-tight font-medium mt-0.5 truncate max-w-full group-hover:text-white group-hover:font-semibold transition-all select-none"
             >
               Profile
             </span>

@@ -39,6 +39,7 @@ import { Bot } from 'lucide-react';
 import { BottomNavBar } from './BottomNavBar.js';
 import { CommandPalette } from './CommandPalette.js';
 import { Logo } from '../common/Logo.js';
+import { Web3ConstellationCanvas } from '../landing/Web3ConstellationCanvas.js';
 
 export type ActiveTab = 'projects' | 'teams' | 'messages' | 'analytics' | 'settings';
 
@@ -107,7 +108,14 @@ export function Shell({
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[var(--canvas-bg)] text-slate-100 flex flex-col nebula-glow transition-colors duration-300">
+    <div className="min-h-[100dvh] bg-[var(--canvas-bg)] text-slate-100 flex flex-col nebula-glow transition-colors duration-300 relative overflow-x-hidden">
+      {/* Background Animated Constellation Mesh Horizon */}
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-35 overflow-hidden">
+        <div className="absolute inset-x-0 bottom-0 h-[60vh]">
+          <Web3ConstellationCanvas />
+        </div>
+      </div>
+
       {/* Top Header Bar */}
       <header className="sticky top-0 z-50 h-16 border-b border-cyan-500/25 bg-[#040714]/92 backdrop-blur-2xl px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 transition-all shadow-[0_4px_30px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.12)]">
         {/* Subtle top header neon accent reflection */}
@@ -130,9 +138,9 @@ export function Shell({
             }}
             className="flex items-center gap-2.5 text-left group shrink-0 cursor-pointer"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 via-teal-500 to-indigo-600 p-[1.5px] shadow-lg shadow-cyan-500/40 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shrink-0">
-              <div className="w-full h-full bg-[#050814] rounded-[10px] flex items-center justify-center">
-                <Logo className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" size={24} />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 via-teal-500 to-blue-600 p-px shadow-md shadow-cyan-500/25 group-hover:scale-105 transition-transform duration-200 shrink-0">
+              <div className="w-full h-full bg-[#050814] rounded-[11px] flex items-center justify-center">
+                <Logo className="w-5 h-5" size={20} />
               </div>
             </div>
             <div className="shrink-0 flex items-center gap-2">
@@ -142,17 +150,20 @@ export function Shell({
             </div>
           </button>
 
-          <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-cyan-500/25">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.85)] animate-pulse" />
-            <span className="text-xs font-semibold text-slate-300 truncate max-w-[130px]">
+          <div className="hidden lg:flex items-center gap-2 pl-3.5 border-l border-slate-800 text-xs text-slate-400">
+            <span className="font-medium text-slate-300 truncate max-w-[140px]">
               {workspace?.name || 'Workspace'}
+            </span>
+            <span className="text-slate-600" aria-hidden="true">/</span>
+            <span className="text-cyan-300 font-medium capitalize">
+              {navItems.find((n) => n.id === activeTab)?.label.split(' ')[0] || activeTab}
             </span>
           </div>
 
           {envInfo?.isDev && (
-            <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-              <span className="font-mono text-[10px] font-bold">Dev Sandbox</span>
+            <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span className="font-mono text-[10px] font-semibold">Dev Sandbox</span>
             </div>
           )}
         </div>
@@ -198,9 +209,9 @@ export function Shell({
               <div className="absolute right-0 mt-2 w-72 glass-panel rounded-2xl shadow-2xl border border-cyan-500/40 p-2.5 z-50 animate-in fade-in zoom-in-95 bg-[#060a18]/96 backdrop-blur-2xl">
                 <div className="px-2.5 py-1.5 border-b border-[#1c2648] mb-2 flex items-center justify-between">
                   <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider font-bold">
-                    Workspace Theme & Color
+                    Workspace Theme
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">6 Styles</span>
+                  <span className="text-[10px] text-slate-400 font-mono">{THEME_OPTIONS.length} Styles</span>
                 </div>
                 <div className="space-y-1">
                   {THEME_OPTIONS.map((t) => {
@@ -332,30 +343,30 @@ export function Shell({
                   onSelectTab(item.id);
                 }}
                 title={sidebarCollapsed ? item.label : undefined}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer group select-none ${
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors duration-200 cursor-pointer group select-none ${
                   isActive
-                    ? 'bg-gradient-to-r from-cyan-950/80 to-[#0c142e] text-cyan-100 border-l-2 border-cyan-400 shadow-md shadow-cyan-950/50 font-bold'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-[#0a1128] hover:translate-x-1.5'
+                    ? 'bg-cyan-950/60 text-cyan-100 border border-cyan-500/35 shadow-sm font-bold'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-[#0a1128] border border-transparent'
                 } ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
               >
-                <Icon className={`w-4 h-4 transition-all duration-300 ${isActive ? 'text-cyan-300 scale-110 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-slate-500 group-hover:text-cyan-400 group-hover:scale-120 group-hover:rotate-6'}`} />
+                <Icon className={`w-4 h-4 transition-colors duration-200 ${isActive ? 'text-cyan-300' : 'text-slate-500 group-hover:text-cyan-400'}`} />
                 {!sidebarCollapsed && <span>{item.label}</span>}
               </button>
             );
           })}
 
-          <div className="mt-auto pt-4 space-y-3">
+          <div className="mt-auto pt-4">
             {/* Quick Profile Card in Sidebar */}
             {user && (
               <div
                 onClick={() => setMyProfileOpen(true)}
-                className={`p-3 rounded-2xl bg-[#060a1a] border border-cyan-500/25 hover:border-cyan-400/70 cursor-pointer transition-all duration-200 group hover:shadow-lg hover:shadow-cyan-950/50 hover:-translate-y-0.5 active:scale-98 ${
+                className={`p-3 rounded-2xl bg-[#060a1a] border border-slate-800 hover:border-cyan-500/45 cursor-pointer transition-colors duration-200 group ${
                   sidebarCollapsed ? 'flex justify-center p-2' : ''
                 }`}
-                title={sidebarCollapsed ? `${user.name} (${user.title || 'Contributor'}) - Click to view profile` : "View & Edit My Profile"}
+                title={sidebarCollapsed ? `${user.name} (${user.title || 'Contributor'}) - Click to view profile` : 'View & Edit My Profile'}
               >
                 <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center font-bold text-xs text-slate-950 flex-shrink-0 shadow-md shadow-cyan-500/30 overflow-hidden group-hover:scale-110 transition-transform">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center font-bold text-xs text-slate-950 flex-shrink-0 shadow-sm overflow-hidden">
                     {user.avatarUrl ? (
                       <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
                     ) : (
@@ -367,28 +378,18 @@ export function Shell({
                       <div className="text-xs font-bold text-slate-100 group-hover:text-cyan-200 transition-colors truncate">
                         {user.name}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">
-                        {user.title || 'Workspace Contributor'}
+                      <div className="text-[10px] text-slate-400 truncate capitalize">
+                        {role || user.role || 'Member'} · {user.title || 'Contributor'}
                       </div>
                     </div>
                   )}
                 </div>
                 {!sidebarCollapsed && (
-                  <div className="mt-2.5 pt-2 border-t border-[#141e3a] flex items-center justify-between text-[11px] text-cyan-300 font-semibold">
+                  <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-cyan-300 font-semibold">
                     <span>My Profile</span>
-                    <span className="group-hover:translate-x-1.5 transition-transform">→</span>
+                    <span className="group-hover:translate-x-0.5 transition-transform">→</span>
                   </div>
                 )}
-              </div>
-            )}
-
-            {!sidebarCollapsed && (
-              <div className="p-3 rounded-xl bg-[#040714] border border-cyan-500/20 text-xs space-y-1 shadow-inner">
-                <div className="text-[11px] font-mono text-cyan-300 flex items-center gap-1.5 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
-                  NΞXORA Protocol Active
-                </div>
-                <div className="text-slate-400 text-[10px]">Zero-trust workspace verified</div>
               </div>
             )}
           </div>
@@ -464,11 +465,11 @@ export function Shell({
         )}
 
         {/* Main Content Area */}
-        <main id="main-content-scroll" className="flex-1 overflow-y-auto bg-transparent p-4 sm:p-6 lg:p-8 pb-36 sm:pb-44 lg:pb-48">
+        <main id="main-content-scroll" className="flex-1 overflow-y-auto bg-transparent p-3 sm:p-6 lg:p-8 pb-60 sm:pb-64 lg:pb-72">
           <div className="max-w-7xl mx-auto">
             {children}
-            {/* Generous bottom clear space spacer to prevent floating bottom bar from covering content */}
-            <div className="h-12 sm:h-16 w-full pointer-events-none" aria-hidden="true" />
+            {/* Generous bottom clear space spacer to prevent floating bottom bar from covering content or bottom buttons */}
+            <div className="h-24 sm:h-24 w-full pointer-events-none" aria-hidden="true" />
           </div>
         </main>
       </div>

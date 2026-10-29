@@ -24,6 +24,7 @@ import { Modal } from '../common/Modal.js';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { RESOURCE_CATEGORIES } from '../../../shared/const.js';
+import { ResourceFileViewerModal, detectResourceType } from './ResourceFileViewerModal.js';
 
 interface ResourceLibraryProps {
   projectId: string;
@@ -400,19 +401,21 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
         ) : (
           filtered.map((res) => {
             const isLocalUpload = Boolean(res.fileName || (res.url && res.url.startsWith('data:')));
+            const { type: detectedType, extension } = detectResourceType(res);
 
             return (
               <div
                 key={res.id}
                 id={`resource-card-${res.id}`}
-                className="group relative flex flex-col justify-between p-4 rounded-xl bg-[#111324] border border-[#1e2240] hover:border-purple-500/40 transition-all shadow-sm hover:shadow-md"
+                className="group relative flex flex-col justify-between p-4 rounded-xl bg-[#111324] border border-[#1e2240] hover:border-purple-500/50 transition-all shadow-sm hover:shadow-lg hover:shadow-purple-950/20"
               >
                 <div>
-                  {/* Thumbnail / Image Preview Header */}
-                  {res.thumbnailUrl && (
+                  {/* Thumbnail / File Preview Header */}
+                  {res.thumbnailUrl ? (
                     <div
                       onClick={() => setPreviewingResource(res)}
-                      className="relative h-32 w-full mb-3 rounded-lg overflow-hidden bg-[#0a0c16] border border-[#1b1e38] cursor-pointer group/thumb flex items-center justify-center"
+                      className="relative h-32 w-full mb-3 rounded-lg overflow-hidden bg-[#0a0c16] border border-[#1b1e38] cursor-pointer group/thumb flex items-center justify-center transition-all hover:border-purple-500/50"
+                      title="Click to view file on the web"
                     >
                       <img
                         src={res.thumbnailUrl}
@@ -420,10 +423,45 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
                         referrerPolicy="no-referrer"
                         className="max-h-full max-w-full object-contain group-hover/thumb:scale-105 transition-transform duration-300"
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center gap-1 text-white text-xs font-medium">
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Preview</span>
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-semibold backdrop-blur-[2px]">
+                        <Eye className="w-4 h-4 text-purple-300" />
+                        <span>View on Web</span>
                       </div>
+                      <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-black/80 text-purple-300 border border-purple-500/30">
+                        {extension || detectedType}
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => setPreviewingResource(res)}
+                      className="relative h-20 w-full mb-3 rounded-lg overflow-hidden bg-[#0a0d1e] border border-[#1b2147] hover:border-purple-500/50 cursor-pointer group/thumb flex items-center justify-between px-3.5 transition-all"
+                      title="Click to view file on the web"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-purple-950/70 border border-purple-700/40 text-purple-300 flex items-center justify-center shrink-0">
+                          {getCategoryIcon(res.category)}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[9px] font-mono uppercase text-purple-400 font-bold block">
+                            {detectedType === 'pdf'
+                              ? 'PDF Document'
+                              : detectedType === 'markdown'
+                              ? 'Markdown Spec'
+                              : detectedType === 'code'
+                              ? `${extension.toUpperCase()} Source`
+                              : detectedType === 'web_link'
+                              ? 'Online Web Link'
+                              : 'Project Artifact'}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-200 truncate block">
+                            {res.fileName || 'Viewable Resource'}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 rounded-md bg-purple-600/20 text-purple-300 border border-purple-500/40 text-[11px] font-medium flex items-center gap-1 group-hover/thumb:bg-purple-600 group-hover/thumb:text-white transition-colors shrink-0">
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View</span>
+                      </span>
                     </div>
                   )}
 
@@ -442,6 +480,10 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
                           <span>{res.fileSize ? formatFileSize(res.fileSize) : 'Device File'}</span>
                         </span>
                       )}
+
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-slate-800 text-slate-300">
+                        {extension || detectedType}
+                      </span>
                     </div>
 
                     {(canManage || res.createdById === user?.id) && (
@@ -455,7 +497,12 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
                     )}
                   </div>
 
-                  <h4 className="text-sm font-semibold text-slate-100 line-clamp-2 mb-1">{res.title}</h4>
+                  <h4
+                    onClick={() => setPreviewingResource(res)}
+                    className="text-sm font-semibold text-slate-100 line-clamp-2 mb-1 cursor-pointer hover:text-purple-300 transition-colors"
+                  >
+                    {res.title}
+                  </h4>
                   {res.description && (
                     <p className="text-xs text-slate-400 line-clamp-2 mb-2">{res.description}</p>
                   )}
@@ -467,35 +514,47 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
                   )}
                 </div>
 
-                <div className="pt-3 mt-2 border-t border-[#1c1f38] flex items-center justify-between text-xs">
-                  {res.url ? (
-                    res.url.startsWith('data:') ? (
-                      <a
-                        href={res.url}
-                        download={res.fileName || `${res.title}.dat`}
-                        className="inline-flex items-center gap-1.5 text-purple-400 hover:text-purple-300 font-medium text-xs py-0.5 px-1.5 rounded hover:bg-purple-950/40"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Download File</span>
-                      </a>
-                    ) : (
-                      <a
-                        href={res.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 font-mono text-[11px]"
-                      >
-                        <span>Open Reference</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )
-                  ) : (
-                    <span className="text-slate-500 text-[11px]">Workspace Reference</span>
-                  )}
+                {/* Footer with View on Web, Download, and External Link */}
+                <div className="pt-3 mt-2 border-t border-[#1c1f38] flex items-center justify-between gap-2 text-xs">
+                  {/* Primary View on Web Button */}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewingResource(res)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-all shadow-md shadow-purple-950/40 hover:scale-102 active:scale-95"
+                    title="View file content directly on the web"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View on Web</span>
+                  </button>
 
-                  {res.tags && res.tags.length > 0 && (
-                    <span className="text-[10px] font-mono text-slate-500">#{res.tags[0]}</span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {res.url ? (
+                      res.url.startsWith('data:') ? (
+                        <a
+                          href={res.url}
+                          download={res.fileName || `${res.title}.dat`}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-950/40 border border-transparent hover:border-purple-800/40 transition-colors"
+                          title="Download file to device"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      ) : (
+                        <a
+                          href={res.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-950/40 border border-transparent hover:border-purple-800/40 transition-colors"
+                          title="Open raw reference in new tab"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )
+                    ) : null}
+
+                    {res.tags && res.tags.length > 0 && (
+                      <span className="text-[10px] font-mono text-slate-500">#{res.tags[0]}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -503,39 +562,12 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
         )}
       </div>
 
-      {/* Resource Image Lightbox */}
-      {previewingResource && previewingResource.thumbnailUrl && (
-        <div
-          onClick={() => setPreviewingResource(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-4xl max-h-[85vh] bg-[#0b0d1a] border border-[#23274c] rounded-2xl p-4 shadow-2xl overflow-hidden flex flex-col items-center"
-          >
-            <div className="w-full flex items-center justify-between pb-3 border-b border-[#1c1f38] mb-3">
-              <div>
-                <h4 className="text-sm font-semibold text-slate-200">{previewingResource.title}</h4>
-                {previewingResource.fileName && (
-                  <p className="text-[11px] font-mono text-slate-400">{previewingResource.fileName}</p>
-                )}
-              </div>
-              <button
-                onClick={() => setPreviewingResource(null)}
-                className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded bg-[#1c1f38]"
-              >
-                Close
-              </button>
-            </div>
-            <img
-              src={previewingResource.thumbnailUrl}
-              alt={previewingResource.title}
-              referrerPolicy="no-referrer"
-              className="max-h-[65vh] object-contain rounded-lg border border-[#1f223f]"
-            />
-          </div>
-        </div>
-      )}
+      {/* Interactive Web File Viewer Modal */}
+      <ResourceFileViewerModal
+        resource={previewingResource}
+        isOpen={Boolean(previewingResource)}
+        onClose={() => setPreviewingResource(null)}
+      />
 
       {/* Add Resource Modal with Device File Drag-and-Drop + File Browser */}
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Add Technical Resource">
@@ -603,17 +635,44 @@ export function ResourceLibrary({ projectId, resources, onResourceChanged }: Res
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedDeviceFile(null);
-                      if (thumbnailUrl === selectedDeviceFile?.dataUrl) setThumbnailUrl('');
-                    }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-[#1e2348] transition-colors"
-                    title="Remove file"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewingResource({
+                          id: 'temp_preview',
+                          projectId,
+                          title: title || selectedDeviceFile.name,
+                          fileName: selectedDeviceFile.name,
+                          fileType: selectedDeviceFile.type,
+                          fileSize: selectedDeviceFile.size,
+                          dataUrl: selectedDeviceFile.dataUrl,
+                          thumbnailUrl: selectedDeviceFile.type.startsWith('image/') ? selectedDeviceFile.dataUrl : undefined,
+                          category,
+                          createdById: user?.id || 'usr_current',
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString(),
+                        });
+                      }}
+                      className="px-2 py-1 rounded-lg bg-purple-950/70 hover:bg-purple-900 border border-purple-700/50 text-purple-300 hover:text-white transition-colors flex items-center gap-1 text-[11px]"
+                      title="Preview this file in web viewer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Preview</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDeviceFile(null);
+                        if (thumbnailUrl === selectedDeviceFile?.dataUrl) setThumbnailUrl('');
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-[#1e2348] transition-colors"
+                      title="Remove file"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div

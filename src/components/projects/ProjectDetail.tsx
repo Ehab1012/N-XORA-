@@ -53,6 +53,7 @@ import {
   Team,
 } from '../../../shared/types.js';
 import { api } from '../../lib/api.js';
+import { ProjectDetailSkeleton } from '../common/Skeleton.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { StatusBadge } from '../common/Badges.js';
 import { TaskCard } from './TaskCard.js';
@@ -138,6 +139,9 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [deleteProjectError, setDeleteProjectError] = useState<string | null>(null);
+  const [taskPendingDelete, setTaskPendingDelete] = useState<Task | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
 
   // Real-time notification system hook
   const { toasts, dismissToast, clearAllToasts, connectionStatus, simulateEvent } =
@@ -221,19 +225,61 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
 
   useEffect(() => {
     fetchData();
+  }, [projectId, user?.id, role]);
+
+  useEffect(() => {
+    const onAiMutated = () => {
+      fetchData();
+    };
+    window.addEventListener('nexora:ai-mutated', onAiMutated);
+    return () => window.removeEventListener('nexora:ai-mutated', onAiMutated);
   }, [projectId]);
 
-  if (loading || !project) {
+  if (loading) {
+    return <ProjectDetailSkeleton />;
+  }
+
+  if (!project) {
     return (
-      <div className="p-12 text-center text-slate-500 font-mono text-xs">
-        Loading project environment...
+      <div className="p-8 rounded-2xl bg-[var(--surface-panel)] border border-[var(--border-color)] text-center space-y-3">
+        <p className="text-sm text-slate-300 font-medium">Project environment could not be found.</p>
+        <button
+          type="button"
+          onClick={onBack}
+          className="btn-modern-secondary px-4 py-2 text-xs font-semibold inline-flex items-center gap-2 cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Projects</span>
+        </button>
       </div>
     );
   }
 
   const team = teams.find((t) => t.id === project.teamId);
   const leader = users.find((u) => u.id === project.leaderId);
-  const isLeaderOrOwner = role === 'leader' || role === 'co-leader' || project.leaderId === user?.id || (workspace && workspace.ownerId === user?.id) || (user?.id ? project.memberIds?.includes(user.id) : false);
+  const effectiveRole = role || user?.role;
+  const isLeaderOrOwner = effectiveRole === 'leader' || effectiveRole === 'co-leader' || project.leaderId === user?.id || (workspace && workspace.ownerId === user?.id) || (user?.id ? project.memberIds?.includes(user.id) : false);
+  const canDeleteTask = effectiveRole === 'leader' || effectiveRole === 'co-leader';
+
+  const handleConfirmDeleteOverviewTask = async () => {
+    if (!taskPendingDelete) return;
+    const deletedId = taskPendingDelete.id;
+    setIsDeletingTask(true);
+    try {
+      await api.deleteTask(deletedId);
+      setTasks((prev) => prev.filter((t) => t.id !== deletedId));
+      setProofs((prev) => prev.filter((p) => p.taskId !== deletedId));
+      if (selectedTask?.id === deletedId) {
+        setSelectedTask(null);
+      }
+      fetchData();
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    } finally {
+      setIsDeletingTask(false);
+      setTaskPendingDelete(null);
+    }
+  };
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -656,200 +702,253 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           </div>
         </div>
 
-        {/* Right side controls: Test Alerts dropdown, Assign Member & New Task */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Real-time Alert Simulation Menu */}
-          <div className="relative group">
+        {/* Right side controls: Compact primary row + expandable drawer on Phone, inline bar on Desktop */}
+        <div className="w-full lg:w-auto space-y-2">
+          {/* Mobile Primary Action Row (< sm) */}
+          <div className="flex sm:hidden items-center gap-2 w-full">
             <button
-              id="test-realtime-alert-btn"
-              className="px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 hover:border-cyan-400/60 text-cyan-300 text-xs font-mono font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 active:scale-95"
-              title="Test real-time alert toast notifications"
+              type="button"
+              onClick={() => handleOpenCreateTask(activeTab === 'tasks' ? 'todo' : 'todo')}
+              className="btn-modern-primary min-h-[42px] px-3.5 py-2 text-xs font-bold flex-1 flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer shadow-md shadow-cyan-950/40"
             >
-              <Bell className="w-3.5 h-3.5 text-cyan-400 group-hover:animate-icon-wiggle" />
-              <span>Simulate Alert</span>
-              <ChevronDown className="w-3 h-3 text-cyan-400 opacity-70 group-hover:rotate-180 transition-transform duration-200" />
+              <Plus className="w-4 h-4 text-slate-950 shrink-0" />
+              <span>New Task</span>
             </button>
-            <div className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl bg-[#060a18]/95 backdrop-blur-2xl border border-cyan-500/35 shadow-2xl p-1.5 hidden group-hover:block z-50 animate-in fade-in zoom-in-95">
-              <div className="text-[10px] font-mono text-cyan-400 px-2.5 py-1 uppercase tracking-wider border-b border-cyan-900/30 mb-1 font-bold">
-                Trigger Real-Time Toast
-              </div>
-              <button
-                id="trigger-status-alert-btn"
-                onClick={() => simulateEvent('status_change')}
-                className="w-full text-left px-2.5 py-2 rounded-xl text-xs text-slate-200 hover:bg-cyan-950/70 hover:text-cyan-200 flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                <div>
-                  <div className="font-medium">Status Change Alert</div>
-                  <div className="text-[10px] text-slate-400">Broadcasts status transition toast</div>
-                </div>
-              </button>
-              <button
-                id="trigger-member-alert-btn"
-                onClick={() => simulateEvent('member_assignment')}
-                className="w-full text-left px-2.5 py-2 rounded-xl text-xs text-slate-200 hover:bg-emerald-950/70 hover:text-emerald-200 flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
-                <div>
-                  <div className="font-medium">New Member Alert</div>
-                  <div className="text-[10px] text-slate-400">Broadcasts team assignment toast</div>
-                </div>
-              </button>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsInviteModalOpen(true)}
+              className="btn-modern-secondary min-h-[42px] px-3 py-2 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span>Invite</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMobileActionsOpen((prev) => !prev)}
+              className="min-h-[42px] px-3 py-2 rounded-xl bg-[#070c1f] border border-cyan-500/25 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
+              aria-expanded={mobileActionsOpen}
+            >
+              <span>More</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-cyan-400 transition-transform duration-150 ${
+                  mobileActionsOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
           </div>
 
-          <button
-            id="invite-members-header-btn"
-            onClick={() => setIsInviteModalOpen(true)}
-            className="btn-modern-secondary px-3 py-2 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md"
-            title="Generate unique invite links or email invitations"
+          {/* Desktop Action Bar + Mobile Collapsible Secondary Actions */}
+          <div
+            className={`${
+              mobileActionsOpen ? 'grid grid-cols-2 gap-2 p-2.5 rounded-2xl bg-[#060b1d]/95 border border-cyan-500/25' : 'hidden'
+            } sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:p-0 sm:bg-transparent sm:border-0`}
           >
-            <UserPlus className="w-3.5 h-3.5 text-cyan-400 icon-anim" />
-            <span>Invite Members</span>
-          </button>
+            {/* Real-time Alert Simulation Menu */}
+            <div className="relative group">
+              <button
+                id="test-realtime-alert-btn"
+                type="button"
+                onClick={() => simulateEvent('status_change')}
+                className="w-full sm:w-auto min-h-[40px] sm:min-h-0 px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 hover:border-cyan-400/60 text-cyan-300 text-xs font-mono font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-all shadow-sm cursor-pointer"
+                title="Test real-time alert toast notifications"
+              >
+                <Bell className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span>Simulate Alert</span>
+                <ChevronDown className="hidden sm:inline w-3 h-3 text-cyan-400 opacity-70 group-hover:rotate-180 transition-transform duration-200" />
+              </button>
+              <div className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl bg-[#060a18]/95 backdrop-blur-2xl border border-cyan-500/35 shadow-2xl p-1.5 hidden sm:group-hover:block z-50 animate-in fade-in zoom-in-95">
+                <div className="text-[10px] font-mono text-cyan-400 px-2.5 py-1 uppercase tracking-wider border-b border-cyan-900/30 mb-1 font-bold">
+                  Trigger Real-Time Toast
+                </div>
+                <button
+                  id="trigger-status-alert-btn"
+                  type="button"
+                  onClick={() => simulateEvent('status_change')}
+                  className="w-full text-left px-2.5 py-2 rounded-xl text-xs text-slate-200 hover:bg-cyan-950/70 hover:text-cyan-200 flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                  <div>
+                    <div className="font-medium">Status Change Alert</div>
+                    <div className="text-[10px] text-slate-400">Broadcasts status transition toast</div>
+                  </div>
+                </button>
+                <button
+                  id="trigger-member-alert-btn"
+                  type="button"
+                  onClick={() => simulateEvent('member_assignment')}
+                  className="w-full text-left px-2.5 py-2 rounded-xl text-xs text-slate-200 hover:bg-emerald-950/70 hover:text-emerald-200 flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+                  <div>
+                    <div className="font-medium">New Member Alert</div>
+                    <div className="text-[10px] text-slate-400">Broadcasts team assignment toast</div>
+                  </div>
+                </button>
+              </div>
+            </div>
 
-          {isLeaderOrOwner && (
             <button
-              id="assign-member-header-btn"
-              onClick={() => setIsAssignMemberOpen(true)}
-              className="px-3 py-2 rounded-xl bg-[#060a1a] border border-emerald-500/30 text-emerald-300 hover:text-emerald-200 hover:border-emerald-400 text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 active:scale-95"
-              title="Assign team member to this project"
+              id="invite-members-header-btn"
+              type="button"
+              onClick={() => setIsInviteModalOpen(true)}
+              className="hidden sm:flex btn-modern-secondary px-3 py-2 text-xs font-semibold items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-md"
+              title="Generate unique invite links or email invitations"
             >
-              <UserPlus className="w-3.5 h-3.5 text-emerald-400 icon-anim" />
-              <span>Assign Member</span>
+              <UserPlus className="w-3.5 h-3.5 text-cyan-400 icon-anim" />
+              <span>Invite Members</span>
             </button>
-          )}
 
-          <button
-            id="btn-download-project-report"
-            onClick={handleDownloadReport}
-            className="px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 hover:border-cyan-400 text-cyan-300 hover:text-cyan-100 text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:-translate-y-0.5 active:scale-95"
-            title="Download structured JSON audit report with all tasks, priorities, and statuses"
-          >
-            <Download className="w-3.5 h-3.5 text-cyan-400 icon-anim" />
-            <span>Download Report</span>
-          </button>
+            {isLeaderOrOwner && (
+              <button
+                id="assign-member-header-btn"
+                type="button"
+                onClick={() => setIsAssignMemberOpen(true)}
+                className="w-full sm:w-auto min-h-[40px] sm:min-h-0 px-3 py-2 rounded-xl bg-[#060a1a] border border-emerald-500/30 text-emerald-300 hover:text-emerald-200 hover:border-emerald-400 text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-all shadow-sm cursor-pointer"
+                title="Assign team member to this project"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Assign Member</span>
+              </button>
+            )}
 
-          <button
-            onClick={() => setIsExporting(true)}
-            disabled={isExporting}
-            className="px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 text-slate-300 hover:text-white hover:border-cyan-400 text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer hover:-translate-y-0.5 active:scale-95"
-            title="Export Project Summary"
-          >
-            {isExporting ? <Clock className="w-3.5 h-3.5 animate-spin text-cyan-400" /> : <BookOpen className="w-3.5 h-3.5 text-cyan-400 icon-anim" />}
-            <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
-          </button>
-
-          {isLeaderOrOwner && (
             <button
-              onClick={() => onEditProject && onEditProject(project)}
-              className="px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 text-slate-300 hover:text-white hover:border-cyan-400 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer hover:-translate-y-0.5 active:scale-95"
+              id="btn-download-project-report"
+              type="button"
+              onClick={handleDownloadReport}
+              className="w-full sm:w-auto min-h-[40px] sm:min-h-0 px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 hover:border-cyan-400 text-cyan-300 hover:text-cyan-100 text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-all shadow-sm cursor-pointer"
+              title="Download structured JSON audit report with all tasks, priorities, and statuses"
             >
-              <Edit className="w-3.5 h-3.5 icon-anim" />
-              <span>Edit</span>
+              <Download className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span>Download Report</span>
             </button>
-          )}
 
-          {isLeaderOrOwner && (
             <button
-              onClick={() => {
-                setDeleteProjectError(null);
-                setIsDeleteModalOpen(true);
-              }}
-              className="btn-modern-danger px-3 py-2 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+              type="button"
+              onClick={() => setIsExporting(true)}
+              disabled={isExporting}
+              className="w-full sm:w-auto min-h-[40px] sm:min-h-0 px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 text-slate-300 hover:text-white hover:border-cyan-400 text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-all disabled:opacity-50 cursor-pointer"
+              title="Export Project Summary"
             >
-              <Trash2 className="w-3.5 h-3.5 icon-anim" />
-              <span>Delete</span>
+              {isExporting ? <Clock className="w-3.5 h-3.5 animate-spin text-cyan-400 shrink-0" /> : <BookOpen className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+              <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
             </button>
-          )}
 
-          <button
-            onClick={() => setIsCreateTaskOpen(true)}
-            className="btn-modern-primary px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-cyan-950/40"
-          >
-            <Plus className="w-3.5 h-3.5 text-slate-950 transition-transform duration-300 group-hover:scale-125 group-hover:rotate-90" />
-            <span>New Task</span>
-          </button>
+            {isLeaderOrOwner && (
+              <button
+                type="button"
+                onClick={() => onEditProject && onEditProject(project)}
+                className="w-full sm:w-auto min-h-[40px] sm:min-h-0 px-3 py-2 rounded-xl bg-[#060a1a] border border-cyan-500/25 text-slate-300 hover:text-white hover:border-cyan-400 text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer"
+              >
+                <Edit className="w-3.5 h-3.5 shrink-0" />
+                <span>Edit</span>
+              </button>
+            )}
+
+            {isLeaderOrOwner && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteProjectError(null);
+                  setIsDeleteModalOpen(true);
+                }}
+                className="w-full sm:w-auto min-h-[40px] sm:min-h-0 btn-modern-danger px-3 py-2 text-xs font-medium flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Delete</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsCreateTaskOpen(true)}
+              className="hidden sm:flex btn-modern-primary px-3.5 py-2 text-xs font-bold items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-md shadow-cyan-950/40"
+            >
+              <Plus className="w-3.5 h-3.5 text-slate-950" />
+              <span>New Task</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Local Task Quick Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-2xl bg-[#060b1e]/85 backdrop-blur-xl border border-cyan-500/25 shadow-md">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-cyan-400/70 absolute left-3 top-2.5" />
-            <input
-              id="project-detail-header-search"
-              type="text"
-              value={taskSearchQuery}
-              onChange={(e) => setTaskSearchQuery(e.target.value)}
-              placeholder="Search tasks by name or status..."
-              className="w-full bg-[#030612]/90 border border-cyan-500/20 rounded-xl py-1.5 pl-8 pr-8 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all"
-            />
-            {taskSearchQuery && (
-              <button
-                type="button"
-                onClick={() => setTaskSearchQuery('')}
-                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-200"
-                title="Clear task search"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+      {/* Local Task Quick Search & Filter Bar (shown outside Tasks tab for quick jump) */}
+      {activeTab !== 'tasks' && (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-2xl bg-[#060b1e]/85 backdrop-blur-xl border border-cyan-500/25 shadow-md">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 text-cyan-400/70 absolute left-3 top-2.5" />
+              <input
+                id="project-detail-header-search"
+                type="text"
+                value={taskSearchQuery}
+                onChange={(e) => setTaskSearchQuery(e.target.value)}
+                placeholder="Search tasks by name or status..."
+                className="w-full bg-[#030612]/90 border border-cyan-500/20 rounded-xl py-1.5 pl-8 pr-8 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all"
+              />
+              {taskSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setTaskSearchQuery('')}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-200"
+                  title="Clear task search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <select
+              id="project-detail-header-status-filter"
+              value={taskStatusFilter}
+              onChange={(e) => setTaskStatusFilter(e.target.value)}
+              className="bg-[#030612]/90 border border-cyan-500/20 rounded-xl py-1.5 px-2.5 text-slate-200 text-xs focus:outline-none focus:border-cyan-400 capitalize shrink-0 cursor-pointer"
+            >
+              <option value="all">All Statuses</option>
+              <option value="backlog">Backlog</option>
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="in_review">In Review</option>
+              <option value="blocked">Blocked</option>
+              <option value="complete">Complete</option>
+            </select>
           </div>
 
-          <select
-            id="project-detail-header-status-filter"
-            value={taskStatusFilter}
-            onChange={(e) => setTaskStatusFilter(e.target.value)}
-            className="bg-[#030612]/90 border border-cyan-500/20 rounded-xl py-1.5 px-2.5 text-slate-200 text-xs focus:outline-none focus:border-cyan-400 capitalize shrink-0 cursor-pointer"
-          >
-            <option value="all">All Statuses</option>
-            <option value="todo">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="in_review">In Review</option>
-            <option value="blocked">Blocked</option>
-            <option value="complete">Complete</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-
-        {(taskSearchQuery.trim() || taskStatusFilter !== 'all') && (
-          <div className="flex items-center gap-2 text-xs shrink-0 flex-wrap justify-between sm:justify-end">
-            <span className="text-slate-400 text-[11px]">
-              {tasks.filter((t) => {
-                const q = taskSearchQuery.trim().toLowerCase();
-                const matchesQ =
-                  !q ||
-                  t.title.toLowerCase().includes(q) ||
-                  t.description.toLowerCase().includes(q) ||
-                  t.status.toLowerCase().includes(q) ||
-                  t.status.replace(/_/g, ' ').toLowerCase().includes(q);
-                const matchesS = taskStatusFilter === 'all' || t.status === taskStatusFilter;
-                return matchesQ && matchesS;
-              }).length}{' '}
-              matching task(s)
-            </span>
-            <button
-              onClick={() => {
-                setTaskSearchQuery('');
-                setTaskStatusFilter('all');
-              }}
-              className="text-cyan-400 hover:text-cyan-300 underline text-[11px] font-medium"
-            >
-              Clear
-            </button>
-            {activeTab !== 'tasks' && (
+          {(taskSearchQuery.trim() || taskStatusFilter !== 'all') && (
+            <div className="flex items-center gap-2 text-xs shrink-0 flex-wrap justify-between sm:justify-end">
+              <span className="text-slate-400 text-[11px] tabular-nums">
+                {tasks.filter((t) => {
+                  const q = taskSearchQuery.trim().toLowerCase();
+                  const matchesQ =
+                    !q ||
+                    t.title.toLowerCase().includes(q) ||
+                    t.description.toLowerCase().includes(q) ||
+                    t.status.toLowerCase().includes(q) ||
+                    t.status.replace(/_/g, ' ').toLowerCase().includes(q);
+                  const matchesS = taskStatusFilter === 'all' || t.status === taskStatusFilter;
+                  return matchesQ && matchesS;
+                }).length}{' '}
+                matching task(s)
+              </span>
+              <button
+                onClick={() => {
+                  setTaskSearchQuery('');
+                  setTaskStatusFilter('all');
+                }}
+                className="text-cyan-400 hover:text-cyan-300 underline text-[11px] font-medium cursor-pointer"
+              >
+                Clear
+              </button>
               <button
                 onClick={() => setActiveTab('tasks')}
-                className="px-2 py-1 rounded-lg bg-cyan-950/50 text-cyan-300 border border-cyan-500/35 text-[11px] font-medium hover:bg-cyan-900/60 transition-colors"
+                className="px-2.5 py-1 rounded-lg bg-cyan-950/50 text-cyan-300 border border-cyan-500/35 text-[11px] font-medium hover:bg-cyan-900/60 transition-colors whitespace-nowrap cursor-pointer"
               >
                 View in Tasks Tab →
               </button>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs navigation */}
       <div className="flex items-center gap-1.5 overflow-x-auto max-w-full p-1.5 rounded-2xl bg-[#060b1e]/90 backdrop-blur-xl border border-cyan-500/25 text-xs font-medium scrollbar-none shadow-inner">
@@ -886,8 +985,8 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Summary & Progress Card */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-[#202444] space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="lg:col-span-2 glass-panel p-4 sm:p-6 rounded-2xl border border-[#202444] space-y-4">
               <h3 className="text-base font-display font-semibold text-slate-100">
                 Scope & Intent
               </h3>
@@ -912,12 +1011,12 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
               )}
             </div>
 
-            <div className="glass-panel p-6 rounded-2xl border border-[#202444] space-y-4 flex flex-col justify-between">
+            <div className="glass-panel p-4 sm:p-6 rounded-2xl border border-[#202444] space-y-4 flex flex-col justify-between">
               <div>
                 <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-1">
                   Deliverable Progress
                 </h4>
-                <div className="text-3xl font-bold font-display text-slate-100 mb-2">
+                <div className="text-3xl font-bold font-display text-slate-100 mb-2 tabular-nums">
                   {progressPercent}%
                 </div>
                 <div className="w-full bg-[#16182e] h-2 rounded-full overflow-hidden mb-3">
@@ -926,7 +1025,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
-                <div className="text-xs text-slate-400 space-y-1">
+                <div className="text-xs text-slate-400 space-y-1 tabular-nums">
                   <div className="flex justify-between">
                     <span>Closed Tasks:</span>
                     <span className="font-mono text-slate-200">{completedTasksCount} / {tasks.length}</span>
@@ -948,14 +1047,14 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           </div>
 
           {/* Assigned Project Team Members & Roster */}
-          <div className="glass-panel p-6 rounded-2xl border border-[#202444] space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-base font-display font-semibold text-slate-100">
+          <div className="glass-panel p-4 sm:p-6 rounded-2xl border border-[#202444] space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                <h3 className="text-base font-display font-semibold text-slate-100 truncate">
                   Assigned Project Team
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 whitespace-nowrap shrink-0">
                   {project.memberIds?.length || 0} Assigned
                 </span>
               </div>
@@ -964,9 +1063,9 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                 <button
                   id="assign-member-overview-btn"
                   onClick={() => setIsAssignMemberOpen(true)}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-medium flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors cursor-pointer"
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
+                  <UserPlus className="w-3.5 h-3.5 shrink-0" />
                   <span>Assign Member</span>
                 </button>
               )}
@@ -1038,11 +1137,11 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           </div>
 
           {/* Budget Tracker & Deductions */}
-          <div className="glass-panel p-6 rounded-2xl border border-[#202444] space-y-6">
+          <div className="glass-panel p-4 sm:p-6 rounded-2xl border border-[#202444] space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#1c1f38]">
               <div>
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-5 h-5 text-amber-400" />
+                  <Wallet className="w-5 h-5 text-amber-400 shrink-0" />
                   <h3 className="text-base font-display font-semibold text-slate-100">
                     Budget Tracker & Deductions
                   </h3>
@@ -1052,7 +1151,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {isLeaderOrOwner && (
                   <>
                     <button
@@ -1060,10 +1159,10 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                         setBudgetInput(budget.toString());
                         setIsEditBudgetOpen(true);
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-[#161933] hover:bg-[#20254b] text-slate-300 border border-[#2a2f55] text-xs font-medium flex items-center gap-1.5 transition-colors"
+                      className="px-3 py-2 sm:py-1.5 rounded-lg bg-[#161933] hover:bg-[#20254b] text-slate-300 border border-[#2a2f55] text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
                       title="Configure total allocated budget cap"
                     >
-                      <Edit className="w-3.5 h-3.5" />
+                      <Edit className="w-3.5 h-3.5 shrink-0" />
                       <span>{hasBudget ? 'Adjust Budget Cap' : 'Set Budget Cap'}</span>
                     </button>
 
@@ -1078,10 +1177,10 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                         setExpenseDate(new Date().toISOString().split('T')[0]);
                         setIsAddExpenseOpen(true);
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-[#090a14] font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-amber-900/30 transition-colors"
+                      className="px-3 py-2 sm:py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-[#090a14] font-semibold text-xs flex items-center gap-1.5 whitespace-nowrap shadow-md shadow-amber-900/30 transition-colors cursor-pointer"
                       title="Add a purchased component or completed service to subtract from budget"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3.5 h-3.5 shrink-0" />
                       <span>Add Component / Service</span>
                     </button>
                   </>
@@ -1328,15 +1427,15 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           </div>
 
           {/* Quick Active Tasks Preview */}
-          <div className="glass-panel p-6 rounded-2xl border border-[#202444] space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="glass-panel p-4 sm:p-6 rounded-2xl border border-[#202444] space-y-4">
+            <div className="flex items-center justify-between gap-2">
               <h3 className="text-base font-display font-semibold text-slate-100 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-purple-400" />
+                <Layers className="w-4 h-4 text-purple-400 shrink-0" />
                 <span>Active Work Items</span>
               </h3>
               <button
                 onClick={() => setActiveTab('tasks')}
-                className="text-xs text-purple-400 hover:text-purple-300 font-medium"
+                className="text-xs text-purple-400 hover:text-purple-300 font-medium whitespace-nowrap shrink-0 cursor-pointer"
               >
                 View all tasks →
               </button>
@@ -1350,6 +1449,7 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                   users={users}
                   onClick={() => setSelectedTask(task)}
                   onRequestProofSubmit={(t) => setProofSubmitTask(t)}
+                  onDeleteTask={canDeleteTask ? (t) => setTaskPendingDelete(t) : undefined}
                 />
               ))}
             </div>
@@ -1568,6 +1668,12 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
           setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
           setSelectedTask(updated);
         }}
+        onTaskDeleted={(deletedId) => {
+          setTasks((prev) => prev.filter((t) => t.id !== deletedId));
+          setProofs((prev) => prev.filter((p) => p.taskId !== deletedId));
+          setSelectedTask(null);
+          fetchData();
+        }}
         onRequestProofSubmit={(t) => {
           setSelectedTask(null);
           setProofSubmitTask(t);
@@ -1579,6 +1685,21 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
             setReviewProofItem(p);
           }
         }}
+      />
+
+      {/* Confirm Delete Task Modal (from Overview TaskCard) */}
+      <ConfirmModal
+        isOpen={!!taskPendingDelete}
+        onClose={() => setTaskPendingDelete(null)}
+        onConfirm={handleConfirmDeleteOverviewTask}
+        title="Delete Task"
+        message={
+          taskPendingDelete
+            ? `Are you sure you want to permanently delete "${taskPendingDelete.title}"? Associated proof submissions for this task will also be removed. This action cannot be undone.`
+            : ''
+        }
+        confirmLabel={isDeletingTask ? 'Deleting...' : 'Delete Task'}
+        destructive={true}
       />
 
       {/* Proof Submission Modal */}
@@ -1646,9 +1767,14 @@ export function ProjectDetail({ projectId, onBack, onEditProject, onSendMessage 
                 className="w-full px-3 py-2 rounded-lg bg-[#0e101c] border border-[#232746] text-slate-100 text-xs focus:border-purple-500 focus:outline-none capitalize"
               >
                 {TASK_PRIORITIES.map((p) => (
-                  <option key={p} value={p} className="capitalize">{p} Priority</option>
+                  <option key={p} value={p} className="capitalize">
+                    {p} Priority ({p === 'urgent' ? '+60 pts' : p === 'high' ? '+40 pts' : p === 'medium' ? '+25 pts' : '+15 pts'})
+                  </option>
                 ))}
               </select>
+              <div className="text-[10px] text-cyan-400/90 font-mono tabular-nums mt-1">
+                Base points: Urgent (+60), High (+40), Med (+25), Low (+15). Late tasks lose 20%/day until 0 pts, then deduct from assigned member(s) total points.
+              </div>
             </div>
 
             <div>

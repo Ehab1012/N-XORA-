@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
 import { RoleBadge } from '../common/Badges.js';
 import { ConfirmModal } from '../common/Modal.js';
+import { MessageStreamSkeleton } from '../common/Skeleton.js';
 import { VoiceRecorder } from '../messages/VoiceRecorder.js';
 import { AudioPlayer } from '../messages/AudioPlayer.js';
 
@@ -18,23 +19,27 @@ export function ProjectDiscussion({ projectId, users }: ProjectDiscussionProps) 
   const { user } = useAuth();
   const { themeConfig } = useTheme();
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [content, setContent] = useState('');
   const [replyTo, setReplyTo] = useState<ProjectMessage | null>(null);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (showSkeleton = false) => {
+    if (showSkeleton) setLoading(true);
     try {
       const list = await api.getProjectMessages(projectId);
       setMessages(list);
     } catch {
       // ignore
+    } finally {
+      if (showSkeleton) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 6000);
+    fetchMessages(true);
+    const interval = setInterval(() => fetchMessages(false), 6000);
     return () => clearInterval(interval);
   }, [projectId]);
 
@@ -134,7 +139,9 @@ export function ProjectDiscussion({ projectId, users }: ProjectDiscussionProps) 
 
       {/* Messages Stream */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0a0b12]/70">
-        {messages.length === 0 ? (
+        {loading ? (
+          <MessageStreamSkeleton count={4} />
+        ) : messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs font-mono">
             <span>No messages yet. Start the project discussion.</span>
           </div>

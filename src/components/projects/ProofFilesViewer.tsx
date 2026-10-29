@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { StoredFile } from '../../../shared/types.js';
 import { api } from '../../lib/api.js';
+import { ProofFilesSkeleton } from '../common/Skeleton.js';
 
 interface ProofFilesViewerProps {
   attachments?: StoredFile[];
@@ -143,12 +144,7 @@ export function ProofFilesViewer({
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-[#0a0c18] border border-cyan-500/20 text-xs text-slate-400">
-        <Loader2 className="w-4 h-4 animate-spin text-cyan-400 shrink-0" />
-        <span>Loading attached deliverable & proof files...</span>
-      </div>
-    );
+    return <ProofFilesSkeleton compact={compact} />;
   }
 
   // When no files are resolved

@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Shield,
   Zap,
+  Trash2,
 } from 'lucide-react';
 import { RealtimeEventPayload, RealtimeEventType } from '../../../shared/types.js';
 
@@ -95,6 +96,17 @@ export function ToastCard({ toast, onDismiss }: ToastCardProps) {
         barColor: 'bg-emerald-400',
         label: 'Team Assignment',
         icon: <UserCheck className="w-4 h-4 text-emerald-400" />,
+      };
+    }
+    if (toast.type === 'task:deleted') {
+      return {
+        border: 'border-rose-500/40',
+        glow: 'shadow-rose-900/30',
+        headerBg: 'bg-rose-950/50',
+        badgeBg: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+        barColor: 'bg-rose-500',
+        label: 'Task Deleted',
+        icon: <Trash2 className="w-4 h-4 text-rose-400" />,
       };
     }
     return {

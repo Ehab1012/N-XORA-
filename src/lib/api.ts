@@ -19,6 +19,8 @@ import {
   UserRole,
   RealtimeEventPayload,
   StoredFile,
+  ChatAttachment,
+  AiExecutedAction,
   ProjectInvitation,
 } from '../../shared/types.js';
 
@@ -487,7 +489,7 @@ export const api = {
   },
 
   // File Upload & Shared Documents
-  async uploadFile(name: string, mimeType: string, dataUrl: string, projectId?: string): Promise<{ id: string; name: string; sizeBytes: number }> {
+  async uploadFile(name: string, mimeType: string, dataUrl: string, projectId?: string): Promise<{ id: string; name: string; mimeType: string; sizeBytes: number }> {
     return request('/api/files/upload', {
       method: 'POST',
       body: JSON.stringify({ name, mimeType, dataUrl, projectId }),
@@ -574,13 +576,17 @@ export const api = {
     return request('/api/audit');
   },
 
-  // AI Co-Pilot (Gemini Multi-Turn Chat)
+  // AI Co-Pilot (Gemini Multi-Turn Multimodal Chat)
   async chatWithAI(params: {
-    messages: Array<{ role: 'user' | 'model' | 'assistant'; content: string }>;
+    messages: Array<{
+      role: 'user' | 'model' | 'assistant';
+      content: string;
+      attachments?: ChatAttachment[];
+    }>;
     systemInstruction?: string;
     modelType?: 'pro' | 'flash' | 'fast';
     projectId?: string;
-  }): Promise<{ reply: string; timestamp: string }> {
+  }): Promise<{ reply: string; modelUsed?: string; executedActions?: AiExecutedAction[]; timestamp: string }> {
     return request('/api/ai/chat', {
       method: 'POST',
       body: JSON.stringify(params),

@@ -3,6 +3,7 @@ import { Search, Folder, Users, MessageSquare, Settings, Activity, Command, X, A
 import { api } from '../../lib/api.js';
 import { Project, User } from '../../../shared/types.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
+import { CommandPaletteSkeleton } from '../common/Skeleton.js';
 
 interface CommandPaletteProps {
   onNavigate: (path: string) => void;
@@ -128,7 +129,7 @@ export function CommandPalette({ onNavigate }: CommandPaletteProps) {
 
         <div className="flex-1 overflow-y-auto p-2 scrollbar-none">
           {loading ? (
-            <div className="p-6 text-center text-xs text-slate-400 font-mono">Loading data...</div>
+            <CommandPaletteSkeleton />
           ) : (
             <div className="space-y-4 p-2">
               

@@ -1,5 +1,24 @@
 export type { UserRole, TaskStatus, TaskPriority, ProjectStatus, ProofStatus, ResourceCategory } from './const.js';
 import { UserRole, TaskStatus, TaskPriority, ProjectStatus, ProofStatus, ResourceCategory } from './const.js';
+export {
+  ROLES,
+  TASK_STATUSES,
+  TASK_PRIORITIES,
+  PROJECT_STATUSES,
+  PROOF_STATUSES,
+  RESOURCE_CATEGORIES,
+  TASK_PRIORITY_POINTS,
+  ON_TIME_BONUS_POINTS,
+  LATE_DAILY_PENALTY_PERCENTAGE,
+  LATE_TASK_PENALTY_PERCENTAGE,
+  MS_PER_DAY,
+  getTaskBasePoints,
+  getDailyLatePenalty,
+  calculateDaysLate,
+  calculateTaskPoints,
+  calculateTaskPointsByDates,
+} from './const.js';
+export type { TaskPointCalculation } from './const.js';
 
 export interface User {
   id: string;
@@ -149,11 +168,15 @@ export interface GroupTaskSubmission {
   submittedAt?: string;
   note?: string;
   proofLinks?: string[];
-  pointsAwarded?: number;
-  reviewedById?: string;
-  reviewedAt?: string;
-  reviewNote?: string;
-}
+    pointsAwarded?: number;
+    isLate?: boolean;
+    daysLate?: number;
+    latePenaltyApplied?: number;
+    memberPenaltyApplied?: number;
+    reviewedById?: string;
+    reviewedAt?: string;
+    reviewNote?: string;
+  }
 
 export interface Task {
   id: string;
@@ -172,6 +195,11 @@ export interface Task {
   updatedAt: string;
   completedAt?: string;
   proofSubmittedId?: string;
+  pointsAwarded?: number;
+  isLate?: boolean;
+  daysLate?: number;
+  latePenaltyApplied?: number;
+  memberPenaltyApplied?: number;
 
   // Group / Collaborative Task Extensions
   isGroupTask?: boolean;
@@ -313,6 +341,26 @@ export interface StoredFile {
   createdAt: string;
 }
 
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: 'image' | 'file';
+  dataUrl?: string;
+  fileUrl?: string;
+}
+
+export interface AiExecutedAction {
+  toolName: string;
+  success: boolean;
+  summary: string;
+  permissionDenied?: boolean;
+  entityType?: 'task' | 'milestone' | 'proof' | 'project' | 'team' | 'bonus' | 'user' | 'message' | 'query';
+  entityId?: string;
+  projectId?: string;
+}
+
 export interface BonusAward {
   id: string;
   workspaceId: string;
@@ -337,20 +385,28 @@ export interface UserScoreDetail {
   milestonesCompleted?: number;
   proofsApproved?: number;
   onTimeDeliveries?: number;
+  lateDeliveries?: number;
+  overdueTasksCount?: number;
+  latePenaltyScore?: number;
+  memberPenaltyDeduction?: number;
   groupTasksCompleted?: number;
   groupBonusCount?: number;
   directBonusCount?: number;
   directBonusScore?: number;
   bonusAwards?: BonusAward[];
   breakdown: {
-    tasksCompleted: number; // 25 pts each
+    tasksCompleted: number; // base points based on priority (Urgent 60, High 40, Medium 25, Low 15)
     tasksScore: number;
     milestonesCompleted: number; // 50 pts each
     milestonesScore: number;
     proofsApproved: number; // 40 pts each
     proofsScore: number;
-    onTimeDeliveries: number; // 15 pts bonus
+    onTimeDeliveries: number; // 15 pts bonus each
     onTimeScore: number;
+    lateDeliveries?: number; // tasks/submissions completed past due date
+    overdueTasksCount?: number; // currently overdue incomplete tasks/submissions
+    latePenaltyScore?: number; // total penalty points incurred (task decay + member overflow)
+    memberPenaltyDeduction?: number; // overflow penalty points deducted directly from member totalScore
     groupTasksCompleted?: number; // individual contributions
     groupTasksScore?: number; // individual submission points
     groupBonusCount?: number; // completed group missions
@@ -400,6 +456,7 @@ export type RealtimeEventType =
   | 'project:file_uploaded'
   | 'task:status_changed'
   | 'task:member_assigned'
+  | 'task:deleted'
   | 'milestone:status_changed'
   | 'user:bonus_awarded';
 

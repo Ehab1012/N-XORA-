@@ -30,8 +30,20 @@ import { Task, User as UserType, Milestone, GroupTaskSubmission, ProofSubmission
 import { StatusBadge, PriorityBadge, ProofBadge } from '../common/Badges.js';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
-import { TASK_STATUSES, TASK_PRIORITIES, TaskStatus, TaskPriority } from '../../../shared/const.js';
+import {
+  TASK_STATUSES,
+  TASK_PRIORITIES,
+  TaskStatus,
+  TaskPriority,
+  TASK_PRIORITY_POINTS,
+  LATE_DAILY_PENALTY_PERCENTAGE,
+  ON_TIME_BONUS_POINTS,
+  calculateDaysLate,
+  calculateTaskPoints,
+  getDailyLatePenalty,
+} from '../../../shared/const.js';
 import { ProofFilesViewer } from './ProofFilesViewer.js';
+import { ProofDeliverableSkeleton } from '../common/Skeleton.js';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -40,6 +52,7 @@ interface TaskDetailModalProps {
   users: UserType[];
   milestones: Milestone[];
   onTaskUpdated: (updated: Task) => void;
+  onTaskDeleted?: (deletedId: string) => void;
   onRequestProofSubmit?: (task: Task) => void;
   onRequestProofReview?: (proofId: string) => void;
 }
@@ -51,6 +64,7 @@ export function TaskDetailModal({
   users,
   milestones,
   onTaskUpdated,
+  onTaskDeleted,
   onRequestProofSubmit,
   onRequestProofReview,
 }: TaskDetailModalProps) {
@@ -115,6 +129,8 @@ export function TaskDetailModal({
   const [isReviewingUser, setIsReviewingUser] = useState<string | null>(null);
   const [isFinalizingBonus, setIsFinalizingBonus] = useState(false);
   const [isConfirmFinalizeOpen, setIsConfirmFinalizeOpen] = useState(false);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -130,7 +146,8 @@ export function TaskDetailModal({
   const creator = users.find((u) => u.id === task.creatorId);
   const milestone = milestones.find((m) => m.id === task.milestoneId);
 
-  const isLeaderOrOwner = role === 'leader' || role === 'co-leader';
+  const effectiveRole = role || user?.role;
+  const isLeaderOrOwner = effectiveRole === 'leader' || effectiveRole === 'co-leader';
   const isParticipant = user ? participantIds.includes(user.id) : false;
   const canEdit = isLeaderOrOwner || task.assigneeId === user?.id || isParticipant;
 
@@ -260,6 +277,25 @@ export function TaskDetailModal({
       setActionError(err.message || 'Failed to finalize group task');
     } finally {
       setIsFinalizingBonus(false);
+    }
+  };
+
+  // Leader / Co-Leader permanently delete task
+  const handleDoDeleteTask = async () => {
+    setIsDeletingTask(true);
+    setActionError(null);
+    try {
+      await api.deleteTask(task.id);
+      setIsConfirmDeleteOpen(false);
+      if (onTaskDeleted) {
+        onTaskDeleted(task.id);
+      }
+      onClose();
+    } catch (err: any) {
+      console.error('Failed to delete task', err);
+      setActionError(err.message || 'Failed to delete task');
+    } finally {
+      setIsDeletingTask(false);
     }
   };
 
@@ -459,7 +495,7 @@ export function TaskDetailModal({
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            {isGroup && role === 'leader' && task.status !== 'complete' && (
+            {isGroup && (role === 'leader' || role === 'co-leader') && task.status !== 'complete' && (
               <button
                 type="button"
                 onClick={() => setIsConfirmFinalizeOpen(true)}
@@ -471,10 +507,10 @@ export function TaskDetailModal({
               </button>
             )}
 
-            {isGroup && role !== 'leader' && task.status !== 'complete' && (
+            {isGroup && role !== 'leader' && role !== 'co-leader' && task.status !== 'complete' && (
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#131528] border border-[#232748] text-slate-400 text-xs">
                 <Shield className="w-3.5 h-3.5 text-amber-400" />
-                <span>Team bonus (+{bonusPts} pts) can only be awarded by the Leader</span>
+                <span>Team bonus (+{bonusPts} pts) can only be awarded by the Leader or Co-Leader</span>
               </div>
             )}
 
@@ -501,8 +537,269 @@ export function TaskDetailModal({
                 <span>Submit Proof of Work</span>
               </button>
             ) : null}
+
+            {isLeaderOrOwner && (
+              <button
+                type="button"
+                onClick={() => setIsConfirmDeleteOpen(true)}
+                disabled={isDeletingTask}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-500/40 hover:border-rose-400 text-rose-300 hover:text-rose-100 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                title="Delete task (Leader & Co-Leader only)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeletingTask ? 'Deleting...' : 'Delete Task'}</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Merit Points & Progressive Daily Penalty Accountability Section */}
+        {(() => {
+          const basePts = isGroup ? individualPts : (TASK_PRIORITY_POINTS[task.priority] || 25);
+          const completedDaysLate =
+            task.status === 'complete'
+              ? (task.daysLate ??
+                (task.completedAt && task.dueDate
+                  ? calculateDaysLate(task.dueDate, task.completedAt)
+                  : task.isLate
+                  ? 1
+                  : 0))
+              : 0;
+
+          const inReviewRef =
+            task.status === 'in_review' &&
+            (submittedProof?.createdAt || (task.proofSubmittedId ? task.updatedAt : undefined))
+              ? submittedProof?.createdAt || task.updatedAt
+              : undefined;
+
+          const activeDaysLate =
+            task.status !== 'complete' && task.status !== 'cancelled'
+              ? calculateDaysLate(task.dueDate, inReviewRef)
+              : 0;
+
+          const calc = calculateTaskPoints(
+            task.priority,
+            task.status === 'complete' ? completedDaysLate : activeDaysLate,
+            basePts
+          );
+
+          const isOverdue = activeDaysLate > 0;
+          const isCompletedLate = task.status === 'complete' && (completedDaysLate > 0 || Boolean(task.isLate));
+          const isCompletedOnTime = task.status === 'complete' && !isCompletedLate;
+          const awardedTaskPts = task.pointsAwarded ?? calc.pointsAwarded;
+          const memberOverflowPts = task.memberPenaltyApplied ?? calc.memberPointsDeducted;
+          const remainingPct =
+            calc.basePoints > 0
+              ? Math.max(0, Math.min(100, Math.round((calc.pointsAwarded / calc.basePoints) * 100)))
+              : 0;
+
+          const targetAccountabilityLabel = isGroup
+            ? `each overdue unsubmitted member (${participantIds.length} assigned)`
+            : assignee
+            ? `${assignee.name}'s total score`
+            : "the assigned member's total score";
+
+          return (
+            <div className="p-4 rounded-xl bg-gradient-to-br from-[#0c1024] to-[#070a18] border border-cyan-500/25 space-y-3 shadow-md">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1b2244] pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold text-white tracking-wide font-mono">
+                    Merit Points & Progressive Late Penalty
+                  </span>
+                </div>
+                <div className="text-[11px] font-mono tabular-nums text-cyan-300">
+                  {isGroup ? 'Member Base' : 'Task Base'}:{' '}
+                  <span className="font-bold text-amber-300">+{basePts} pts</span> · Daily Late Decay:{' '}
+                  <span className="font-bold text-rose-300">-{calc.dailyPenaltyRate} pts/day ({LATE_DAILY_PENALTY_PERCENTAGE}%)</span> · On-Time:{' '}
+                  <span className="font-bold text-emerald-300">+{ON_TIME_BONUS_POINTS} pts</span>
+                </div>
+              </div>
+
+              {/* Real-time Status Notice */}
+              {isCompletedOnTime && (
+                <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between gap-3 text-xs text-emerald-300 tabular-nums">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>
+                      <strong className="text-white">Delivered On Time:</strong> Awarded full{' '}
+                      <strong>+{awardedTaskPts} pts</strong> plus{' '}
+                      <strong>+{ON_TIME_BONUS_POINTS} pts</strong> on-time delivery bonus (0 penalty).
+                    </span>
+                  </div>
+                  {task.completedAt && (
+                    <span className="text-[10px] font-mono text-emerald-400/80 shrink-0">
+                      {new Date(task.completedAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {isCompletedLate && (
+                <div
+                  className={`p-3 rounded-lg border space-y-2 text-xs tabular-nums ${
+                    memberOverflowPts > 0
+                      ? 'bg-rose-950/65 border-rose-500/45 text-rose-200'
+                      : 'bg-amber-950/60 border-amber-500/40 text-amber-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className={`w-4 h-4 shrink-0 ${memberOverflowPts > 0 ? 'text-rose-400' : 'text-amber-400'}`} />
+                      <span>
+                        <strong className="text-white">
+                          Turned In {completedDaysLate} Day{completedDaysLate === 1 ? '' : 's'} Late:
+                        </strong>{' '}
+                        {memberOverflowPts > 0 ? (
+                          <>
+                            Task points were eaten down to <strong>0/{basePts} pts</strong> and{' '}
+                            <strong className="text-rose-300">-{memberOverflowPts} pts</strong> overflow penalty was deducted directly from {targetAccountabilityLabel}.
+                          </>
+                        ) : (
+                          <>
+                            Awarded <strong>+{awardedTaskPts}/{basePts} pts</strong> (
+                            <strong>-{task.latePenaltyApplied ?? calc.taskPointsDeducted} pts</strong> eaten at -{calc.dailyPenaltyRate} pts/day, no on-time bonus).
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    {task.completedAt && (
+                      <span className="text-[10px] font-mono opacity-80 shrink-0">
+                        Completed {new Date(task.completedAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!isCompletedOnTime && !isCompletedLate && isOverdue && (
+                <div className="p-3.5 rounded-lg bg-rose-950/60 border border-rose-500/40 space-y-2.5 text-xs text-rose-200 tabular-nums">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div>
+                        <strong className="text-white">
+                          Day {activeDaysLate} Past Due (-{calc.dailyPenaltyRate} pts/day):
+                        </strong>{' '}
+                        {calc.pointsAwarded > 0 ? (
+                          <>
+                            Penalty has eaten <strong>-{calc.taskPointsDeducted} pts</strong> from this task (
+                            <strong className="text-amber-300">+{calc.pointsAwarded}/{calc.basePoints} pts remaining</strong>). Once task points reach 0, each extra day deducts{' '}
+                            <strong>-{calc.dailyPenaltyRate} pts/day</strong> from {targetAccountabilityLabel}.
+                          </>
+                        ) : calc.memberPointsDeducted > 0 ? (
+                          <>
+                            Task points reached <strong>0/{calc.basePoints} pts</strong>. Overflow penalty is now eating{' '}
+                            <strong className="text-rose-300">-{calc.memberPointsDeducted} pts</strong> (at -{calc.dailyPenaltyRate} pts/day) directly from {targetAccountabilityLabel}.
+                          </>
+                        ) : (
+                          <>
+                            Task points have reached <strong>0/{calc.basePoints} pts</strong> today. Starting tomorrow, each additional late day deducts{' '}
+                            <strong className="text-rose-300">-{calc.dailyPenaltyRate} pts/day</strong> directly from {targetAccountabilityLabel}.
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Stage Visual Meter: Task Pool -> Member Total Points */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+                    <div className="p-2 rounded-lg bg-[#090d1f] border border-[#1f2647] space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Stage 1 · Task Points Left</span>
+                        <span className={calc.pointsAwarded > 0 ? 'text-amber-300 font-bold' : 'text-rose-400 font-bold'}>
+                          +{calc.pointsAwarded} / {calc.basePoints} pts
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-[#151a36] overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-rose-500 transition-all"
+                          style={{ width: `${remainingPct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      className={`p-2 rounded-lg border flex flex-col justify-between ${
+                        calc.memberPointsDeducted > 0
+                          ? 'bg-rose-950/70 border-rose-500/50 text-rose-200'
+                          : 'bg-[#090d1f] border-[#1f2647] text-slate-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Stage 2 · Member Score Drain</span>
+                        <span className={calc.memberPointsDeducted > 0 ? 'text-rose-300 font-bold' : 'text-slate-300 font-semibold'}>
+                          -{calc.memberPointsDeducted} pts
+                        </span>
+                      </div>
+                      <div className="text-[10px] opacity-85 truncate">
+                        {calc.memberPointsDeducted > 0
+                          ? `Actively deducting -${calc.dailyPenaltyRate} pts/day from total score`
+                          : `Activates after task hits 0 pts (-${calc.dailyPenaltyRate} pts/day)`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isCompletedOnTime && !isCompletedLate && !isOverdue && (
+                <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-500/30 flex items-center gap-2.5 text-xs text-cyan-200 tabular-nums">
+                  <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <span>
+                    <strong className="text-white">
+                      {task.status === 'in_review' ? 'Submitted On Time (In Review):' : 'On-Time Eligible:'}
+                    </strong>{' '}
+                    {task.status === 'in_review' ? (
+                      <>
+                        Deliverable submitted before deadline — locked in for full <strong>+{basePts} pts</strong> +{' '}
+                        <strong>+{ON_TIME_BONUS_POINTS} pts</strong> on-time bonus upon approval.
+                      </>
+                    ) : (
+                      <>
+                        Submit before <strong>{new Date(task.dueDate).toLocaleDateString()}</strong> for{' '}
+                        <strong>+{basePts} pts</strong> + <strong>+{ON_TIME_BONUS_POINTS} pts</strong> bonus. Each late day eats{' '}
+                        <strong>-{calc.dailyPenaltyRate} pts/day</strong> until 0, then drains {targetAccountabilityLabel}.
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {/* Priority Ladder Breakdown */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] font-mono tabular-nums">
+                {([
+                  { prio: 'urgent' as TaskPriority, pts: 60, label: 'Urgent' },
+                  { prio: 'high' as TaskPriority, pts: 40, label: 'High' },
+                  { prio: 'medium' as TaskPriority, pts: 25, label: 'Medium' },
+                  { prio: 'low' as TaskPriority, pts: 15, label: 'Low' },
+                ]).map((item) => {
+                  const isCurrent = task.priority === item.prio;
+                  const dailyDecay = getDailyLatePenalty(item.prio, item.pts);
+                  return (
+                    <div
+                      key={item.prio}
+                      className={`p-2 rounded-lg border text-center transition-all ${
+                        isCurrent
+                          ? 'bg-purple-950/70 border-cyan-400/60 text-white shadow-sm ring-1 ring-cyan-400/40'
+                          : 'bg-[#090d1f] border-[#1e2344] text-slate-400'
+                      }`}
+                    >
+                      <div className="text-[10px] font-bold truncate flex items-center justify-center gap-1">
+                        <span>{item.label} Priority</span>
+                      </div>
+                      <div className={`font-bold mt-0.5 ${isCurrent ? 'text-amber-300 text-xs' : 'text-slate-300'}`}>
+                        +{item.pts} pts
+                      </div>
+                      <div className="text-[9px] text-rose-300/80 mt-0.5">
+                        -{dailyDecay}/day · 0@5d → score
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Description */}
         <div>
@@ -515,12 +812,7 @@ export function TaskDetailModal({
         {/* ---------------------------------------------------- */}
         {/* DELIVERED PROOF OF WORK & ARTIFACT FILES */}
         {/* ---------------------------------------------------- */}
-        {loadingProof && (
-          <div className="p-4 rounded-2xl bg-[#090d1c] border border-cyan-500/20 flex items-center gap-2.5 text-xs text-slate-400">
-            <Loader2 className="w-4 h-4 animate-spin text-cyan-400 shrink-0" />
-            <span>Loading verified proof deliverable and files...</span>
-          </div>
-        )}
+        {loadingProof && <ProofDeliverableSkeleton />}
 
         {!loadingProof && !submittedProof && (
           <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#090d1c] to-[#050711] border border-cyan-500/30 space-y-3.5 shadow-lg shadow-cyan-950/20">
@@ -722,18 +1014,93 @@ export function TaskDetailModal({
                       </div>
 
                       {/* Status badge & Points */}
-                      <div className="text-right">
-                        {isSub ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-[10px] font-medium">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                            <span>Submitted (+{sub.pointsAwarded || individualPts} pts)</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-950/60 border border-amber-500/30 text-amber-300 text-[10px] font-medium">
-                            <Clock className="w-3 h-3 text-amber-400" />
-                            <span>Pending</span>
-                          </span>
-                        )}
+                      <div className="text-right font-mono tabular-nums">
+                        {(() => {
+                          if (isSub && sub) {
+                            const subDaysLate =
+                              sub.daysLate ??
+                              (sub.submittedAt
+                                ? calculateDaysLate(task.dueDate, sub.submittedAt)
+                                : sub.isLate
+                                ? 1
+                                : 0);
+                            const subCalc = calculateTaskPoints(task.priority, subDaysLate, individualPts);
+                            const subAwarded = sub.pointsAwarded ?? subCalc.pointsAwarded;
+                            const subMemberDrain = sub.memberPenaltyApplied ?? subCalc.memberPointsDeducted;
+
+                            if (subDaysLate > 0 || sub.isLate) {
+                              if (subMemberDrain > 0) {
+                                return (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-950 border border-rose-500/40 text-rose-300 text-[10px] font-medium"
+                                    title={`Submitted ${subDaysLate}d late: 0 task pts and -${subMemberDrain} pts deducted from member total score`}
+                                  >
+                                    <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                                    <span>Late ({subDaysLate}d) · 0 pts (-{subMemberDrain} score)</span>
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-950 border border-amber-500/40 text-amber-300 text-[10px] font-medium"
+                                  title={`Submitted ${subDaysLate}d past deadline: +${subAwarded}/${individualPts} pts earned`}
+                                >
+                                  <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                                  <span>Late ({subDaysLate}d) · +{subAwarded} pts</span>
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-[10px] font-medium"
+                                title="Submitted on time"
+                              >
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                                <span>Submitted (+{subAwarded} pts)</span>
+                              </span>
+                            );
+                          }
+
+                          const pendingDaysLate =
+                            task.status === 'cancelled'
+                              ? 0
+                              : task.status === 'complete'
+                              ? calculateDaysLate(task.dueDate, task.completedAt)
+                              : calculateDaysLate(task.dueDate);
+                          const pendingCalc = calculateTaskPoints(task.priority, pendingDaysLate, individualPts);
+
+                          if (pendingDaysLate > 0) {
+                            return pendingCalc.pointsAwarded === 0 ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-950/80 border border-rose-500/40 text-rose-300 text-[10px] font-medium"
+                                title={`Overdue ${pendingDaysLate}d: 0 task pts left, -${pendingCalc.memberPointsDeducted} pts deducted from member total score (-${pendingCalc.dailyPenaltyRate}/day)`}
+                              >
+                                <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                                <span>
+                                  Overdue ({pendingDaysLate}d) · -{pendingCalc.memberPointsDeducted} score
+                                </span>
+                              </span>
+                            ) : (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-950/75 border border-amber-500/40 text-amber-300 text-[10px] font-medium"
+                                title={`Overdue ${pendingDaysLate}d: +${pendingCalc.pointsAwarded}/${individualPts} pts remaining (-${pendingCalc.dailyPenaltyRate}/day)`}
+                              >
+                                <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                                <span>
+                                  Overdue ({pendingDaysLate}d) · +{pendingCalc.pointsAwarded}/{individualPts} pts
+                                </span>
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-950/60 border border-amber-500/30 text-amber-300 text-[10px] font-medium">
+                              <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                              <span>Pending (+{individualPts} pts)</span>
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -828,115 +1195,134 @@ export function TaskDetailModal({
             {/* ---------------------------------------------------- */}
             {/* CURRENT USER ACTION: Submit My Contribution (+X Points) */}
             {/* ---------------------------------------------------- */}
-            {isParticipant && (
-              <div className="p-4 rounded-xl bg-gradient-to-br from-[#131735] via-[#10132c] to-[#15112e] border border-purple-500/30 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Award className="w-4 h-4 text-amber-400" />
-                    <h5 className="text-xs font-bold text-white uppercase tracking-wider">
-                      {isMySubmissionCompleted ? 'Update Your Contribution' : 'Submit Your Contribution'}
-                    </h5>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/40">
-                    +{individualPts} Points Reward
-                  </span>
-                </div>
+            {isParticipant && (() => {
+              const myLiveDaysLate = isMySubmissionCompleted
+                ? (mySubmission?.daysLate ??
+                  (mySubmission?.submittedAt ? calculateDaysLate(task.dueDate, mySubmission.submittedAt) : 0))
+                : calculateDaysLate(task.dueDate);
+              const myLiveCalc = calculateTaskPoints(task.priority, myLiveDaysLate, individualPts);
+              const myDisplayPts = isMySubmissionCompleted
+                ? (mySubmission?.pointsAwarded ?? myLiveCalc.pointsAwarded)
+                : myLiveCalc.pointsAwarded;
 
-                {submissionFeedback && (
-                  <div className="p-2.5 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>{submissionFeedback}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmitGroupContribution} className="space-y-3 text-xs">
-                  <div>
-                    <label className="block text-slate-300 mb-1 font-medium">
-                      Summary of Your Completed Work *
-                    </label>
-                    <textarea
-                      rows={2}
-                      required
-                      value={groupNote}
-                      onChange={(e) => setGroupNote(e.target.value)}
-                      placeholder="Describe what you implemented, tested, or deployed..."
-                      className="w-full px-3 py-2 rounded-lg bg-[#0c0e1c] border border-[#232746] text-slate-100 text-xs focus:border-purple-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-300 mb-1 font-medium">
-                      Proof / Deliverable Links (Optional, one per line)
-                    </label>
-                    <input
-                      type="text"
-                      value={groupProofLinks}
-                      onChange={(e) => setGroupProofLinks(e.target.value)}
-                      placeholder="https://github.com/... or https://telemetry.internal/..."
-                      className="w-full px-3 py-2 rounded-lg bg-[#0c0e1c] border border-[#232746] text-slate-100 text-xs focus:border-purple-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-300 mb-1 font-medium flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Paperclip className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Attach Proof / Deliverable File (Optional)</span>
+              return (
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[#131735] via-[#10132c] to-[#15112e] border border-purple-500/30 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Award className="w-4 h-4 text-amber-400" />
+                      <h5 className="text-xs font-bold text-white uppercase tracking-wider">
+                        {isMySubmissionCompleted ? 'Update Your Contribution' : 'Submit Your Contribution'}
+                      </h5>
+                    </div>
+                    {myLiveDaysLate > 0 && !isMySubmissionCompleted && myLiveCalc.pointsAwarded === 0 ? (
+                      <span className="text-xs font-mono tabular-nums font-bold text-rose-300 bg-rose-950/80 px-2 py-0.5 rounded border border-rose-500/40">
+                        0 Task Pts · -{myLiveCalc.memberPointsDeducted} Score Drain (-{myLiveCalc.dailyPenaltyRate}/d)
                       </span>
-                    </label>
-                    {groupFile ? (
-                      <div className="flex items-center justify-between p-2 rounded-lg bg-[#0e101c] border border-teal-500/30 text-teal-300 text-xs">
-                        <span className="truncate max-w-[280px] font-mono">{groupFile.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => setGroupFile(null)}
-                          className="text-rose-400 hover:text-rose-300 ml-2"
-                        >
-                          Remove
-                        </button>
-                      </div>
                     ) : (
-                      <label className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-[#0c0e1c] border border-dashed border-[#232746] hover:border-purple-500/40 cursor-pointer text-slate-400 hover:text-slate-200 transition-colors text-xs">
-                        <Upload className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Upload artifact, screenshot, or log (Max 1GB)</span>
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={(e) => {
-                            const selected = e.target.files?.[0];
-                            if (!selected) return;
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              setGroupFile({
-                                name: selected.name,
-                                mimeType: selected.type || 'application/octet-stream',
-                                dataUrl: reader.result as string,
-                              });
-                            };
-                            reader.readAsDataURL(selected);
-                          }}
-                        />
-                      </label>
+                      <span className="text-xs font-mono tabular-nums font-bold text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/40">
+                        +{myDisplayPts}/{individualPts} Points{myLiveDaysLate > 0 ? ` (${myLiveDaysLate}d late)` : ' Reward'}
+                      </span>
                     )}
                   </div>
 
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={isSubmittingGroupPart || (!groupNote.trim() && !groupProofLinks.trim() && !groupFile)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-900/40 disabled:opacity-50 transition-all cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>
-                        {isMySubmissionCompleted
-                          ? `Re-submit & Save Contribution (+${individualPts} pts)`
-                          : `Submit My Part & Claim +${individualPts} Points`}
-                      </span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
+                  {submissionFeedback && (
+                    <div className="p-2.5 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>{submissionFeedback}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSubmitGroupContribution} className="space-y-3 text-xs">
+                    <div>
+                      <label className="block text-slate-300 mb-1 font-medium">
+                        Summary of Your Completed Work *
+                      </label>
+                      <textarea
+                        rows={2}
+                        required
+                        value={groupNote}
+                        onChange={(e) => setGroupNote(e.target.value)}
+                        placeholder="Describe what you implemented, tested, or deployed..."
+                        className="w-full px-3 py-2 rounded-lg bg-[#0c0e1c] border border-[#232746] text-slate-100 text-xs focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 mb-1 font-medium">
+                        Proof / Deliverable Links (Optional, one per line)
+                      </label>
+                      <input
+                        type="text"
+                        value={groupProofLinks}
+                        onChange={(e) => setGroupProofLinks(e.target.value)}
+                        placeholder="https://github.com/... or https://telemetry.internal/..."
+                        className="w-full px-3 py-2 rounded-lg bg-[#0c0e1c] border border-[#232746] text-slate-100 text-xs focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 mb-1 font-medium flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Paperclip className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Attach Proof / Deliverable File (Optional)</span>
+                        </span>
+                      </label>
+                      {groupFile ? (
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-[#0e101c] border border-teal-500/30 text-teal-300 text-xs">
+                          <span className="truncate max-w-[280px] font-mono">{groupFile.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setGroupFile(null)}
+                            className="text-rose-400 hover:text-rose-300 ml-2"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-[#0c0e1c] border border-dashed border-[#232746] hover:border-purple-500/40 cursor-pointer text-slate-400 hover:text-slate-200 transition-colors text-xs">
+                          <Upload className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Upload artifact, screenshot, or log (Max 1GB)</span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => {
+                              const selected = e.target.files?.[0];
+                              if (!selected) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setGroupFile({
+                                  name: selected.name,
+                                  mimeType: selected.type || 'application/octet-stream',
+                                  dataUrl: reader.result as string,
+                                });
+                              };
+                              reader.readAsDataURL(selected);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={isSubmittingGroupPart || (!groupNote.trim() && !groupProofLinks.trim() && !groupFile)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-900/40 disabled:opacity-50 transition-all cursor-pointer tabular-nums"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>
+                          {isMySubmissionCompleted
+                            ? `Update Saved Contribution (+${myDisplayPts} pts)`
+                            : myDisplayPts > 0
+                            ? `Submit My Part & Claim +${myDisplayPts} Points`
+                            : `Submit My Part (Stop -${myLiveCalc.dailyPenaltyRate}/day Score Drain)`}
+                        </span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -1053,6 +1439,30 @@ export function TaskDetailModal({
             ))}
           </div>
         )}
+
+        {/* Modal Footer Action Bar */}
+        <div className="pt-4 mt-2 border-t border-[#1f223f] flex items-center justify-between gap-3">
+          <div>
+            {isLeaderOrOwner && (
+              <button
+                type="button"
+                onClick={() => setIsConfirmDeleteOpen(true)}
+                disabled={isDeletingTask}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-950/70 hover:bg-rose-600 border border-rose-500/45 hover:border-rose-400 text-rose-300 hover:text-white text-xs font-semibold transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeletingTask ? 'Deleting...' : 'Delete Task'}</span>
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-modern-secondary px-4 py-2 text-xs font-semibold cursor-pointer"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </Modal>
 
@@ -1063,6 +1473,16 @@ export function TaskDetailModal({
       title="Finalize Group Task"
       message={`Finalize this collaborative task and award the collective bonus (+${bonusPts} pts) to all ${participantIds.length} participants?`}
       confirmLabel={isFinalizingBonus ? 'Finalizing...' : 'Finalize & Award Bonus'}
+    />
+
+    <ConfirmModal
+      isOpen={isConfirmDeleteOpen}
+      onClose={() => setIsConfirmDeleteOpen(false)}
+      onConfirm={handleDoDeleteTask}
+      title="Delete Task"
+      message={`Are you sure you want to permanently delete "${task.title}"? Any proof submissions attached to this task will also be removed. This action cannot be undone.`}
+      confirmLabel={isDeletingTask ? 'Deleting...' : 'Delete Task'}
+      destructive={true}
     />
   </>
   );

@@ -24,6 +24,7 @@ import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { DocumentThumbnail } from './DocumentThumbnail.js';
 import { DocumentPreviewModal } from './DocumentPreviewModal.js';
+import { DocumentsViewSkeleton } from '../common/Skeleton.js';
 
 interface ProjectDocumentsViewProps {
   project: Project;
@@ -413,10 +414,7 @@ export function ProjectDocumentsView({ project, onFilesChanged }: ProjectDocumen
 
       {/* Files Display Container */}
       {loading ? (
-        <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-          <RefreshCw className="w-6 h-6 animate-spin text-purple-400" />
-          <span className="text-xs font-mono">Loading shared project documents...</span>
-        </div>
+        <DocumentsViewSkeleton viewMode={viewMode} />
       ) : error ? (
         <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />

@@ -19,6 +19,7 @@ import { StatusBadge } from '../common/Badges.js';
 import { EmptyState } from '../common/EmptyState.js';
 import { ProjectCreateModal } from './ProjectCreateModal.js';
 import { ConfirmModal } from '../common/Modal.js';
+import { ProjectGridSkeleton } from '../common/Skeleton.js';
 import { PROJECT_STATUSES, ProjectStatus } from '../../../shared/const.js';
 
 interface ProjectDashboardProps {
@@ -60,6 +61,14 @@ export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
 
   useEffect(() => {
     fetchData();
+  }, [user?.id, role]);
+
+  useEffect(() => {
+    const onAiMutated = () => {
+      fetchData();
+    };
+    window.addEventListener('nexora:ai-mutated', onAiMutated);
+    return () => window.removeEventListener('nexora:ai-mutated', onAiMutated);
   }, []);
 
   const canCreate = !!user;
@@ -136,10 +145,16 @@ export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
       {/* Top Banner / Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-sharp font-bold text-slate-100 tracking-tight flex items-center gap-3">
-            <span>Projects Workspace</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.85)] animate-pulse hidden sm:inline-block" />
-          </h1>
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-2xl sm:text-3xl font-sharp font-bold text-slate-100 tracking-tight">
+              Projects
+            </h1>
+            {!loading && (
+              <span className="text-xs font-mono text-slate-400 tabular-nums">
+                {projects.filter((p) => p.status === 'active').length} active · {projects.length} total
+              </span>
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 font-sans">
             Scoped initiatives with coordinated tasks, milestones, and verifiable proof of work.
           </p>
@@ -152,9 +167,9 @@ export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
               setEditingProject(null);
               setIsCreateOpen(true);
             }}
-            className="btn-modern-primary px-4 py-2.5 text-xs flex items-center gap-2 group cursor-pointer shadow-lg shadow-cyan-950/40"
+            className="btn-modern-primary px-4 py-2.5 text-xs inline-flex items-center gap-2 group cursor-pointer whitespace-nowrap shrink-0"
           >
-            <Plus className="w-4 h-4 text-slate-950 transition-transform duration-300 group-hover:scale-125 group-hover:rotate-90" />
+            <Plus className="w-4 h-4 text-slate-950 transition-transform duration-200 group-hover:scale-110" />
             <span>Create New Project</span>
           </button>
         )}
@@ -208,9 +223,7 @@ export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
 
       {/* Projects Grid */}
       {loading ? (
-        <div className="p-12 text-center text-slate-500 font-mono text-xs">
-          Loading workspace projects...
-        </div>
+        <ProjectGridSkeleton count={6} />
       ) : filteredProjects.length === 0 ? (
         <EmptyState
           icon={FolderGit2}
@@ -269,13 +282,13 @@ export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-[#121b36] flex items-center justify-between text-xs text-slate-400">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.7)]" />
-                    <span className="truncate max-w-[140px] text-slate-300 font-medium">{team?.name || 'Assigned Team'}</span>
+                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
+                    <span className="truncate max-w-[150px] text-slate-300 font-medium">{team?.name || 'Assigned Team'}</span>
                   </div>
 
-                  <span className="font-mono text-[11px] text-slate-400">
+                  <span className="font-mono text-[11px] text-slate-400 tabular-nums shrink-0">
                     {new Date(project.deadline).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                   </span>
                 </div>

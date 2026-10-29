@@ -19,6 +19,7 @@ import {
 import { api } from '../../lib/api.js';
 import { Project, ProjectInvitation, UserRole } from '../../../shared/types.js';
 import { RoleBadge } from '../common/Badges.js';
+import { InvitationListSkeleton } from '../common/Skeleton.js';
 
 interface TeamInvitationModalProps {
   project: Project;
@@ -409,9 +410,7 @@ export function TeamInvitationModal({ project, isOpen, onClose, onInvitationCrea
               </div>
 
               {loadingInvites ? (
-                <div className="py-8 text-center text-xs font-mono text-slate-500">
-                  Loading project invitations...
-                </div>
+                <InvitationListSkeleton count={3} />
               ) : invitations.length === 0 ? (
                 <div className="py-8 text-center text-xs font-mono text-slate-500 bg-[#090b17] rounded-2xl border border-[#1f2345] p-6">
                   No active or past invitations found for this project yet.

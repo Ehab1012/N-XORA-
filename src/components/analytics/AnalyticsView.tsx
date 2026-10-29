@@ -3,6 +3,7 @@ import { BarChart3, Trophy, CheckCircle2, FileCheck2, Activity, FolderGit2 } fro
 import { Project, ProjectAnalytics } from '../../../shared/types.js';
 import { api } from '../../lib/api.js';
 import { ProjectAnalyticsView } from '../projects/ProjectAnalyticsView.js';
+import { AnalyticsViewSkeleton } from '../common/Skeleton.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
 
 export function AnalyticsView() {
@@ -22,11 +23,7 @@ export function AnalyticsView() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="p-12 text-center text-slate-500 font-mono text-xs">
-        Compiling merit scores across workspace initiatives...
-      </div>
-    );
+    return <AnalyticsViewSkeleton />;
   }
 
   return (

@@ -27,6 +27,7 @@ import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { RoleBadge } from '../common/Badges.js';
 import { Modal, ConfirmModal } from '../common/Modal.js';
+import { TeamsViewSkeleton } from '../common/Skeleton.js';
 import { MemberProfileModal } from '../profile/MemberProfileModal.js';
 
 interface TeamsViewProps {
@@ -90,6 +91,14 @@ export function TeamsView({
 
   useEffect(() => {
     fetchData();
+  }, [user?.id, role]);
+
+  useEffect(() => {
+    const onAiMutated = () => {
+      fetchData();
+    };
+    window.addEventListener('nexora:ai-mutated', onAiMutated);
+    return () => window.removeEventListener('nexora:ai-mutated', onAiMutated);
   }, []);
 
   const handleOpenProfile = (uId: string) => {
@@ -194,11 +203,7 @@ export function TeamsView({
   }, [users, debouncedProfileSearch, roleFilter, departmentFilter]);
 
   if (loading) {
-    return (
-      <div className="p-12 text-center text-slate-500 font-mono text-xs">
-        Loading teams and membership roster...
-      </div>
-    );
+    return <TeamsViewSkeleton />;
   }
 
   return (
@@ -617,7 +622,7 @@ export function TeamsView({
                         <button
                           type="button"
                           onClick={() => handleOpenProfile(member.id)}
-                          title={isCurrentUser ? 'Award bonus points to yourself' : `Award Leader Merit Bonus to ${member.name}`}
+                          title={isCurrentUser ? 'Award bonus points to yourself' : `Award Merit Bonus to ${member.name}`}
                           className="px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                         >
                           <Award className="w-3 h-3 text-amber-400" />

@@ -27,7 +27,7 @@ export function RoleBadge({ role }: { role: UserRole }) {
   return (
     <span
       id={`role-badge-${role}`}
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border ${c.bg} ${c.text} ${c.border} tracking-wide shadow-sm`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border whitespace-nowrap shrink-0 ${c.bg} ${c.text} ${c.border} tracking-wide shadow-sm`}
     >
       {c.label}
     </span>
@@ -54,25 +54,29 @@ export function StatusBadge({ status }: { status: TaskStatus | ProjectStatus }) 
   const item = map[status] || { label: status, bg: 'bg-slate-800', text: 'text-slate-300', border: 'border-slate-700', dot: 'bg-slate-400' };
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${item.bg} ${item.text} ${item.border}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${item.dot}`} />
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap shrink-0 ${item.bg} ${item.text} ${item.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.dot}`} />
       <span>{item.label}</span>
     </span>
   );
 }
 
-export function PriorityBadge({ priority }: { priority: TaskPriority }) {
-  const styles: Record<TaskPriority, { label: string; text: string; bg: string; border: string }> = {
-    low: { label: 'Low', text: 'text-slate-400', bg: 'bg-slate-900/60', border: 'border-slate-800' },
-    medium: { label: 'Medium', text: 'text-blue-300', bg: 'bg-blue-950/50', border: 'border-blue-500/30' },
-    high: { label: 'High', text: 'text-amber-300', bg: 'bg-amber-950/50', border: 'border-amber-500/30' },
-    urgent: { label: 'Urgent', text: 'text-red-300', bg: 'bg-red-950/60', border: 'border-red-500/40' },
+export function PriorityBadge({ priority, showPoints = true }: { priority: TaskPriority; showPoints?: boolean }) {
+  const styles: Record<TaskPriority, { label: string; points: number; text: string; bg: string; border: string }> = {
+    low: { label: 'Low', points: 15, text: 'text-slate-400', bg: 'bg-slate-900/60', border: 'border-slate-800' },
+    medium: { label: 'Medium', points: 25, text: 'text-blue-300', bg: 'bg-blue-950/50', border: 'border-blue-500/30' },
+    high: { label: 'High', points: 40, text: 'text-amber-300', bg: 'bg-amber-950/50', border: 'border-amber-500/30' },
+    urgent: { label: 'Urgent', points: 60, text: 'text-red-300', bg: 'bg-red-950/60', border: 'border-red-500/40' },
   };
 
   const p = styles[priority] || styles.medium;
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium border ${p.bg} ${p.text} ${p.border}`}>
-      {p.label}
+    <span
+      title={`Priority: ${p.label} (+${p.points} points awarded)`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium border whitespace-nowrap shrink-0 tabular-nums ${p.bg} ${p.text} ${p.border}`}
+    >
+      <span>{p.label}</span>
+      {showPoints && <span className="text-[10px] font-bold opacity-80 font-mono">+{p.points}pts</span>}
     </span>
   );
 }
@@ -87,7 +91,7 @@ export function ProofBadge({ status }: { status: ProofStatus }) {
 
   const p = map[status] || map.pending;
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${p.bg} ${p.text} ${p.border}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap shrink-0 ${p.bg} ${p.text} ${p.border}`}>
       {p.label}
     </span>
   );

@@ -100,6 +100,77 @@ async function deleteFileChunks(fileId: string) {
   }
 }
 
+async function resolveStoredFileDataUrl(fileIdOrUrl: string): Promise<string> {
+  if (!fileIdOrUrl) return '';
+  if (fileIdOrUrl.startsWith('data:')) return fileIdOrUrl;
+
+  const match = fileIdOrUrl.match(/\/api\/files\/([^/?#]+)\/content/);
+  const id = match ? match[1] : fileIdOrUrl.trim();
+  if (!id || id.startsWith('/')) return '';
+
+  let fullDataUrl = inMemoryFileContent.get(id) || '';
+
+  // 1. Check local file chunks cache
+  if (!fullDataUrl) {
+    const localChunkPath = path.join(process.cwd(), 'data', 'file_chunks', `${id}.txt`);
+    if (fs.existsSync(localChunkPath)) {
+      try {
+        fullDataUrl = fs.readFileSync(localChunkPath, 'utf-8');
+      } catch {
+        // ignore and fallback
+      }
+    }
+  }
+
+  // 2. Check in-memory/db.files record for inline dataUrl
+  if (!fullDataUrl) {
+    const data = db.getRawData();
+    const fileRecord = data.files.find((f) => f.id === id);
+    if (fileRecord && fileRecord.dataUrl && (fileRecord.dataUrl.startsWith('data:') || fileRecord.dataUrl.startsWith('http'))) {
+      fullDataUrl = fileRecord.dataUrl;
+    } else {
+      const resRecord = data.resources.find((r) => r.id === id || r.fileId === id);
+      if (resRecord) {
+        const cand = resRecord.dataUrl || resRecord.url;
+        if (cand && (cand.startsWith('data:') || cand.startsWith('http'))) {
+          fullDataUrl = cand;
+        }
+      }
+    }
+  }
+
+  // 3. Fallback to Firestore chunks if not found locally
+  if (!fullDataUrl) {
+    let index = 0;
+    let keepGoing = true;
+
+    while (keepGoing) {
+      const batchIndices: number[] = [];
+      for (let k = 0; k < 20; k++) {
+        batchIndices.push(index + k);
+      }
+      const chunkDocs = await Promise.all(
+        batchIndices.map((idx) => getDoc(doc(firestore, CURRENT_CHUNKS_COLLECTION_NAME, id + '_' + idx)))
+      );
+
+      for (const chunkDoc of chunkDocs) {
+        if (!chunkDoc.exists()) {
+          keepGoing = false;
+          break;
+        }
+        fullDataUrl += chunkDoc.data().data;
+        index++;
+      }
+    }
+  }
+
+  if (fullDataUrl && fullDataUrl.startsWith('data:')) {
+    inMemoryFileContent.set(id, fullDataUrl);
+  }
+
+  return fullDataUrl;
+}
+
 import { chatWithGemini } from './gemini.js';
 import {
   AuthenticatedRequest,
@@ -117,8 +188,13 @@ import {
   calculateWorkspaceLeaderboard,
   calculateAllWorkspaceScores,
 } from './analytics.js';
-import { ROLES, PRODUCT_NAME } from '../shared/const.js';
-import { UserRole, TaskStatus, Task, ProjectInvitation, BonusAward } from '../shared/types.js';
+import {
+  ROLES,
+  PRODUCT_NAME,
+  TASK_PRIORITY_POINTS,
+  calculateTaskPointsByDates,
+} from '../shared/const.js';
+import { UserRole, TaskStatus, TaskPriority, Task, ProjectInvitation, BonusAward, ChatAttachment } from '../shared/types.js';
 import { realtimeHub } from './realtime.js';
 
 export const apiRouter = Router();
@@ -300,7 +376,7 @@ apiRouter.post('/environment/promote-to-published', requireAuth, requireRole([RO
 });
 
 // ----------------------------------------------------
-// AI Chat Endpoint (Gemini Multi-Turn Co-Pilot)
+// AI Chat Endpoint (Gemini Multi-Turn Multimodal Co-Pilot)
 // ----------------------------------------------------
 apiRouter.post('/ai/chat', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { messages, systemInstruction, modelType, projectId } = req.body;
@@ -310,26 +386,54 @@ apiRouter.post('/ai/chat', requireAuth, async (req: AuthenticatedRequest, res: R
     return;
   }
 
+  const lastMessage = messages[messages.length - 1];
+  const hasLastText = typeof lastMessage?.content === 'string' && lastMessage.content.trim().length > 0;
+  const hasLastAttachments = Array.isArray(lastMessage?.attachments) && lastMessage.attachments.length > 0;
+  if (!hasLastText && !hasLastAttachments) {
+    res.status(400).json({ error: 'A message prompt or at least one picture/file attachment is required' });
+    return;
+  }
+
   let projectContext = '';
   if (projectId) {
     const data = db.getRawData();
     const proj = data.projects.find((p) => p.id === projectId);
-    if (proj) {
-      const projTasks = data.tasks.filter((t) => t.projectId === projectId);
+    const canViewProj =
+      proj &&
+      (req.role !== 'member' ||
+        proj.visibility !== 'private_assigned' ||
+        proj.memberIds.includes(req.user!.id) ||
+        proj.leaderId === req.user!.id);
+
+    if (proj && canViewProj) {
+      const userMap = new Map(data.users.map((u) => [u.id, u.name]));
+      const allProjTasks = data.tasks.filter((t) => t.projectId === projectId);
+      const projTasks =
+        req.role === 'member'
+          ? allProjTasks.filter(
+              (t) =>
+                t.assigneeId === req.user!.id ||
+                t.creatorId === req.user!.id ||
+                (t.isGroupTask && Array.isArray(t.participantIds) && t.participantIds.includes(req.user!.id))
+            )
+          : allProjTasks;
       const projMilestones = data.milestones.filter((m) => m.projectId === projectId);
       const projMembers = data.users.filter((u) => proj.memberIds.includes(u.id));
 
       projectContext = `
-Project Name: ${proj.title}
+Project Name: ${proj.title} (ID: ${proj.id})
 Description: ${proj.description}
 Status: ${proj.status}
 Members: ${projMembers.map((m) => `${m.name} (${m.role})`).join(', ')}
-Total Tasks: ${projTasks.length}
-Completed Tasks: ${projTasks.filter((t) => t.status === 'complete').length}
-Pending Tasks: ${projTasks
+Visible Tasks (${projTasks.length}): ${projTasks
         .filter((t) => t.status !== 'complete')
-        .map((t) => `"${t.title}" (${t.priority} priority, assigned to ${t.assigneeId || 'Unassigned'})`)
-        .slice(0, 10)
+        .map(
+          (t) =>
+            `"${t.title}" (${t.priority} priority, status: ${t.status}, assigned to ${
+              t.assigneeId ? userMap.get(t.assigneeId) || t.assigneeId : t.isGroupTask ? 'Group' : 'Unassigned'
+            })`
+        )
+        .slice(0, 12)
         .join('; ')}
 Milestones: ${projMilestones.map((m) => `${m.title} (${m.status})`).join(', ')}
 `.trim();
@@ -337,13 +441,50 @@ Milestones: ${projMilestones.map((m) => `${m.title} (${m.status})`).join(', ')}
   }
 
   try {
-    const reply = await chatWithGemini({
-      messages,
+    const hydratedMessages = await Promise.all(
+      messages.map(async (m: { role: 'user' | 'model' | 'assistant'; content?: string; attachments?: ChatAttachment[] }) => {
+        if (!Array.isArray(m.attachments) || m.attachments.length === 0) {
+          return {
+            role: m.role,
+            content: typeof m.content === 'string' ? m.content : '',
+          };
+        }
+
+        const resolvedAttachments = await Promise.all(
+          m.attachments.map(async (att) => {
+            if (att.dataUrl && att.dataUrl.startsWith('data:')) {
+              return att;
+            }
+            const lookupTarget = att.dataUrl || att.fileUrl || att.id || '';
+            const resolvedDataUrl = lookupTarget ? await resolveStoredFileDataUrl(lookupTarget) : '';
+            return {
+              ...att,
+              dataUrl: resolvedDataUrl || att.dataUrl,
+            };
+          })
+        );
+
+        return {
+          role: m.role,
+          content: typeof m.content === 'string' ? m.content : '',
+          attachments: resolvedAttachments,
+        };
+      })
+    );
+
+    const { reply, modelUsed, executedActions } = await chatWithGemini({
+      messages: hydratedMessages,
       systemInstruction,
       modelType,
       projectContext,
+      actor: {
+        user: req.user!,
+        role: req.role!,
+        workspace: req.workspace!,
+        activeProjectId: typeof projectId === 'string' && projectId.trim() ? projectId.trim() : undefined,
+      },
     });
-    res.json({ reply, timestamp: new Date().toISOString() });
+    res.json({ reply, modelUsed, executedActions, timestamp: new Date().toISOString() });
   } catch (err: any) {
     console.error('AI Chat Endpoint Error:', err);
     res.status(500).json({ error: err.message || 'Failed to interact with Gemini AI' });
@@ -837,9 +978,13 @@ apiRouter.get('/users/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
       };
     });
 
-  // Find all tasks assigned to this member
+  // Find all tasks assigned to this member (including collaborative group tasks)
   const memberTasks = data.tasks
-    .filter((t) => t.assigneeId === id)
+    .filter(
+      (t) =>
+        t.assigneeId === id ||
+        (t.isGroupTask && Array.isArray(t.participantIds) && t.participantIds.includes(id))
+    )
     .map((t) => {
       const proj = projectsById.get(t.projectId);
       return {
@@ -1110,12 +1255,13 @@ apiRouter.delete('/users/:id', requireAuth, requireRole([ROLES.LEADER]), async (
 });
 
 // ----------------------------------------------------
-// Award Merit Bonus to a Co-Leader or Member (Leader-exclusive feature)
+// Award Merit Bonus to a Co-Leader or Member (Leader & Co-Leader authorized feature)
 // ----------------------------------------------------
-apiRouter.post('/users/:id/bonus', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+apiRouter.post('/users/:id/bonus', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const currentUserId = req.user!.id;
   const currentUserName = req.user!.name;
+  const actorRoleTitle = req.role === ROLES.CO_LEADER ? 'Co-Leader' : 'Leader';
   const { points, reason, projectId } = req.body;
 
   const bonusPoints = Number(points);
@@ -1137,7 +1283,7 @@ apiRouter.post('/users/:id/bonus', requireAuth, requireRole([ROLES.LEADER]), asy
   }
 
   const isSelfAward = targetUser.id === currentUserId;
-  const bonusReason = typeof reason === 'string' && reason.trim() ? reason.trim() : (isSelfAward ? 'Leader Self-Awarded Merit Bonus' : 'Leader Discretionary Merit Bonus');
+  const bonusReason = typeof reason === 'string' && reason.trim() ? reason.trim() : (isSelfAward ? `${actorRoleTitle} Self-Awarded Merit Bonus` : `${actorRoleTitle} Discretionary Merit Bonus`);
 
   const bonusAward: BonusAward = {
     id: `ba_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -1168,7 +1314,7 @@ apiRouter.post('/users/:id/bonus', requireAuth, requireRole([ROLES.LEADER]), asy
       title: '🌟 Bonus Points Awarded!',
       message: isSelfAward
         ? `You awarded yourself a +${bonusPoints} pts leadership bonus! (${bonusReason})`
-        : `Leader ${currentUserName} awarded you a +${bonusPoints} pts merit bonus! (${bonusReason})`,
+        : `${actorRoleTitle} ${currentUserName} awarded you a +${bonusPoints} pts merit bonus! (${bonusReason})`,
       type: 'score_bonus',
       isRead: false,
       createdAt: new Date().toISOString(),
@@ -1184,8 +1330,8 @@ apiRouter.post('/users/:id/bonus', requireAuth, requireRole([ROLES.LEADER]), asy
     projectId: projectId || 'workspace',
     title: 'Merit Bonus Awarded',
     message: isSelfAward
-      ? `Leader ${currentUserName} awarded themselves +${bonusPoints} bonus points!`
-      : `Leader ${currentUserName} awarded +${bonusPoints} bonus points to ${targetUser.name} (${targetUser.role === 'co-leader' ? 'Co-Leader' : 'Member'})!`,
+      ? `${actorRoleTitle} ${currentUserName} awarded themselves +${bonusPoints} bonus points!`
+      : `${actorRoleTitle} ${currentUserName} awarded +${bonusPoints} bonus points to ${targetUser.name} (${targetUser.role === 'co-leader' ? 'Co-Leader' : targetUser.role === 'leader' ? 'Leader' : 'Member'})!`,
     entityId: targetUser.id,
     entityTitle: targetUser.name,
     actorName: currentUserName,
@@ -1200,8 +1346,8 @@ apiRouter.post('/users/:id/bonus', requireAuth, requireRole([ROLES.LEADER]), asy
     entityType: 'setting',
     entityId: targetUser.id,
     details: isSelfAward
-      ? `Leader ${currentUserName} awarded +${bonusPoints} bonus points to themselves. Reason: "${bonusReason}"`
-      : `Leader ${currentUserName} awarded +${bonusPoints} bonus points to ${targetUser.name} (${targetUser.role}). Reason: "${bonusReason}"`,
+      ? `${actorRoleTitle} ${currentUserName} awarded +${bonusPoints} bonus points to themselves. Reason: "${bonusReason}"`
+      : `${actorRoleTitle} ${currentUserName} awarded +${bonusPoints} bonus points to ${targetUser.name} (${targetUser.role}). Reason: "${bonusReason}"`,
   });
 
   // Calculate updated leaderboard / score for response
@@ -1988,9 +2134,9 @@ apiRouter.patch('/tasks/:id', requireAuth, async (req: AuthenticatedRequest, res
   const oldParticipants = existingTask.participantIds || [];
   let bonusTriggeredJustNow = false;
 
-  // Group task finalization & bonus awarding is strictly leader-only
-  if (existingTask.isGroupTask && updates.status === 'complete' && existingTask.status !== 'complete' && req.role !== ROLES.LEADER) {
-    res.status(403).json({ error: 'Only the Leader can finalize collaborative tasks and award completion bonuses.' });
+  // Group task finalization & bonus awarding is strictly leader or co-leader
+  if (existingTask.isGroupTask && updates.status === 'complete' && existingTask.status !== 'complete' && req.role !== ROLES.LEADER && req.role !== ROLES.CO_LEADER) {
+    res.status(403).json({ error: 'Only the Leader or Co-Leader can finalize collaborative tasks and award completion bonuses.' });
     return;
   }
 
@@ -2006,8 +2152,37 @@ apiRouter.patch('/tasks/:id', requireAuth, async (req: AuthenticatedRequest, res
         task.assigneeId = updates.assigneeId;
       }
     }
-    if (updates.priority) task.priority = updates.priority;
-    if (updates.dueDate) task.dueDate = updates.dueDate;
+    if (updates.priority && updates.priority !== task.priority) {
+      task.priority = updates.priority;
+      if (task.status === 'complete') {
+        const pointCalc = calculateTaskPointsByDates({
+          priority: task.priority,
+          dueDate: task.dueDate,
+          referenceDate: task.completedAt,
+          fallbackDaysLate: task.daysLate ?? (task.isLate ? 1 : 0),
+        });
+        task.isLate = !pointCalc.isOnTime;
+        task.daysLate = pointCalc.daysLate;
+        task.pointsAwarded = pointCalc.pointsAwarded;
+        task.latePenaltyApplied = pointCalc.penaltyPoints;
+        task.memberPenaltyApplied = pointCalc.memberPointsDeducted;
+      }
+    }
+    if (updates.dueDate) {
+      task.dueDate = updates.dueDate;
+      if (task.status === 'complete' && task.completedAt) {
+        const pointCalc = calculateTaskPointsByDates({
+          priority: task.priority,
+          dueDate: task.dueDate,
+          referenceDate: task.completedAt,
+        });
+        task.isLate = !pointCalc.isOnTime;
+        task.daysLate = pointCalc.daysLate;
+        task.pointsAwarded = pointCalc.pointsAwarded;
+        task.latePenaltyApplied = pointCalc.penaltyPoints;
+        task.memberPenaltyApplied = pointCalc.memberPointsDeducted;
+      }
+    }
     if (updates.milestoneId !== undefined) task.milestoneId = updates.milestoneId;
     if (Array.isArray(updates.tags)) task.tags = updates.tags;
     if (Array.isArray(updates.checklist)) task.checklist = updates.checklist;
@@ -2040,7 +2215,20 @@ apiRouter.patch('/tasks/:id', requireAuth, async (req: AuthenticatedRequest, res
     if (updates.status && updates.status !== task.status) {
       task.status = updates.status;
       if (updates.status === 'complete') {
-        task.completedAt = new Date().toISOString();
+        task.completedAt = task.completedAt || new Date().toISOString();
+        const associatedProof = data.proofSubmissions.find((p) => p.taskId === task.id);
+        const effectiveTurnInDate = associatedProof?.createdAt || task.completedAt;
+        const pointCalc = calculateTaskPointsByDates({
+          priority: task.priority,
+          dueDate: task.dueDate,
+          referenceDate: effectiveTurnInDate,
+        });
+        task.isLate = !pointCalc.isOnTime;
+        task.daysLate = pointCalc.daysLate;
+        task.pointsAwarded = pointCalc.pointsAwarded;
+        task.latePenaltyApplied = pointCalc.penaltyPoints;
+        task.memberPenaltyApplied = pointCalc.memberPointsDeducted;
+
         if (task.isGroupTask && !task.bonusAwarded) {
           task.bonusAwarded = true;
           task.bonusAwardedAt = new Date().toISOString();
@@ -2048,6 +2236,11 @@ apiRouter.patch('/tasks/:id', requireAuth, async (req: AuthenticatedRequest, res
         }
       } else {
         delete task.completedAt;
+        delete task.isLate;
+        delete task.daysLate;
+        delete task.pointsAwarded;
+        delete task.latePenaltyApplied;
+        delete task.memberPenaltyApplied;
         if (task.isGroupTask) {
           task.bonusAwarded = false;
           delete task.bonusAwardedAt;
@@ -2171,7 +2364,18 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: Authenticated
     return;
   }
 
-  const individualPts = existingTask.individualPoints || 35;
+  const submittedAtIso = new Date().toISOString();
+  const baseIndivPts = existingTask.individualPoints || TASK_PRIORITY_POINTS[existingTask.priority] || 35;
+  const subCalc = calculateTaskPointsByDates({
+    priority: existingTask.priority,
+    dueDate: existingTask.dueDate,
+    referenceDate: submittedAtIso,
+    customBasePoints: baseIndivPts,
+  });
+  const isSubmissionLate = !subCalc.isOnTime;
+  const individualPts = subCalc.pointsAwarded;
+  const latePenaltyDeduction = subCalc.penaltyPoints;
+  const memberOverflowDeduction = subCalc.memberPointsDeducted;
   const bonusPts = existingTask.groupBonusPoints || 60;
   let allMembersSubmitted = false;
   let bonusAwarded = false;
@@ -2198,20 +2402,28 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: Authenticated
         userAvatar: req.user!.avatarUrl,
         userRole: req.user!.role,
         status: 'submitted',
-        submittedAt: new Date().toISOString(),
+        submittedAt: submittedAtIso,
         note: note ? String(note).trim() : undefined,
         proofLinks: Array.isArray(proofLinks) ? proofLinks : (proofLinks ? [String(proofLinks).trim()] : []),
         pointsAwarded: individualPts,
+        isLate: isSubmissionLate,
+        daysLate: subCalc.daysLate,
+        latePenaltyApplied: latePenaltyDeduction,
+        memberPenaltyApplied: memberOverflowDeduction,
       };
       task.submissions.push(sub);
     } else {
       sub.status = 'submitted';
-      sub.submittedAt = new Date().toISOString();
+      sub.submittedAt = submittedAtIso;
       if (note !== undefined) sub.note = String(note).trim();
       if (proofLinks !== undefined) {
         sub.proofLinks = Array.isArray(proofLinks) ? proofLinks : (proofLinks ? [String(proofLinks).trim()] : []);
       }
       sub.pointsAwarded = individualPts;
+      sub.isLate = isSubmissionLate;
+      sub.daysLate = subCalc.daysLate;
+      sub.latePenaltyApplied = latePenaltyDeduction;
+      sub.memberPenaltyApplied = memberOverflowDeduction;
       sub.userName = currentUserName;
       sub.userAvatar = req.user!.avatarUrl;
     }
@@ -2231,9 +2443,9 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: Authenticated
     // If all members submitted, auto-complete the group task and distribute bonus points!
     if (allMembersSubmitted && task.status !== 'complete') {
       task.status = 'complete';
-      task.completedAt = new Date().toISOString();
+      task.completedAt = submittedAtIso;
       task.bonusAwarded = true;
-      task.bonusAwardedAt = new Date().toISOString();
+      task.bonusAwardedAt = submittedAtIso;
       bonusAwarded = true;
     }
 
@@ -2244,7 +2456,7 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: Authenticated
       }
     }
 
-    task.updatedAt = new Date().toISOString();
+    task.updatedAt = submittedAtIso;
     return task;
   });
 
@@ -2259,7 +2471,7 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: Authenticated
     type: 'task:status_changed',
     projectId: updatedTask.projectId,
     title: 'Group Task Contribution Submitted',
-    message: `${currentUserName} submitted their part for "${updatedTask.title}" and earned +${individualPts} points! (${updatedTask.submissions?.filter(s => s.status === 'submitted' || s.status === 'approved').length}/${updatedTask.participantIds?.length} members ready)`,
+    message: `${currentUserName} submitted their part for "${updatedTask.title}" (${isSubmissionLate ? `Late ${subCalc.daysLate}d · +${individualPts} pts` : `+${individualPts} pts`})! (${updatedTask.submissions?.filter(s => s.status === 'submitted' || s.status === 'approved').length}/${updatedTask.participantIds?.length} members ready)`,
     entityId: updatedTask.id,
     entityTitle: updatedTask.title,
     actorName: currentUserName,
@@ -2272,7 +2484,7 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: Authenticated
       id: `rt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       type: 'task:status_changed',
       projectId: updatedTask.projectId,
-      title: '🎉 All Group Members Completed!',
+      title: 'All Group Members Completed!',
       message: `All participants submitted work for "${updatedTask.title}"! Task is now complete and all ${(updatedTask.participantIds || []).length} members earned an extra +${bonusPts} bonus points!`,
       entityId: updatedTask.id,
       entityTitle: updatedTask.title,
@@ -2288,23 +2500,31 @@ apiRouter.post('/tasks/:id/group-submit', requireAuth, async (req: Authenticated
     action: 'Submitted group task contribution',
     entityType: 'task',
     entityId: updatedTask.id,
-    details: `${currentUserName} submitted contribution for "${updatedTask.title}" (+${individualPts} pts claimed)${bonusAwarded ? ` — Group task complete! (+${bonusPts} team bonus each)` : ''}`,
+    details: `${currentUserName} submitted contribution for "${updatedTask.title}" (+${individualPts} pts${isSubmissionLate ? `, ${subCalc.daysLate}d late: -${subCalc.taskPointsDeducted} task pts${memberOverflowDeduction > 0 ? `, -${memberOverflowDeduction} member score pts` : ''}` : ''})${bonusAwarded ? ` — Group task complete! (+${bonusPts} team bonus each)` : ''}`,
   });
 
   res.json({
     success: true,
     task: updatedTask,
     pointsAwarded: individualPts,
+    isLate: isSubmissionLate,
+    daysLate: subCalc.daysLate,
+    latePenaltyApplied: latePenaltyDeduction,
+    memberPenaltyApplied: memberOverflowDeduction,
     allMembersSubmitted,
     bonusAwarded,
-    message: bonusAwarded
+    message: isSubmissionLate
+      ? memberOverflowDeduction > 0
+        ? `Submitted ${subCalc.daysLate}d late: task points reached 0 (-${subCalc.taskPointsDeducted} task pts) and -${memberOverflowDeduction} pts were deducted from your total score.`
+        : `Submitted ${subCalc.daysLate}d late: earned +${individualPts} points (-${subCalc.taskPointsDeducted} pts daily late penalty applied).`
+      : bonusAwarded
       ? `You earned +${individualPts} individual points, and all members received +${bonusPts} collective bonus points!`
-      : `You earned +${individualPts} points for submitting your part!`,
+      : `You earned +${individualPts} points for submitting your part on time!`,
   });
 });
 
-// Finalize/Complete a group task directly (awarding team bonus) - Leader only
-apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+// Finalize/Complete a group task directly (awarding team bonus) - Leader or Co-Leader
+apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const rawData = db.getRawData();
   const existingTask = rawData.tasks.find((t) => t.id === id);
@@ -2315,6 +2535,7 @@ apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEAD
   }
 
   const bonusPts = existingTask.groupBonusPoints || 60;
+  const actorRoleTitle = req.role === ROLES.CO_LEADER ? 'Co-Leader' : 'Leader';
 
   const updatedTask = await db.mutateAsync((data) => {
     const task = data.tasks.find((t) => t.id === id);
@@ -2357,7 +2578,7 @@ apiRouter.post('/tasks/:id/group-complete', requireAuth, requireRole([ROLES.LEAD
     type: 'task:status_changed',
     projectId: updatedTask.projectId,
     title: 'Group Task Finalized & Team Bonus Awarded!',
-    message: `Leader ${req.user!.name} finalized group task "${updatedTask.title}"! All ${(updatedTask.participantIds || []).length} participants received +${bonusPts} extra bonus points!`,
+    message: `${actorRoleTitle} ${req.user!.name} finalized group task "${updatedTask.title}"! All ${(updatedTask.participantIds || []).length} participants received +${bonusPts} extra bonus points!`,
     entityId: updatedTask.id,
     entityTitle: updatedTask.title,
     actorName: req.user!.name,
@@ -2414,6 +2635,68 @@ apiRouter.post('/tasks/:id/group-review', requireAuth, requireRole([ROLES.LEADER
   }
 
   res.json({ success: true, task: updatedTask });
+});
+
+// Delete a task - strictly restricted to Leader and Co-Leader only
+apiRouter.delete('/tasks/:id', requireAuth, requireRole([ROLES.LEADER, ROLES.CO_LEADER]), async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const actorRoleTitle = req.role === ROLES.CO_LEADER ? 'Co-Leader' : 'Leader';
+
+  const deletedTask = await db.mutateAsync((data) => {
+    const idx = data.tasks.findIndex((t) => t.id === id);
+    if (idx === -1) return null;
+
+    const removed = data.tasks[idx];
+    data.tasks.splice(idx, 1);
+
+    // Clean up associated proof submissions for this deleted task
+    if (Array.isArray(data.proofSubmissions)) {
+      data.proofSubmissions = data.proofSubmissions.filter((p) => p.taskId !== id);
+    }
+
+    // Remove unread notifications linking directly to the deleted task
+    if (Array.isArray(data.notifications)) {
+      data.notifications = data.notifications.filter(
+        (n) => !(n.link && n.link.includes(`task=${id}`) && !n.isRead)
+      );
+    }
+
+    // Re-evaluate associated milestone completion if remaining milestone tasks are complete
+    if (removed.milestoneId) {
+      checkAndCompleteMilestone(data, removed.projectId, removed.milestoneId, req.user!.name);
+    }
+
+    return removed;
+  });
+
+  if (!deletedTask) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+
+  realtimeHub.broadcast(deletedTask.projectId, {
+    id: `rt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    type: 'task:deleted',
+    projectId: deletedTask.projectId,
+    title: 'Task Deleted',
+    message: `${actorRoleTitle} ${req.user!.name} deleted task "${deletedTask.title}"`,
+    entityId: deletedTask.id,
+    entityTitle: deletedTask.title,
+    actorName: req.user!.name,
+    timestamp: new Date().toISOString(),
+  });
+
+  logActivity({
+    workspaceId: req.workspace!.id,
+    projectId: deletedTask.projectId,
+    userId: req.user!.id,
+    action: 'Deleted task',
+    entityType: 'task',
+    entityId: id,
+    details: `${actorRoleTitle} ${req.user!.name} deleted task "${deletedTask.title}"`,
+  });
+
+  res.json({ success: true, deletedId: id });
 });
 
 // ----------------------------------------------------
@@ -2609,11 +2892,12 @@ apiRouter.post('/proofs', requireAuth, rateLimit(20, 60000), async (req: Authent
     };
     data.proofSubmissions.unshift(proof);
 
-    // Update task status to in_review
+    // Update task status to in_review and stamp turn-in time
     const task = data.tasks.find((t) => t.id === taskId);
     if (task) {
       task.status = 'in_review';
       task.proofSubmittedId = proofId;
+      task.updatedAt = proof.createdAt;
     }
 
     // Add notification for project leader
@@ -2686,7 +2970,19 @@ apiRouter.post('/proofs/:id/review', requireAuth, requireRole([ROLES.LEADER, ROL
     if (task) {
       if (action === 'approved') {
         task.status = 'complete';
-        task.completedAt = new Date().toISOString();
+        task.completedAt = task.completedAt || new Date().toISOString();
+        const effectiveTurnInDate = proof.createdAt || task.completedAt;
+        const pointCalc = calculateTaskPointsByDates({
+          priority: task.priority,
+          dueDate: task.dueDate,
+          referenceDate: effectiveTurnInDate,
+        });
+        task.isLate = !pointCalc.isOnTime;
+        task.daysLate = pointCalc.daysLate;
+        task.pointsAwarded = pointCalc.pointsAwarded;
+        task.latePenaltyApplied = pointCalc.penaltyPoints;
+        task.memberPenaltyApplied = pointCalc.memberPointsDeducted;
+
         if (task.isGroupTask && Array.isArray(task.participantIds)) {
           createMilestoneReachedNotifications(data, task.title, task.projectId, task.participantIds, true, task.id);
         }
@@ -2695,8 +2991,20 @@ apiRouter.post('/proofs/:id/review', requireAuth, requireRole([ROLES.LEADER, ROL
         }
       } else if (action === 'changes_requested') {
         task.status = 'in_progress';
+        delete task.completedAt;
+        delete task.isLate;
+        delete task.daysLate;
+        delete task.pointsAwarded;
+        delete task.latePenaltyApplied;
+        delete task.memberPenaltyApplied;
       } else if (action === 'rejected') {
         task.status = 'blocked';
+        delete task.completedAt;
+        delete task.isLate;
+        delete task.daysLate;
+        delete task.pointsAwarded;
+        delete task.latePenaltyApplied;
+        delete task.memberPenaltyApplied;
       }
     }
 
@@ -2798,6 +3106,81 @@ apiRouter.post('/resources', requireAuth, async (req: AuthenticatedRequest, res:
   });
 
   res.status(201).json(newResource);
+});
+
+apiRouter.get('/resources/:id/content', async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const data = db.getRawData();
+  const resource = data.resources.find((r) => r.id === id);
+  if (!resource) {
+    res.status(404).send('Resource not found');
+    return;
+  }
+
+  // 1. Check inMemoryFileContent
+  let fullDataUrl = inMemoryFileContent.get(id) || '';
+
+  // 2. Check local file chunks
+  if (!fullDataUrl) {
+    const localChunkPath = path.join(process.cwd(), 'data', 'file_chunks', `${id}.txt`);
+    if (fs.existsSync(localChunkPath)) {
+      try {
+        fullDataUrl = fs.readFileSync(localChunkPath, 'utf-8');
+      } catch (err) {}
+    }
+  }
+
+  // 3. Check resource dataUrl / url
+  if (!fullDataUrl) {
+    const cand = resource.dataUrl || resource.url;
+    if (cand && (cand.startsWith('data:') || cand.startsWith('http'))) {
+      fullDataUrl = cand;
+    }
+  }
+
+  // 4. Fallback to fileId
+  if (!fullDataUrl && resource.fileId) {
+    const file = data.files.find((f) => f.id === resource.fileId);
+    if (file && file.dataUrl && (file.dataUrl.startsWith('data:') || file.dataUrl.startsWith('http'))) {
+      fullDataUrl = file.dataUrl;
+    }
+  }
+
+  if (!fullDataUrl) {
+    if (resource.description) {
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+      res.setHeader('Content-Disposition', 'inline');
+      res.send(`# ${resource.title}\n\n${resource.description}`);
+      return;
+    }
+    res.status(404).send('Resource file content not available');
+    return;
+  }
+
+  if (fullDataUrl.startsWith('data:')) {
+    const commaIdx = fullDataUrl.indexOf(',');
+    if (commaIdx !== -1) {
+      const meta = fullDataUrl.substring(5, commaIdx);
+      const raw = fullDataUrl.substring(commaIdx + 1);
+      const isBase64 = meta.includes(';base64');
+      const mime = resource.fileType || meta.split(';')[0] || 'application/octet-stream';
+      const buffer = isBase64 ? Buffer.from(raw, 'base64') : Buffer.from(decodeURIComponent(raw), 'utf-8');
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.send(buffer);
+      return;
+    }
+  }
+
+  if (fullDataUrl.startsWith('http://') || fullDataUrl.startsWith('https://')) {
+    res.redirect(fullDataUrl);
+    return;
+  }
+
+  res.setHeader('Content-Type', resource.fileType || 'text/plain; charset=utf-8');
+  res.setHeader('Content-Disposition', 'inline');
+  res.send(fullDataUrl);
 });
 
 apiRouter.delete('/resources/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
@@ -3229,54 +3612,7 @@ apiRouter.post('/onboarding/dismiss', requireAuth, async (req: AuthenticatedRequ
 apiRouter.get('/files/:id/content', async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   try {
-    let fullDataUrl = inMemoryFileContent.get(id) || '';
-
-    // 1. Check local file chunks cache
-    if (!fullDataUrl) {
-      const localChunkPath = path.join(process.cwd(), 'data', 'file_chunks', `${id}.txt`);
-      if (fs.existsSync(localChunkPath)) {
-        try {
-          fullDataUrl = fs.readFileSync(localChunkPath, 'utf-8');
-        } catch (err) {
-          // ignore and fallback
-        }
-      }
-    }
-
-    // 2. Check in-memory/db.files record for inline dataUrl
-    if (!fullDataUrl) {
-      const data = db.getRawData();
-      const fileRecord = data.files.find((f) => f.id === id);
-      if (fileRecord && fileRecord.dataUrl && (fileRecord.dataUrl.startsWith('data:') || fileRecord.dataUrl.startsWith('http'))) {
-        fullDataUrl = fileRecord.dataUrl;
-      }
-    }
-
-    // 3. Fallback to Firestore chunks if not found locally
-    if (!fullDataUrl) {
-      let index = 0;
-      let keepGoing = true;
-
-      // Fetch chunks in parallel batches of 20 for high performance
-      while (keepGoing) {
-        const batchIndices = [];
-        for (let k = 0; k < 20; k++) {
-          batchIndices.push(index + k);
-        }
-        const chunkDocs = await Promise.all(
-          batchIndices.map((idx) => getDoc(doc(firestore, CURRENT_CHUNKS_COLLECTION_NAME, id + '_' + idx)))
-        );
-
-        for (const chunkDoc of chunkDocs) {
-          if (!chunkDoc.exists()) {
-            keepGoing = false;
-            break;
-          }
-          fullDataUrl += chunkDoc.data().data;
-          index++;
-        }
-      }
-    }
+    const fullDataUrl = await resolveStoredFileDataUrl(id);
 
     if (!fullDataUrl) {
       res.status(404).send('File not found');
@@ -3284,12 +3620,16 @@ apiRouter.get('/files/:id/content', async (req: AuthenticatedRequest, res: Respo
     }
 
     if (fullDataUrl.startsWith('data:')) {
-      const match = fullDataUrl.match(/^data:(.*?);base64,(.*)$/);
-      if (match) {
-        const mime = match[1];
-        const buffer = Buffer.from(match[2], 'base64');
+      const commaIdx = fullDataUrl.indexOf(',');
+      if (commaIdx !== -1) {
+        const meta = fullDataUrl.substring(5, commaIdx);
+        const raw = fullDataUrl.substring(commaIdx + 1);
+        const isBase64 = meta.includes(';base64');
+        const mime = meta.split(';')[0] || 'application/octet-stream';
+        const buffer = isBase64 ? Buffer.from(raw, 'base64') : Buffer.from(decodeURIComponent(raw), 'utf-8');
         res.setHeader('Content-Type', mime);
         res.setHeader('Content-Disposition', 'inline');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
         res.send(buffer);
         return;
       }

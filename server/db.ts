@@ -373,6 +373,9 @@ const INITIAL_DATA: DatabaseSchema = {
       updatedAt: '2026-08-09T17:30:00.000Z',
       completedAt: '2026-08-09T17:30:00.000Z',
       proofSubmittedId: 'proof_101',
+      pointsAwarded: 40,
+      isLate: false,
+      latePenaltyApplied: 0,
     },
     {
       id: 'task_aurora_102',
@@ -561,11 +564,63 @@ const INITIAL_DATA: DatabaseSchema = {
       id: 'res_1',
       projectId: 'proj_aurora',
       title: 'Aurora Protocol Cryptographic RFC v3.4',
-      description: 'Formal mathematical specifications of state verification and consensus handshakes.',
-      url: 'https://docs.internal.nexora/rfc-aurora-3.4.pdf',
+      description: 'Formal mathematical specifications of state verification, Ed25519 SIMD batching, and Raft consensus handshakes.',
+      fileName: 'aurora-crypto-rfc-v3.4.md',
+      fileType: 'text/markdown',
+      fileSize: 3840,
+      url: '/api/resources/res_1/content',
+      dataUrl: 'data:text/markdown;base64,' + Buffer.from(
+`# Aurora Protocol Cryptographic RFC v3.4
+**Status**: APPROVED & ACTIVE • **Security Level**: Critical • **Version**: 3.4.1
+
+---
+
+## 1. Abstract & Mathematical Model
+The Aurora Core Protocol specifies a Byzantine fault-tolerant state-verification mesh capable of processing sub-millisecond cryptographic attestations across distributed edge gateways.
+
+$$\\mathcal{S}_{t+1} = \\mathcal{H}(\\mathcal{S}_t \\parallel \\sum_{i=1}^{N} \\sigma_i(m))$$
+
+Where:
+- $\\mathcal{S}_t$ denotes the consensus state root at epoch $t$.
+- $\\sigma_i(m)$ represents the Ed25519 signature batch over transaction vector $m$.
+- $\\mathcal{H}$ is the Blake3 BLAKE3-256 state tree hasher.
+
+---
+
+## 2. SIMD Batch Verification Architecture
+To achieve high-throughput telemetry handling without CPU saturation:
+- Signatures are accumulated into 64-element vectors.
+- AVX-512 vector extensions verify 16 Ed25519 point multiplications in parallel.
+- Average throughput: **59,800 ops/sec** (4.2x speedup over scalar baseline).
+
+\`\`\`rust
+// Zero-allocation SIMD batch verification entrypoint
+#[inline(always)]
+pub fn verify_signature_batch(
+    keys: &[PublicKey; 64],
+    signatures: &[Signature; 64],
+    messages: &[&[u8]; 64],
+) -> Result<BitMask64, CryptoError> {
+    let mut bitmask = BitMask64::all_valid();
+    ed25519_dalek::verify_batch_avx512(keys, signatures, messages, &mut bitmask)?;
+    Ok(bitmask)
+}
+\`\`\`
+
+---
+
+## 3. Network Failure Recovery Guarantees
+| Scenario | Detection Time | Convergence Latency | Zero Data Loss |
+|---|---|---|---|
+| Edge Partition | < 80ms | 280ms | GUARANTEED |
+| Gateway Crash | < 120ms | 340ms | GUARANTEED |
+| Byzantine Actor | Immediate (0ms) | Instant Drop | GUARANTEED |
+`
+      ).toString('base64'),
       category: 'specification',
       createdById: 'usr_leader',
       permissionScope: 'workspace',
+      tags: ['crypto', 'rfc', 'simd', 'consensus'],
       createdAt: '2026-02-11T10:00:00.000Z',
       updatedAt: '2026-08-12T14:00:00.000Z',
     },
@@ -573,11 +628,137 @@ const INITIAL_DATA: DatabaseSchema = {
       id: 'res_2',
       projectId: 'proj_aurora',
       title: 'Edge Cluster Deployment Architecture Diagram',
-      description: 'Figma interactive component map for edge nodes, reverse proxies, and telemetry collectors.',
-      url: 'https://figma.com/file/aurora-architecture-v3',
+      description: 'Interactive component topology map for edge nodes, TLS reverse proxies, and telemetry collectors.',
+      fileName: 'edge-cluster-mesh-architecture.svg',
+      fileType: 'image/svg+xml',
+      fileSize: 12400,
+      url: '/api/resources/res_2/content',
+      thumbnailUrl: 'data:image/svg+xml;base64,' + Buffer.from(
+`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="auroraBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090b16"/>
+      <stop offset="100%" stop-color="#12152d"/>
+    </linearGradient>
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1c2144" stroke-width="0.75"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="480" rx="16" fill="url(#auroraBg)"/>
+  <rect width="800" height="480" rx="16" fill="url(#grid)"/>
+  <rect x="2" y="2" width="796" height="476" rx="15" fill="none" stroke="#7c3aed" stroke-opacity="0.5" stroke-width="2"/>
+  <rect x="25" y="25" width="750" height="50" rx="10" fill="#13162d" stroke="#282d5a" stroke-width="1"/>
+  <circle cx="50" cy="50" r="10" fill="#7c3aed"/>
+  <text x="75" y="55" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="15" font-weight="700">Aurora Distributed Core — Edge Cluster Deployment Map</text>
+  <rect x="670" y="38" width="85" height="24" rx="6" fill="#064e3b" stroke="#059669" stroke-width="1"/>
+  <text x="712" y="54" fill="#6ee7b7" font-family="monospace" font-size="11" font-weight="600" text-anchor="middle">ACTIVE v3.4</text>
+  <g transform="translate(60, 130)">
+    <rect width="180" height="130" rx="12" fill="#151936" stroke="#6366f1" stroke-width="2"/>
+    <text x="33" y="38" fill="#a5b4fc" font-family="system-ui" font-size="14" font-weight="bold" text-anchor="middle">TLS</text>
+    <text x="60" y="32" fill="#e2e8f0" font-family="system-ui" font-size="14" font-weight="700">Edge Gateway</text>
+    <text x="60" y="48" fill="#94a3b8" font-family="monospace" font-size="10">Region: US-East-1</text>
+    <line x1="15" y1="65" x2="165" y2="65" stroke="#262c5b" stroke-width="1"/>
+    <text x="15" y="85" fill="#818cf8" font-family="monospace" font-size="10">• mTLS 1.3 Handshake</text>
+    <text x="15" y="102" fill="#818cf8" font-family="monospace" font-size="10">• 120k req/s capacity</text>
+    <text x="15" y="119" fill="#34d399" font-family="monospace" font-size="10">● Status: Healthy</text>
+  </g>
+  <g transform="translate(310, 120)">
+    <rect width="200" height="150" rx="12" fill="#132338" stroke="#14b8a6" stroke-width="2.5"/>
+    <text x="33" y="38" fill="#5eead4" font-family="system-ui" font-size="14" font-weight="bold" text-anchor="middle">CPU</text>
+    <text x="60" y="32" fill="#f0fdfa" font-family="system-ui" font-size="14" font-weight="700">Consensus Engine</text>
+    <text x="60" y="48" fill="#5eead4" font-family="monospace" font-size="10">Ed25519 SIMD Batch</text>
+    <line x1="15" y1="65" x2="185" y2="65" stroke="#1d4850" stroke-width="1"/>
+    <text x="15" y="85" fill="#2dd4bf" font-family="monospace" font-size="10">• 59.8k verifies/sec</text>
+    <text x="15" y="102" fill="#2dd4bf" font-family="monospace" font-size="10">• 0 bit error differential</text>
+    <text x="15" y="120" fill="#2dd4bf" font-family="monospace" font-size="10">• 280ms convergence</text>
+    <text x="15" y="137" fill="#34d399" font-family="monospace" font-size="10">● Consensus: 100% OK</text>
+  </g>
+  <g transform="translate(580, 130)">
+    <rect width="170" height="130" rx="12" fill="#241438" stroke="#c084fc" stroke-width="2"/>
+    <text x="33" y="38" fill="#e9d5ff" font-family="system-ui" font-size="14" font-weight="bold" text-anchor="middle">LOG</text>
+    <text x="60" y="32" fill="#faf5ff" font-family="system-ui" font-size="14" font-weight="700">Storage Ring</text>
+    <text x="60" y="48" fill="#d8b4fe" font-family="monospace" font-size="10">Raft Shards 0-15</text>
+    <line x1="15" y1="65" x2="155" y2="65" stroke="#3b1d63" stroke-width="1"/>
+    <text x="15" y="85" fill="#c084fc" font-family="monospace" font-size="10">• Zero-Knowledge Proofs</text>
+    <text x="15" y="102" fill="#c084fc" font-family="monospace" font-size="10">• Tamper-Proof Audit</text>
+    <text x="15" y="119" fill="#34d399" font-family="monospace" font-size="10">● Replicated x3</text>
+  </g>
+  <path d="M 240 195 L 310 195" stroke="#6366f1" stroke-width="3" stroke-dasharray="6 3"/>
+  <path d="M 510 195 L 580 195" stroke="#14b8a6" stroke-width="3"/>
+  <g transform="translate(60, 310)">
+    <rect width="690" height="130" rx="12" fill="#0f1124" stroke="#252a52" stroke-width="1"/>
+    <text x="25" y="32" fill="#94a3b8" font-family="monospace" font-size="11" font-weight="600">LIVE TELEMETRY MESH STATUS</text>
+    <text x="25" y="60" fill="#38bdf8" font-family="monospace" font-size="11">✓ US-East Edge: 4,120 active gRPC connections (p99 latency: 12ms)</text>
+    <text x="25" y="84" fill="#34d399" font-family="monospace" font-size="11">✓ SIMD Verifier Thread Pool: 16 cores 100% healthy, 0 dropped packets</text>
+    <text x="25" y="108" fill="#a78bfa" font-family="monospace" font-size="11">✓ Raft Journal: Committed at Block #4,819,204 • State Hash: 0x7f8a9e</text>
+  </g>
+</svg>`
+      ).toString('base64'),
+      dataUrl: 'data:image/svg+xml;base64,' + Buffer.from(
+`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="auroraBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090b16"/>
+      <stop offset="100%" stop-color="#12152d"/>
+    </linearGradient>
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1c2144" stroke-width="0.75"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="480" rx="16" fill="url(#auroraBg)"/>
+  <rect width="800" height="480" rx="16" fill="url(#grid)"/>
+  <rect x="2" y="2" width="796" height="476" rx="15" fill="none" stroke="#7c3aed" stroke-opacity="0.5" stroke-width="2"/>
+  <rect x="25" y="25" width="750" height="50" rx="10" fill="#13162d" stroke="#282d5a" stroke-width="1"/>
+  <circle cx="50" cy="50" r="10" fill="#7c3aed"/>
+  <text x="75" y="55" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="15" font-weight="700">Aurora Distributed Core — Edge Cluster Deployment Map</text>
+  <rect x="670" y="38" width="85" height="24" rx="6" fill="#064e3b" stroke="#059669" stroke-width="1"/>
+  <text x="712" y="54" fill="#6ee7b7" font-family="monospace" font-size="11" font-weight="600" text-anchor="middle">ACTIVE v3.4</text>
+  <g transform="translate(60, 130)">
+    <rect width="180" height="130" rx="12" fill="#151936" stroke="#6366f1" stroke-width="2"/>
+    <text x="33" y="38" fill="#a5b4fc" font-family="system-ui" font-size="14" font-weight="bold" text-anchor="middle">TLS</text>
+    <text x="60" y="32" fill="#e2e8f0" font-family="system-ui" font-size="14" font-weight="700">Edge Gateway</text>
+    <text x="60" y="48" fill="#94a3b8" font-family="monospace" font-size="10">Region: US-East-1</text>
+    <line x1="15" y1="65" x2="165" y2="65" stroke="#262c5b" stroke-width="1"/>
+    <text x="15" y="85" fill="#818cf8" font-family="monospace" font-size="10">• mTLS 1.3 Handshake</text>
+    <text x="15" y="102" fill="#818cf8" font-family="monospace" font-size="10">• 120k req/s capacity</text>
+    <text x="15" y="119" fill="#34d399" font-family="monospace" font-size="10">● Status: Healthy</text>
+  </g>
+  <g transform="translate(310, 120)">
+    <rect width="200" height="150" rx="12" fill="#132338" stroke="#14b8a6" stroke-width="2.5"/>
+    <text x="33" y="38" fill="#5eead4" font-family="system-ui" font-size="14" font-weight="bold" text-anchor="middle">CPU</text>
+    <text x="60" y="32" fill="#f0fdfa" font-family="system-ui" font-size="14" font-weight="700">Consensus Engine</text>
+    <text x="60" y="48" fill="#5eead4" font-family="monospace" font-size="10">Ed25519 SIMD Batch</text>
+    <line x1="15" y1="65" x2="185" y2="65" stroke="#1d4850" stroke-width="1"/>
+    <text x="15" y="85" fill="#2dd4bf" font-family="monospace" font-size="10">• 59.8k verifies/sec</text>
+    <text x="15" y="102" fill="#2dd4bf" font-family="monospace" font-size="10">• 0 bit error differential</text>
+    <text x="15" y="120" fill="#2dd4bf" font-family="monospace" font-size="10">• 280ms convergence</text>
+    <text x="15" y="137" fill="#34d399" font-family="monospace" font-size="10">● Consensus: 100% OK</text>
+  </g>
+  <g transform="translate(580, 130)">
+    <rect width="170" height="130" rx="12" fill="#241438" stroke="#c084fc" stroke-width="2"/>
+    <text x="33" y="38" fill="#e9d5ff" font-family="system-ui" font-size="14" font-weight="bold" text-anchor="middle">LOG</text>
+    <text x="60" y="32" fill="#faf5ff" font-family="system-ui" font-size="14" font-weight="700">Storage Ring</text>
+    <text x="60" y="48" fill="#d8b4fe" font-family="monospace" font-size="10">Raft Shards 0-15</text>
+    <line x1="15" y1="65" x2="155" y2="65" stroke="#3b1d63" stroke-width="1"/>
+    <text x="15" y="85" fill="#c084fc" font-family="monospace" font-size="10">• Zero-Knowledge Proofs</text>
+    <text x="15" y="102" fill="#c084fc" font-family="monospace" font-size="10">• Tamper-Proof Audit</text>
+    <text x="15" y="119" fill="#34d399" font-family="monospace" font-size="10">● Replicated x3</text>
+  </g>
+  <path d="M 240 195 L 310 195" stroke="#6366f1" stroke-width="3" stroke-dasharray="6 3"/>
+  <path d="M 510 195 L 580 195" stroke="#14b8a6" stroke-width="3"/>
+  <g transform="translate(60, 310)">
+    <rect width="690" height="130" rx="12" fill="#0f1124" stroke="#252a52" stroke-width="1"/>
+    <text x="25" y="32" fill="#94a3b8" font-family="monospace" font-size="11" font-weight="600">LIVE TELEMETRY MESH STATUS</text>
+    <text x="25" y="60" fill="#38bdf8" font-family="monospace" font-size="11">✓ US-East Edge: 4,120 active gRPC connections (p99 latency: 12ms)</text>
+    <text x="25" y="84" fill="#34d399" font-family="monospace" font-size="11">✓ SIMD Verifier Thread Pool: 16 cores 100% healthy, 0 dropped packets</text>
+    <text x="25" y="108" fill="#a78bfa" font-family="monospace" font-size="11">✓ Raft Journal: Committed at Block #4,819,204 • State Hash: 0x7f8a9e</text>
+  </g>
+</svg>`
+      ).toString('base64'),
       category: 'design',
       createdById: 'usr_coleader',
       permissionScope: 'project_members',
+      tags: ['architecture', 'topology', 'svg', 'diagram'],
       createdAt: '2026-03-01T15:00:00.000Z',
       updatedAt: '2026-03-01T15:00:00.000Z',
     },
@@ -585,13 +766,111 @@ const INITIAL_DATA: DatabaseSchema = {
       id: 'res_3',
       projectId: 'proj_zerotrust',
       title: 'Zero-Trust Gateway eBPF Memory Allocation Spec',
-      description: 'Strict kernel map size boundaries and ring buffer capacity guides.',
-      url: 'https://docs.internal.nexora/zt-ebpf-spec.md',
+      description: 'Strict kernel map size boundaries, ring buffer capacity guides, and eBPF hook configuration.',
+      fileName: 'ebpf-memory-allocation-spec.json',
+      fileType: 'application/json',
+      fileSize: 2450,
+      url: '/api/resources/res_3/content',
+      dataUrl: 'data:application/json;base64,' + Buffer.from(
+        JSON.stringify(
+          {
+            schemaVersion: '2.4.0',
+            specName: 'eBPF-ZeroTrust-Kernel-Allocator',
+            targetKernel: 'Linux 6.8+',
+            ringBuffers: [
+              { name: 'audit_events_rb', capacityBytes: 16777216, pageAlignment: 4096, consumer: 'nexora-telemetry-daemon' },
+              { name: 'packet_verdict_rb', capacityBytes: 8388608, pageAlignment: 4096, consumer: 'nexora-enforcer' }
+            ],
+            maps: {
+              session_table: { type: 'BPF_MAP_TYPE_HASH', maxEntries: 1048576, keySize: 32, valueSize: 64 },
+              rate_limiter_tokens: { type: 'BPF_MAP_TYPE_PERCPU_ARRAY', maxEntries: 65536, keySize: 4, valueSize: 16 },
+              tls_handshake_cache: { type: 'BPF_MAP_TYPE_LRU_HASH', maxEntries: 524288, keySize: 48, valueSize: 128 }
+            },
+            securityConstraints: {
+              strictGPLVerification: true,
+              jitHardeningLevel: 2,
+              unprivilegedBpfDisabled: true
+            }
+          },
+          null,
+          2
+        )
+      ).toString('base64'),
       category: 'documentation',
       createdById: 'usr_leader',
       permissionScope: 'team',
+      tags: ['ebpf', 'kernel', 'memory', 'json'],
       createdAt: '2026-03-10T12:00:00.000Z',
       updatedAt: '2026-03-10T12:00:00.000Z',
+    },
+    {
+      id: 'res_4',
+      projectId: 'proj_aurora',
+      title: 'SIMD Consensus Batch Verification Suite',
+      description: 'High-throughput test harness benchmarking Ed25519 SIMD batch signature verification against Byzantine network faults.',
+      fileName: 'simd-consensus-harness.ts',
+      fileType: 'application/typescript',
+      fileSize: 3120,
+      url: '/api/resources/res_4/content',
+      dataUrl: 'data:application/typescript;base64,' + Buffer.from(
+`/**
+ * Aurora SIMD Batch Signature Verification Harness
+ * Tests high-throughput parallel verification of Ed25519 transactions
+ */
+export interface VerificationBatch {
+  batchId: string;
+  signatures: Uint8Array[];
+  publicKeys: Uint8Array[];
+  messages: Uint8Array[];
+}
+
+export class SIMDVerifierEngine {
+  private batchSize: number = 64;
+  private verifiedCount: number = 0;
+
+  constructor(batchSize = 64) {
+    this.batchSize = batchSize;
+  }
+
+  public async verifyBatchParallel(batch: VerificationBatch): Promise<{ valid: boolean; durationMs: number }> {
+    const start = performance.now();
+    if (batch.signatures.length !== this.batchSize) {
+      throw new Error(\`Batch size must equal \${this.batchSize}\`);
+    }
+
+    // SIMD vector pipeline verification simulation
+    let allValid = true;
+    for (let i = 0; i < batch.signatures.length; i++) {
+      if (batch.signatures[i].length !== 64 || batch.publicKeys[i].length !== 32) {
+        allValid = false;
+        break;
+      }
+    }
+
+    this.verifiedCount += batch.signatures.length;
+    const durationMs = performance.now() - start;
+
+    return {
+      valid: allValid,
+      durationMs,
+    };
+  }
+
+  public getStats() {
+    return {
+      totalVerified: this.verifiedCount,
+      opsPerSecond: Math.round(this.verifiedCount / 0.00107),
+    };
+  }
+}
+`
+      ).toString('base64'),
+      category: 'specification',
+      createdById: 'usr_coleader',
+      permissionScope: 'project_members',
+      tags: ['typescript', 'simd', 'benchmarks', 'code'],
+      createdAt: '2026-03-15T16:00:00.000Z',
+      updatedAt: '2026-03-15T16:00:00.000Z',
     },
   ],
   projectMessages: [
@@ -826,6 +1105,12 @@ class DatabaseManager {
               expenseItems: Array.isArray(p.expenseItems) ? p.expenseItems : [],
             }));
           }
+          if (!Array.isArray(this.data.resources)) this.data.resources = [];
+          for (const initR of INITIAL_DATA.resources) {
+            if (!this.data.resources.some((r: any) => r.id === initR.id)) {
+              this.data.resources.push(initR);
+            }
+          }
           this.saveDataLocally(this.data);
           console.log('Successfully restored dev DB state.');
           return;
@@ -849,6 +1134,12 @@ class DatabaseManager {
               expenseItems: Array.isArray(p.expenseItems) ? p.expenseItems : [],
             }));
           }
+          if (!Array.isArray(this.data.resources)) this.data.resources = [];
+          for (const initR of INITIAL_DATA.resources) {
+            if (!this.data.resources.some((r: any) => r.id === initR.id)) {
+              this.data.resources.push(initR);
+            }
+          }
           this.saveDataLocally(this.data);
           // Commit to dev collection only, never modifying the published collection
           await this.syncToFirestore(this.data);
@@ -857,6 +1148,12 @@ class DatabaseManager {
         }
 
         // Otherwise fallback to local data and sync to dev collection
+        if (!Array.isArray(this.data.resources)) this.data.resources = [];
+        for (const initR of INITIAL_DATA.resources) {
+          if (!this.data.resources.some((r: any) => r.id === initR.id)) {
+            this.data.resources.push(initR);
+          }
+        }
         await this.syncToFirestore(this.data);
       } else {
         // In Production (Published App):
@@ -877,6 +1174,12 @@ class DatabaseManager {
               ...p,
               expenseItems: Array.isArray(p.expenseItems) ? p.expenseItems : [],
             }));
+          }
+          if (!Array.isArray(this.data.resources)) this.data.resources = [];
+          for (const initR of INITIAL_DATA.resources) {
+            if (!this.data.resources.some((r: any) => r.id === initR.id)) {
+              this.data.resources.push(initR);
+            }
           }
           this.saveDataLocally(this.data);
           console.log('Successfully restored production DB state from Firestore.');
@@ -954,6 +1257,9 @@ class DatabaseManager {
   }
 
   private saveDataLocally(data: any) {
+    if (process.env.VITEST || process.env.NODE_ENV === 'test') {
+      return;
+    }
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -1096,6 +1402,13 @@ class DatabaseManager {
           }
         }
 
+        const loadedResources = Array.isArray(parsed.resources) ? [...parsed.resources] : [];
+        for (const initR of INITIAL_DATA.resources) {
+          if (!loadedResources.some((r: any) => r.id === initR.id)) {
+            loadedResources.push(initR);
+          }
+        }
+
         return {
           users: loadedUsers,
           workspaces: loadedWorkspaces,
@@ -1105,7 +1418,7 @@ class DatabaseManager {
           tasks: loadedTasks,
           milestones: parsed.milestones && parsed.milestones.length > 0 ? parsed.milestones : INITIAL_DATA.milestones,
           proofSubmissions: loadedProofs,
-          resources: parsed.resources || [],
+          resources: loadedResources,
           projectMessages: parsed.projectMessages || [],
           directMessages: parsed.directMessages || [],
           notifications: parsed.notifications || [],
@@ -1141,6 +1454,9 @@ class DatabaseManager {
   private pendingSyncData: DatabaseSchema | null = null;
 
   public async syncToFirestore(data: DatabaseSchema): Promise<void> {
+    if (process.env.VITEST || process.env.NODE_ENV === 'test') {
+      return;
+    }
     if (Date.now() < this.quotaExhaustedUntil) {
       return;
     }

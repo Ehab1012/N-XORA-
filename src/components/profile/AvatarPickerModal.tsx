@@ -15,6 +15,7 @@ import { Modal } from '../common/Modal.js';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
+import { AvatarProcessingSkeleton } from '../common/Skeleton.js';
 
 export interface AvatarPreset {
   id: string;
@@ -387,10 +388,7 @@ export function AvatarPickerModal({
               }`}
             >
               {isProcessing ? (
-                <div className="flex flex-col items-center gap-2 text-blue-400">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                  <span className="text-xs font-medium">Processing & resizing image...</span>
-                </div>
+                <AvatarProcessingSkeleton />
               ) : (
                 <>
                   <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-sm">

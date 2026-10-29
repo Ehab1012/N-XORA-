@@ -21,8 +21,17 @@
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
+        "nexoraUserId": { "type": "string", "description": "Account user ID in Nexora workspace" },
         "role": { "type": "string" },
         "content": { "type": "string" },
+        "attachments": {
+          "type": "array",
+          "description": "Lightweight metadata and server URLs for attached pictures and files"
+        },
+        "executedActions": {
+          "type": "array",
+          "description": "Summary records of role-scoped AI actions executed on behalf of the user"
+        },
         "timestamp": { "type": "string" }
       },
       "required": ["userId", "role", "content"]

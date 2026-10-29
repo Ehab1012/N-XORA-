@@ -1,5 +1,11 @@
 import { db } from './db.js';
-import { ProjectAnalytics, UserScoreDetail, ActivityEvent } from '../shared/types.js';
+import { ProjectAnalytics, UserScoreDetail } from '../shared/types.js';
+import {
+  calculateDaysLate,
+  calculateTaskPoints,
+  TASK_PRIORITY_POINTS,
+  LATE_DAILY_PENALTY_PERCENTAGE,
+} from '../shared/const.js';
 
 export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
   const data = db.getRawData();
@@ -15,15 +21,31 @@ export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
     .filter((a) => a.projectId === projectId)
     .slice(0, 20);
 
+  // Track pending proof submission timestamps so in-review tasks turned in on time aren't penalized while awaiting review
+  const pendingProofTimeByTaskId = new Map<string, string>();
+  for (const pr of proofs) {
+    if (pr.status === 'pending' && pr.taskId && pr.createdAt) {
+      const existing = pendingProofTimeByTaskId.get(pr.taskId);
+      if (!existing || pr.createdAt > existing) {
+        pendingProofTimeByTaskId.set(pr.taskId, pr.createdAt);
+      }
+    }
+  }
+
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.status === 'complete').length;
   const inProgressTasks = tasks.filter((t) => t.status === 'in_progress' || t.status === 'in_review').length;
   const blockedTasks = tasks.filter((t) => t.status === 'blocked').length;
 
-  const now = new Date().toISOString();
-  const atRiskTasks = tasks.filter(
-    (t) => t.status !== 'complete' && t.status !== 'cancelled' && t.dueDate < now
-  ).length;
+  const nowIso = new Date().toISOString();
+  const atRiskTasks = tasks.filter((t) => {
+    if (t.status === 'complete' || t.status === 'cancelled') return false;
+    const refTime =
+      t.status === 'in_review' && pendingProofTimeByTaskId.has(t.id)
+        ? pendingProofTimeByTaskId.get(t.id)!
+        : nowIso;
+    return calculateDaysLate(t.dueDate, refTime) > 0;
+  }).length;
 
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
@@ -44,16 +66,12 @@ export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
     healthStatus = 'at_risk';
   }
 
-  // Calculate transparent member score breakdown
-  // Transparent Scoring Rules:
-  // - Completed task: +25 pts
-  // - Completed milestone owned: +50 pts
-  // - Approved proof of work: +40 pts
-  // - On-time task completion (completedAt <= dueDate): +15 pts bonus
+  // Calculate transparent member score breakdown with progressive daily late penalty:
+  // - Each late day deducts 20% of task base points until task points reach 0
+  // - Once task points reach 0, each additional late day deducts directly from assigned member(s)' totalScore
   const memberScoresMap = new Map<string, UserScoreDetail>();
   const userMap = new Map(data.users.map((u) => [u.id, u]));
 
-  // Initialize for all project members
   for (const memberId of project.memberIds) {
     const user = userMap.get(memberId);
     if (!user) continue;
@@ -73,6 +91,10 @@ export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
         proofsScore: 0,
         onTimeDeliveries: 0,
         onTimeScore: 0,
+        lateDeliveries: 0,
+        overdueTasksCount: 0,
+        latePenaltyScore: 0,
+        memberPenaltyDeduction: 0,
         groupTasksCompleted: 0,
         groupTasksScore: 0,
         groupBonusCount: 0,
@@ -81,17 +103,64 @@ export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
     });
   }
 
-  // 1. Tasks (Individual & Group Tasks)
+  // 1. Tasks (Individual & Collaborative Group Tasks)
   for (const task of tasks) {
     if (task.isGroupTask) {
-      // Individual submissions within group task
+      const baseIndiv = task.individualPoints || TASK_PRIORITY_POINTS[task.priority] || 35;
+      const assignedParticipants = new Set<string>(
+        Array.isArray(task.participantIds) && task.participantIds.length > 0
+          ? task.participantIds
+          : task.assigneeId
+          ? [task.assigneeId]
+          : []
+      );
       if (Array.isArray(task.submissions)) {
-        for (const sub of task.submissions) {
-          if ((sub.status === 'submitted' || sub.status === 'approved') && memberScoresMap.has(sub.userId)) {
-            const score = memberScoresMap.get(sub.userId)!;
-            score.breakdown.groupTasksCompleted = (score.breakdown.groupTasksCompleted || 0) + 1;
-            const pts = sub.pointsAwarded || task.individualPoints || 35;
-            score.breakdown.groupTasksScore = (score.breakdown.groupTasksScore || 0) + pts;
+        for (const s of task.submissions) {
+          if (s.userId) assignedParticipants.add(s.userId);
+        }
+      }
+
+      for (const pId of assignedParticipants) {
+        if (!memberScoresMap.has(pId)) continue;
+        const score = memberScoresMap.get(pId)!;
+        const sub = Array.isArray(task.submissions)
+          ? task.submissions.find((s) => s.userId === pId)
+          : undefined;
+        const hasSubmitted = Boolean(sub && (sub.status === 'submitted' || sub.status === 'approved'));
+
+        if (hasSubmitted && sub) {
+          score.breakdown.groupTasksCompleted = (score.breakdown.groupTasksCompleted || 0) + 1;
+          const daysLate =
+            typeof sub.daysLate === 'number'
+              ? sub.daysLate
+              : sub.submittedAt && task.dueDate
+              ? calculateDaysLate(task.dueDate, sub.submittedAt)
+              : sub.isLate
+              ? 1
+              : 0;
+
+          const calc = calculateTaskPoints(task.priority, daysLate, baseIndiv);
+          score.breakdown.groupTasksScore = (score.breakdown.groupTasksScore || 0) + calc.pointsAwarded;
+
+          if (daysLate > 0) {
+            score.breakdown.lateDeliveries = (score.breakdown.lateDeliveries || 0) + 1;
+            score.breakdown.latePenaltyScore = (score.breakdown.latePenaltyScore || 0) + calc.penaltyPoints;
+            score.breakdown.memberPenaltyDeduction =
+              (score.breakdown.memberPenaltyDeduction || 0) + calc.memberPointsDeducted;
+          }
+        } else if (task.status !== 'cancelled') {
+          const refDate = task.status === 'complete' ? task.completedAt || nowIso : nowIso;
+          const daysLate = calculateDaysLate(task.dueDate, refDate);
+          if (daysLate > 0) {
+            const calc = calculateTaskPoints(task.priority, daysLate, baseIndiv);
+            if (task.status === 'complete') {
+              score.breakdown.lateDeliveries = (score.breakdown.lateDeliveries || 0) + 1;
+            } else {
+              score.breakdown.overdueTasksCount = (score.breakdown.overdueTasksCount || 0) + 1;
+            }
+            score.breakdown.latePenaltyScore = (score.breakdown.latePenaltyScore || 0) + calc.penaltyPoints;
+            score.breakdown.memberPenaltyDeduction =
+              (score.breakdown.memberPenaltyDeduction || 0) + calc.memberPointsDeducted;
           }
         }
       }
@@ -109,15 +178,63 @@ export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
         }
       }
     } else {
-      // Standard individual task
-      if (task.status === 'complete' && task.assigneeId && memberScoresMap.has(task.assigneeId)) {
-        const score = memberScoresMap.get(task.assigneeId)!;
-        score.breakdown.tasksCompleted += 1;
-        score.breakdown.tasksScore += 25;
+      // Standard task (supports single assignee or multiple assigned participantIds if provided)
+      const targetAssignees = Array.from(
+        new Set<string>(
+          [
+            ...(task.assigneeId ? [task.assigneeId] : []),
+            ...(Array.isArray(task.participantIds) ? task.participantIds : []),
+          ].filter(Boolean)
+        )
+      );
 
-        if (task.completedAt && task.dueDate && task.completedAt <= task.dueDate) {
-          score.breakdown.onTimeDeliveries += 1;
-          score.breakdown.onTimeScore += 15;
+      if (task.status === 'complete') {
+        const daysLate =
+          typeof task.daysLate === 'number'
+            ? task.daysLate
+            : task.completedAt && task.dueDate
+            ? calculateDaysLate(task.dueDate, task.completedAt)
+            : task.isLate
+            ? 1
+            : 0;
+
+        const pointCalc = calculateTaskPoints(task.priority, daysLate);
+
+        for (const uid of targetAssignees) {
+          if (!memberScoresMap.has(uid)) continue;
+          const score = memberScoresMap.get(uid)!;
+          score.breakdown.tasksCompleted += 1;
+          score.breakdown.tasksScore += pointCalc.pointsAwarded;
+
+          if (daysLate === 0 && task.completedAt && task.dueDate) {
+            score.breakdown.onTimeDeliveries += 1;
+            score.breakdown.onTimeScore += pointCalc.onTimeBonus;
+          } else if (daysLate > 0) {
+            score.breakdown.lateDeliveries = (score.breakdown.lateDeliveries || 0) + 1;
+            score.breakdown.latePenaltyScore =
+              (score.breakdown.latePenaltyScore || 0) + pointCalc.penaltyPoints;
+            score.breakdown.memberPenaltyDeduction =
+              (score.breakdown.memberPenaltyDeduction || 0) + pointCalc.memberPointsDeducted;
+          }
+        }
+      } else if (task.status !== 'cancelled') {
+        const refTime =
+          task.status === 'in_review' && pendingProofTimeByTaskId.has(task.id)
+            ? pendingProofTimeByTaskId.get(task.id)!
+            : nowIso;
+        const daysLate = calculateDaysLate(task.dueDate, refTime);
+
+        if (daysLate > 0) {
+          const pointCalc = calculateTaskPoints(task.priority, daysLate);
+          for (const uid of targetAssignees) {
+            if (!memberScoresMap.has(uid)) continue;
+            const score = memberScoresMap.get(uid)!;
+            score.breakdown.overdueTasksCount = (score.breakdown.overdueTasksCount || 0) + 1;
+            score.breakdown.latePenaltyScore =
+              (score.breakdown.latePenaltyScore || 0) + pointCalc.penaltyPoints;
+            score.breakdown.memberPenaltyDeduction =
+              (score.breakdown.memberPenaltyDeduction || 0) + pointCalc.memberPointsDeducted;
+          }
         }
       }
     }
@@ -125,59 +242,67 @@ export function calculateProjectAnalytics(projectId: string): ProjectAnalytics {
 
   // 2. Milestones
   for (const ms of milestones) {
-    if (ms.status === 'completed' && memberScoresMap.has(ms.ownerId)) {
+    if (ms.status === 'completed' && ms.ownerId && memberScoresMap.has(ms.ownerId)) {
       const score = memberScoresMap.get(ms.ownerId)!;
       score.breakdown.milestonesCompleted += 1;
       score.breakdown.milestonesScore += 50;
     }
   }
 
-    // 3. Proofs
-    for (const pr of proofs) {
-      if (pr.status === 'approved' && memberScoresMap.has(pr.submittedById)) {
-        const score = memberScoresMap.get(pr.submittedById)!;
-        score.breakdown.proofsApproved += 1;
-        score.breakdown.proofsScore += 40;
+  // 3. Proofs
+  for (const pr of proofs) {
+    if (pr.status === 'approved' && memberScoresMap.has(pr.submittedById)) {
+      const score = memberScoresMap.get(pr.submittedById)!;
+      score.breakdown.proofsApproved += 1;
+      score.breakdown.proofsScore += 40;
+    }
+  }
+
+  // 4. Leader Discretionary Merit Bonuses
+  const bonusAwards = Array.isArray(data.bonusAwards) ? data.bonusAwards : [];
+  for (const ba of bonusAwards) {
+    if (memberScoresMap.has(ba.recipientId)) {
+      if (!ba.projectId || ba.projectId === projectId) {
+        const score = memberScoresMap.get(ba.recipientId)!;
+        score.breakdown.directBonusCount = (score.breakdown.directBonusCount || 0) + 1;
+        score.breakdown.directBonusScore = (score.breakdown.directBonusScore || 0) + ba.points;
+        if (!score.bonusAwards) score.bonusAwards = [];
+        score.bonusAwards.push(ba);
       }
     }
+  }
 
-    // 4. Leader Discretionary Merit Bonuses
-    const bonusAwards = Array.isArray(data.bonusAwards) ? data.bonusAwards : [];
-    for (const ba of bonusAwards) {
-      if (memberScoresMap.has(ba.recipientId)) {
-        if (!ba.projectId || ba.projectId === projectId) {
-          const score = memberScoresMap.get(ba.recipientId)!;
-          score.breakdown.directBonusCount = (score.breakdown.directBonusCount || 0) + 1;
-          score.breakdown.directBonusScore = (score.breakdown.directBonusScore || 0) + ba.points;
-          if (!score.bonusAwards) score.bonusAwards = [];
-          score.bonusAwards.push(ba);
-        }
-      }
-    }
+  // Tally total scores (subtracting overflow penalties once task points reached 0)
+  const leaderboard: UserScoreDetail[] = [];
+  for (const score of memberScoresMap.values()) {
+    const groupPts = (score.breakdown.groupTasksScore || 0) + (score.breakdown.groupBonusScore || 0);
+    const directBonusPts = score.breakdown.directBonusScore || 0;
+    const memberPenaltyDeduction = score.breakdown.memberPenaltyDeduction || 0;
 
-    // Tally total scores
-    const leaderboard: UserScoreDetail[] = [];
-    for (const score of memberScoresMap.values()) {
-      const groupPts = (score.breakdown.groupTasksScore || 0) + (score.breakdown.groupBonusScore || 0);
-      const directBonusPts = score.breakdown.directBonusScore || 0;
-      score.totalScore =
-        score.breakdown.tasksScore +
-        score.breakdown.milestonesScore +
-        score.breakdown.proofsScore +
-        score.breakdown.onTimeScore +
-        groupPts +
-        directBonusPts;
-      score.tasksCompleted = score.breakdown.tasksCompleted;
-      score.milestonesCompleted = score.breakdown.milestonesCompleted;
-      score.proofsApproved = score.breakdown.proofsApproved;
-      score.onTimeDeliveries = score.breakdown.onTimeDeliveries;
-      score.groupTasksCompleted = score.breakdown.groupTasksCompleted;
-      score.groupBonusCount = score.breakdown.groupBonusCount;
-      score.directBonusCount = score.breakdown.directBonusCount || 0;
-      score.directBonusScore = directBonusPts;
-      score.userRole = score.role;
-      leaderboard.push(score);
-    }
+    score.totalScore =
+      score.breakdown.tasksScore +
+      score.breakdown.milestonesScore +
+      score.breakdown.proofsScore +
+      score.breakdown.onTimeScore +
+      groupPts +
+      directBonusPts -
+      memberPenaltyDeduction;
+
+    score.tasksCompleted = score.breakdown.tasksCompleted;
+    score.milestonesCompleted = score.breakdown.milestonesCompleted;
+    score.proofsApproved = score.breakdown.proofsApproved;
+    score.onTimeDeliveries = score.breakdown.onTimeDeliveries;
+    score.lateDeliveries = score.breakdown.lateDeliveries || 0;
+    score.overdueTasksCount = score.breakdown.overdueTasksCount || 0;
+    score.latePenaltyScore = score.breakdown.latePenaltyScore || 0;
+    score.memberPenaltyDeduction = memberPenaltyDeduction;
+    score.groupTasksCompleted = score.breakdown.groupTasksCompleted;
+    score.groupBonusCount = score.breakdown.groupBonusCount;
+    score.directBonusCount = score.breakdown.directBonusCount || 0;
+    score.directBonusScore = directBonusPts;
+    score.userRole = score.role;
+    leaderboard.push(score);
+  }
 
   // Sort descending by score
   leaderboard.sort((a, b) => b.totalScore - a.totalScore);
@@ -240,39 +365,52 @@ ${tasks.map((t) => `- [${t.status === 'complete' ? 'x' : ' '}] **${t.title}** ($
 ---
 
 ## Transparent Member Accountability Leaderboard
-Scoring formula: Task (+25 pts), On-Time Bonus (+15 pts), Group Submissions (+pts), Team Completion Bonus (+pts), Milestone (+50 pts), Approved Proof (+40 pts).
+Scoring formula: Priority-weighted Tasks (Urgent: +60 pts, High: +40 pts, Medium: +25 pts, Low: +15 pts), On-Time Delivery (+15 pts), Daily Late Penalty (-${LATE_DAILY_PENALTY_PERCENTAGE}%/day of task points until 0, then excess daily penalty deducts from assigned member(s) total score), Group Submissions (+pts), Team Completion Bonus (+pts), Milestone (+50 pts), Approved Proof (+40 pts), Discretionary Merit Bonus.
 
-| Member | Role | Total Score | Tasks Done | Group Tasks | Proofs Approved | Milestones | On-Time Deliveries |
-|---|---|---|---|---|---|---|---|
-${analytics.leaderboard.map((l) => `| ${l.userName} | ${l.role} | **${l.totalScore}** | ${l.breakdown.tasksCompleted} | ${l.breakdown.groupTasksCompleted || 0} (${(l.breakdown.groupTasksScore || 0) + (l.breakdown.groupBonusScore || 0)} pts) | ${l.breakdown.proofsApproved} | ${l.breakdown.milestonesCompleted} | ${l.breakdown.onTimeDeliveries} |`).join('\n')}
+| Member | Role | Total Score | Tasks Done | Group Tasks | Proofs Approved | Milestones | On-Time | Late / Overdue (Score Drain) |
+|---|---|---|---|---|---|---|---|---|
+${analytics.leaderboard.map((l) => `| ${l.userName} | ${l.role} | **${l.totalScore}** | ${l.breakdown.tasksCompleted} | ${l.breakdown.groupTasksCompleted || 0} (${(l.breakdown.groupTasksScore || 0) + (l.breakdown.groupBonusScore || 0)} pts) | ${l.breakdown.proofsApproved} | ${l.breakdown.milestonesCompleted} | ${l.breakdown.onTimeDeliveries} | ${(l.breakdown.lateDeliveries || 0) + (l.breakdown.overdueTasksCount || 0)} (-${l.breakdown.latePenaltyScore || 0} total${(l.breakdown.memberPenaltyDeduction || 0) > 0 ? `, -${l.breakdown.memberPenaltyDeduction} from score` : ''}) |`).join('\n')}
 
 ---
 *Report generated securely by Nexora Operational Platform.*
 `;
 }
 
-// In-memory score cache to avoid re-evaluating identical workspace states
-let cachedWorkspaceId = '';
-let cachedScoresTimestamp = 0;
-let cachedScoresMap = new Map<string, UserScoreDetail & { rank: number; totalMembers: number; tier: string }>();
-
 /**
  * Calculate transparent overall merit score for all workspace members in a single indexed pass.
- * Eliminates N+1 scans across users, tasks, milestones, and proofs.
+ * Applies daily late decay to task points until 0, then deducts overflow from assigned member(s)' totalScore.
  */
 export function calculateAllWorkspaceScores(
   workspaceId: string
 ): Map<string, UserScoreDetail & { rank: number; totalMembers: number; tier: string }> {
-  const nowMs = Date.now();
-  if (cachedWorkspaceId === workspaceId && nowMs - cachedScoresTimestamp < 3000) {
-    return cachedScoresMap;
-  }
-
   const data = db.getRawData();
   const workspaceProjects = data.projects.filter((p) => p.workspaceId === workspaceId);
   const projectIds = new Set(workspaceProjects.map((p) => p.id));
+  const nowIso = new Date().toISOString();
 
-  // Index tasks by assignee and collect group tasks in single pass
+  // Index pending proof turn-in times & approved proofs in single pass
+  const pendingProofTimeByTaskId = new Map<string, string>();
+  const proofsBySubmitter = new Map<string, typeof data.proofSubmissions>();
+
+  for (const p of data.proofSubmissions) {
+    if (!projectIds.has(p.projectId)) continue;
+    if (p.status === 'pending' && p.taskId && p.createdAt) {
+      const existing = pendingProofTimeByTaskId.get(p.taskId);
+      if (!existing || p.createdAt > existing) {
+        pendingProofTimeByTaskId.set(p.taskId, p.createdAt);
+      }
+    }
+    if (p.status === 'approved') {
+      let list = proofsBySubmitter.get(p.submittedById);
+      if (!list) {
+        list = [];
+        proofsBySubmitter.set(p.submittedById, list);
+      }
+      list.push(p);
+    }
+  }
+
+  // Index standard tasks by assigned member(s) and collect group tasks in single pass
   const tasksByAssignee = new Map<string, typeof data.tasks>();
   const workspaceGroupTasks: typeof data.tasks = [];
 
@@ -280,40 +418,36 @@ export function calculateAllWorkspaceScores(
     if (!projectIds.has(t.projectId)) continue;
     if (t.isGroupTask) {
       workspaceGroupTasks.push(t);
-    }
-    if (t.assigneeId) {
-      let list = tasksByAssignee.get(t.assigneeId);
-      if (!list) {
-        list = [];
-        tasksByAssignee.set(t.assigneeId, list);
+    } else {
+      const targetAssignees = Array.from(
+        new Set<string>(
+          [
+            ...(t.assigneeId ? [t.assigneeId] : []),
+            ...(Array.isArray(t.participantIds) ? t.participantIds : []),
+          ].filter(Boolean)
+        )
+      );
+      for (const uid of targetAssignees) {
+        let list = tasksByAssignee.get(uid);
+        if (!list) {
+          list = [];
+          tasksByAssignee.set(uid, list);
+        }
+        list.push(t);
       }
-      list.push(t);
     }
   }
 
   // Index milestones by owner in single pass
   const milestonesByOwner = new Map<string, typeof data.milestones>();
   for (const m of data.milestones) {
-    if (m.status === 'completed' && projectIds.has(m.projectId)) {
+    if (m.status === 'completed' && m.ownerId && projectIds.has(m.projectId)) {
       let list = milestonesByOwner.get(m.ownerId);
       if (!list) {
         list = [];
         milestonesByOwner.set(m.ownerId, list);
       }
       list.push(m);
-    }
-  }
-
-  // Index approved proofs by submitter in single pass
-  const proofsBySubmitter = new Map<string, typeof data.proofSubmissions>();
-  for (const p of data.proofSubmissions) {
-    if (p.status === 'approved' && projectIds.has(p.projectId)) {
-      let list = proofsBySubmitter.get(p.submittedById);
-      if (!list) {
-        list = [];
-        proofsBySubmitter.set(p.submittedById, list);
-      }
-      list.push(p);
     }
   }
 
@@ -334,12 +468,51 @@ export function calculateAllWorkspaceScores(
   // Process all users in O(U) time using indexed lookups
   for (const u of data.users) {
     const assignedTasks = tasksByAssignee.get(u.id) || [];
-    const completedTasks = assignedTasks.filter((t) => !t.isGroupTask && t.status === 'complete');
 
+    let tasksCompleted = 0;
     let onTimeDeliveries = 0;
-    for (const t of completedTasks) {
-      if (t.completedAt && t.dueDate && t.completedAt <= t.dueDate) {
-        onTimeDeliveries += 1;
+    let onTimeScore = 0;
+    let lateDeliveries = 0;
+    let overdueTasksCount = 0;
+    let latePenaltyScore = 0;
+    let memberPenaltyDeduction = 0;
+    let tasksScore = 0;
+
+    for (const t of assignedTasks) {
+      if (t.status === 'complete') {
+        tasksCompleted += 1;
+        const daysLate =
+          typeof t.daysLate === 'number'
+            ? t.daysLate
+            : t.completedAt && t.dueDate
+            ? calculateDaysLate(t.dueDate, t.completedAt)
+            : t.isLate
+            ? 1
+            : 0;
+
+        const pointCalc = calculateTaskPoints(t.priority, daysLate);
+        tasksScore += pointCalc.pointsAwarded;
+
+        if (daysLate === 0 && t.completedAt && t.dueDate) {
+          onTimeDeliveries += 1;
+          onTimeScore += pointCalc.onTimeBonus;
+        } else if (daysLate > 0) {
+          lateDeliveries += 1;
+          latePenaltyScore += pointCalc.penaltyPoints;
+          memberPenaltyDeduction += pointCalc.memberPointsDeducted;
+        }
+      } else if (t.status !== 'cancelled') {
+        const refTime =
+          t.status === 'in_review' && pendingProofTimeByTaskId.has(t.id)
+            ? pendingProofTimeByTaskId.get(t.id)!
+            : nowIso;
+        const daysLate = calculateDaysLate(t.dueDate, refTime);
+        if (daysLate > 0) {
+          const pointCalc = calculateTaskPoints(t.priority, daysLate);
+          overdueTasksCount += 1;
+          latePenaltyScore += pointCalc.penaltyPoints;
+          memberPenaltyDeduction += pointCalc.memberPointsDeducted;
+        }
       }
     }
 
@@ -349,14 +522,53 @@ export function calculateAllWorkspaceScores(
     let groupBonusScore = 0;
 
     for (const gt of workspaceGroupTasks) {
-      if (Array.isArray(gt.submissions)) {
-        for (const sub of gt.submissions) {
-          if (sub.userId === u.id && (sub.status === 'submitted' || sub.status === 'approved')) {
-            groupTasksCompleted += 1;
-            groupTasksScore += sub.pointsAwarded || gt.individualPoints || 35;
+      const baseIndiv = gt.individualPoints || TASK_PRIORITY_POINTS[gt.priority] || 35;
+      const isAssignedParticipant =
+        (Array.isArray(gt.participantIds) && gt.participantIds.includes(u.id)) ||
+        gt.assigneeId === u.id ||
+        (Array.isArray(gt.submissions) && gt.submissions.some((s) => s.userId === u.id));
+
+      if (isAssignedParticipant) {
+        const sub = Array.isArray(gt.submissions)
+          ? gt.submissions.find((s) => s.userId === u.id)
+          : undefined;
+        const hasSubmitted = Boolean(sub && (sub.status === 'submitted' || sub.status === 'approved'));
+
+        if (hasSubmitted && sub) {
+          groupTasksCompleted += 1;
+          const daysLate =
+            typeof sub.daysLate === 'number'
+              ? sub.daysLate
+              : sub.submittedAt && gt.dueDate
+              ? calculateDaysLate(gt.dueDate, sub.submittedAt)
+              : sub.isLate
+              ? 1
+              : 0;
+
+          const calc = calculateTaskPoints(gt.priority, daysLate, baseIndiv);
+          groupTasksScore += calc.pointsAwarded;
+
+          if (daysLate > 0) {
+            lateDeliveries += 1;
+            latePenaltyScore += calc.penaltyPoints;
+            memberPenaltyDeduction += calc.memberPointsDeducted;
+          }
+        } else if (gt.status !== 'cancelled') {
+          const refDate = gt.status === 'complete' ? gt.completedAt || nowIso : nowIso;
+          const daysLate = calculateDaysLate(gt.dueDate, refDate);
+          if (daysLate > 0) {
+            const calc = calculateTaskPoints(gt.priority, daysLate, baseIndiv);
+            if (gt.status === 'complete') {
+              lateDeliveries += 1;
+            } else {
+              overdueTasksCount += 1;
+            }
+            latePenaltyScore += calc.penaltyPoints;
+            memberPenaltyDeduction += calc.memberPointsDeducted;
           }
         }
       }
+
       if (
         (gt.status === 'complete' || gt.bonusAwarded) &&
         Array.isArray(gt.participantIds) &&
@@ -374,9 +586,6 @@ export function calculateAllWorkspaceScores(
     const directBonusCount = userBonusAwards.length;
     const directBonusScore = userBonusAwards.reduce((sum, ba) => sum + (ba.points || 0), 0);
 
-    const tasksCompleted = completedTasks.length;
-    const tasksScore = tasksCompleted * 25;
-    const onTimeScore = onTimeDeliveries * 15;
     const milestonesCompleted = userMilestones.length;
     const milestonesScore = milestonesCompleted * 50;
     const proofsApproved = userProofs.length;
@@ -389,7 +598,8 @@ export function calculateAllWorkspaceScores(
       proofsScore +
       groupTasksScore +
       groupBonusScore +
-      directBonusScore;
+      directBonusScore -
+      memberPenaltyDeduction;
 
     scoresByUserId.set(u.id, {
       userId: u.id,
@@ -402,6 +612,10 @@ export function calculateAllWorkspaceScores(
       milestonesCompleted,
       proofsApproved,
       onTimeDeliveries,
+      lateDeliveries,
+      overdueTasksCount,
+      latePenaltyScore,
+      memberPenaltyDeduction,
       groupTasksCompleted,
       groupBonusCount,
       directBonusCount,
@@ -416,6 +630,10 @@ export function calculateAllWorkspaceScores(
         proofsScore,
         onTimeDeliveries,
         onTimeScore,
+        lateDeliveries,
+        overdueTasksCount,
+        latePenaltyScore,
+        memberPenaltyDeduction,
         groupTasksCompleted,
         groupTasksScore,
         groupBonusCount,
@@ -448,10 +666,6 @@ export function calculateAllWorkspaceScores(
     });
   });
 
-  cachedWorkspaceId = workspaceId;
-  cachedScoresTimestamp = nowMs;
-  cachedScoresMap = resultMap;
-
   return resultMap;
 }
 
@@ -479,6 +693,10 @@ export function calculateUserOverallScore(
       milestonesCompleted: 0,
       proofsApproved: 0,
       onTimeDeliveries: 0,
+      lateDeliveries: 0,
+      overdueTasksCount: 0,
+      latePenaltyScore: 0,
+      memberPenaltyDeduction: 0,
       groupTasksCompleted: 0,
       groupBonusCount: 0,
       directBonusCount: 0,
@@ -492,6 +710,10 @@ export function calculateUserOverallScore(
         proofsScore: 0,
         onTimeDeliveries: 0,
         onTimeScore: 0,
+        lateDeliveries: 0,
+        overdueTasksCount: 0,
+        latePenaltyScore: 0,
+        memberPenaltyDeduction: 0,
         groupTasksCompleted: 0,
         groupTasksScore: 0,
         groupBonusCount: 0,

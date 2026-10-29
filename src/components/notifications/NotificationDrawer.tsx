@@ -1,9 +1,10 @@
-import React from 'react';
-import { X, CheckCheck, Bell, Clock, FileCheck2, AlertTriangle, Sparkles, ExternalLink, UserPlus, Target } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, CheckCheck, Bell, FileCheck2, AlertTriangle, Sparkles, ExternalLink, UserPlus, Target } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
 import { api } from '../../lib/api.js';
 import { NotificationItem } from '../../../shared/types.js';
+import { NotificationListSkeleton } from '../common/Skeleton.js';
 
 interface NotificationDrawerProps {
   isOpen: boolean;
@@ -14,6 +15,22 @@ interface NotificationDrawerProps {
 export function NotificationDrawer({ isOpen, onClose, onNavigate }: NotificationDrawerProps) {
   const { notifications, refreshNotifications } = useAuth();
   const { themeConfig } = useTheme();
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSyncing(false);
+      return;
+    }
+    let active = true;
+    setSyncing(true);
+    refreshNotifications().finally(() => {
+      if (active) setSyncing(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, refreshNotifications]);
 
   if (!isOpen) return null;
 
@@ -103,7 +120,9 @@ export function NotificationDrawer({ isOpen, onClose, onNavigate }: Notification
 
         {/* Notifications List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2.5 scrollbar-none">
-          {notifications.length === 0 ? (
+          {syncing && notifications.length === 0 ? (
+            <NotificationListSkeleton count={4} />
+          ) : notifications.length === 0 ? (
             <div className="text-center py-12 text-slate-500 text-xs font-mono">
               No recent alerts or notifications.
             </div>

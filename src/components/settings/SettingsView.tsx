@@ -23,6 +23,7 @@ import { useAuth } from '../../contexts/AuthContext.js';
 import { useTheme, THEME_OPTIONS } from '../../contexts/ThemeContext.js';
 import { RoleBadge } from '../common/Badges.js';
 import { ConfirmModal } from '../common/Modal.js';
+import { NotificationPrefsSkeleton, AuditLogsRowSkeleton } from '../common/Skeleton.js';
 import { AvatarPickerModal } from '../profile/AvatarPickerModal.js';
 
 export function SettingsView() {
@@ -30,6 +31,7 @@ export function SettingsView() {
   const { currentTheme, setTheme, themeConfig } = useTheme();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [auditLogs, setAuditLogs] = useState<ActivityEvent[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
   const [workspaceName, setWorkspaceName] = useState(workspace?.name || '');
   const [requireApproval, setRequireApproval] = useState(workspace?.settings.requireProofApproval ?? true);
   const [strictIDOR, setStrictIDOR] = useState(workspace?.settings.strictIdorChecks ?? true);
@@ -52,11 +54,15 @@ export function SettingsView() {
       api.getNotificationPreferences(),
       api.getAuditLogs(),
       api.getEnvironmentInfo().catch(() => null),
-    ]).then(([p, logs, env]) => {
-      setPrefs(p);
-      setAuditLogs(logs);
-      if (env) setEnvInfo(env);
-    });
+    ])
+      .then(([p, logs, env]) => {
+        setPrefs(p);
+        setAuditLogs(logs);
+        if (env) setEnvInfo(env);
+      })
+      .finally(() => {
+        setLoadingLogs(false);
+      });
   }, []);
 
   const handleTogglePref = async (key: keyof NotificationPreferences) => {
@@ -363,7 +369,7 @@ export function SettingsView() {
             })}
           </div>
         ) : (
-          <div className="text-slate-500 text-xs font-mono">Loading preferences...</div>
+          <NotificationPrefsSkeleton />
         )}
       </div>
 
@@ -558,17 +564,21 @@ export function SettingsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#181b32]">
-              {auditLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-[#121428] font-mono text-[11px]">
-                  <td className="py-2 px-3 text-slate-500">
-                    {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </td>
-                  <td className="py-2 px-3 text-purple-300 font-semibold">{log.action}</td>
-                  <td className="py-2 px-3 text-slate-300">{log.userId}</td>
-                  <td className="py-2 px-3 text-slate-400">{log.entityType} ({log.entityId})</td>
-                  <td className="py-2 px-3 text-slate-500">{(log as any).ipAddress || '127.0.0.1'}</td>
-                </tr>
-              ))}
+              {loadingLogs ? (
+                <AuditLogsRowSkeleton rows={5} />
+              ) : (
+                auditLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-[#121428] font-mono text-[11px]">
+                    <td className="py-2 px-3 text-slate-500">
+                      {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </td>
+                    <td className="py-2 px-3 text-purple-300 font-semibold">{log.action}</td>
+                    <td className="py-2 px-3 text-slate-300">{log.userId}</td>
+                    <td className="py-2 px-3 text-slate-400">{log.entityType} ({log.entityId})</td>
+                    <td className="py-2 px-3 text-slate-500">{(log as any).ipAddress || '127.0.0.1'}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -18,6 +18,7 @@ import { useAuth } from '../../contexts/AuthContext.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
 import { RoleBadge } from '../common/Badges.js';
 import { ConfirmModal } from '../common/Modal.js';
+import { MessagesSidebarSkeleton, MessageStreamSkeleton } from '../common/Skeleton.js';
 import { VoiceRecorder } from './VoiceRecorder.js';
 import { AudioPlayer } from './AudioPlayer.js';
 
@@ -33,6 +34,8 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
   const [selectedTarget, setSelectedTarget] = useState<{ type: 'project' | 'direct'; id: string; name: string } | null>(null);
 
   const [messages, setMessages] = useState<any[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -41,24 +44,29 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Promise.all([api.getProjects(), api.getMe()]).then(([pList, meRes]) => {
-      setProjects(pList);
-      const avail = meRes.availableUsers ? (meRes.availableUsers as any) : [];
-      setUsers(avail);
+    setLoadingChannels(true);
+    Promise.all([api.getProjects(), api.getMe()])
+      .then(([pList, meRes]) => {
+        setProjects(pList);
+        const avail = meRes.availableUsers ? (meRes.availableUsers as any) : [];
+        setUsers(avail);
 
-      if (initialTarget) {
-        const foundName =
-          initialTarget.name ||
-          (initialTarget.type === 'project'
-            ? pList.find((p) => p.id === initialTarget.id)?.title
-            : avail.find((u: any) => u.id === initialTarget.id)?.name) ||
-          'Conversation';
-        setSelectedTarget({ type: initialTarget.type, id: initialTarget.id, name: foundName });
-        setIsMobileChatOpen(true);
-      } else if (pList.length > 0) {
-        setSelectedTarget({ type: 'project', id: pList[0].id, name: pList[0].title });
-      }
-    });
+        if (initialTarget) {
+          const foundName =
+            initialTarget.name ||
+            (initialTarget.type === 'project'
+              ? pList.find((p) => p.id === initialTarget.id)?.title
+              : avail.find((u: any) => u.id === initialTarget.id)?.name) ||
+            'Conversation';
+          setSelectedTarget({ type: initialTarget.type, id: initialTarget.id, name: foundName });
+          setIsMobileChatOpen(true);
+        } else if (pList.length > 0) {
+          setSelectedTarget({ type: 'project', id: pList[0].id, name: pList[0].title });
+        }
+      })
+      .finally(() => {
+        setLoadingChannels(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -74,8 +82,9 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
     }
   }, [initialTarget?.id, initialTarget?.type]);
 
-  const fetchCurrentMessages = async () => {
+  const fetchCurrentMessages = async (showSkeleton = false) => {
     if (!selectedTarget) return;
+    if (showSkeleton) setLoadingMessages(true);
     try {
       if (selectedTarget.type === 'project') {
         const list = await api.getProjectMessages(selectedTarget.id);
@@ -86,14 +95,16 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
       }
     } catch {
       // ignore
+    } finally {
+      if (showSkeleton) setLoadingMessages(false);
     }
   };
 
   useEffect(() => {
-    fetchCurrentMessages();
-    const interval = setInterval(fetchCurrentMessages, 5000);
+    fetchCurrentMessages(true);
+    const interval = setInterval(() => fetchCurrentMessages(false), 5000);
     return () => clearInterval(interval);
-  }, [selectedTarget]);
+  }, [selectedTarget?.id, selectedTarget?.type]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -184,68 +195,74 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-none">
-          {/* Projects Channels */}
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/80 font-bold px-2 block mb-2">
-              Project Channels
-            </span>
-            <div className="space-y-1.5">
-              {projects.map((proj) => {
-                const isSelected = selectedTarget?.type === 'project' && selectedTarget?.id === proj.id;
-                return (
-                  <button
-                    key={proj.id}
-                    onClick={() => {
-                      setSelectedTarget({ type: 'project', id: proj.id, name: proj.title });
-                      setIsMobileChatOpen(true);
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-cyan-950/90 to-teal-950/80 text-cyan-200 border border-cyan-500/40 font-semibold shadow-md shadow-cyan-950/30'
-                        : 'text-slate-300 hover:bg-[#0c142e] hover:text-cyan-200'
-                    }`}
-                  >
-                    <FolderGit2 className={`w-3.5 h-3.5 ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`} />
-                    <span className="truncate">{proj.title}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {loadingChannels ? (
+            <MessagesSidebarSkeleton />
+          ) : (
+            <>
+              {/* Projects Channels */}
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/80 font-bold px-2 block mb-2">
+                  Project Channels
+                </span>
+                <div className="space-y-1.5">
+                  {projects.map((proj) => {
+                    const isSelected = selectedTarget?.type === 'project' && selectedTarget?.id === proj.id;
+                    return (
+                      <button
+                        key={proj.id}
+                        onClick={() => {
+                          setSelectedTarget({ type: 'project', id: proj.id, name: proj.title });
+                          setIsMobileChatOpen(true);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-cyan-950/90 to-teal-950/80 text-cyan-200 border border-cyan-500/40 font-semibold shadow-md shadow-cyan-950/30'
+                            : 'text-slate-300 hover:bg-[#0c142e] hover:text-cyan-200'
+                        }`}
+                      >
+                        <FolderGit2 className={`w-3.5 h-3.5 ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`} />
+                        <span className="truncate">{proj.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-          {/* Direct Messages */}
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/80 font-bold px-2 block mb-2">
-              Direct Messages
-            </span>
-            <div className="space-y-1.5">
-              {otherUsers.map((u) => {
-                const isSelected = selectedTarget?.type === 'direct' && selectedTarget?.id === u.id;
-                return (
-                  <button
-                    key={u.id}
-                    onClick={() => {
-                      setSelectedTarget({ type: 'direct', id: u.id, name: u.name });
-                      setIsMobileChatOpen(true);
-                    }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-cyan-950/90 to-teal-950/80 text-cyan-200 border border-cyan-500/40 font-semibold shadow-md shadow-cyan-950/30'
-                        : 'text-slate-300 hover:bg-[#0c142e] hover:text-cyan-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <div className="w-6 h-6 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-300 flex items-center justify-center text-[10px] font-bold">
-                        {u.name[0]}
-                      </div>
-                      <span className="truncate">{u.name}</span>
-                    </div>
-                    <RoleBadge role={u.role} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+              {/* Direct Messages */}
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400/80 font-bold px-2 block mb-2">
+                  Direct Messages
+                </span>
+                <div className="space-y-1.5">
+                  {otherUsers.map((u) => {
+                    const isSelected = selectedTarget?.type === 'direct' && selectedTarget?.id === u.id;
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() => {
+                          setSelectedTarget({ type: 'direct', id: u.id, name: u.name });
+                          setIsMobileChatOpen(true);
+                        }}
+                        className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-cyan-950/90 to-teal-950/80 text-cyan-200 border border-cyan-500/40 font-semibold shadow-md shadow-cyan-950/30'
+                            : 'text-slate-300 hover:bg-[#0c142e] hover:text-cyan-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <div className="w-6 h-6 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-300 flex items-center justify-center text-[10px] font-bold">
+                            {u.name[0]}
+                          </div>
+                          <span className="truncate">{u.name}</span>
+                        </div>
+                        <RoleBadge role={u.role} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -291,7 +308,9 @@ export function MessagesView({ initialTarget }: MessagesViewProps = {}) {
 
         {/* Message Log */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-3">
-          {!selectedTarget ? (
+          {loadingChannels || loadingMessages ? (
+            <MessageStreamSkeleton count={4} />
+          ) : !selectedTarget ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs font-mono text-center p-4">
               <span>No active project or message recipient available yet.</span>
               <span className="text-[11px] text-slate-600 mt-1">Create a project or add team members to start messaging.</span>

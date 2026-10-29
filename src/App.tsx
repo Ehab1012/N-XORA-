@@ -10,7 +10,7 @@ import { AnalyticsView } from './components/analytics/AnalyticsView.js';
 import { SettingsView } from './components/settings/SettingsView.js';
 import { AppLoginView } from './components/auth/AppLoginView.js';
 import { CommandPalette } from './components/layout/CommandPalette.js';
-import { Loader2 } from 'lucide-react';
+import { AppSessionSkeleton } from './components/common/Skeleton.js';
 
 function WorkspaceRouter() {
   const { user, loading, refreshMe } = useAuth();
@@ -68,14 +68,7 @@ function WorkspaceRouter() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#090a14] flex flex-col items-center justify-center text-slate-400 font-mono text-xs gap-3">
-        <Loader2 className="w-7 h-7 text-purple-500 animate-spin" />
-        <span className="tracking-wider uppercase text-[11px] text-purple-300">
-          Launching NΞXORA App Session...
-        </span>
-      </div>
-    );
+    return <AppSessionSkeleton />;
   }
 
   // If logged out, present the dedicated Native App Login view

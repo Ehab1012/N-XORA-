@@ -8,6 +8,7 @@ import { api } from '../../lib/api.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { RoleBadge, StatusBadge, PriorityBadge } from '../common/Badges.js';
 import { Modal, ConfirmModal } from '../common/Modal.js';
+import { MemberProfileSkeleton } from '../common/Skeleton.js';
 import {
   Mail,
   MapPin,
@@ -98,6 +99,25 @@ export function MemberProfileModal({
   const [awardingBonus, setAwardingBonus] = useState(false);
   const [bonusSuccessMsg, setBonusSuccessMsg] = useState<string | null>(null);
   const [bonusErrorMsg, setBonusErrorMsg] = useState<string | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+
+  const effectiveRole = currentRole || currentUser?.role;
+  const canDeleteTask = effectiveRole === 'leader' || effectiveRole === 'co-leader';
+
+  const handleConfirmDeleteProfileTask = async () => {
+    if (!taskToDelete || !userId) return;
+    setIsDeletingTask(true);
+    try {
+      await api.deleteTask(taskToDelete.id);
+      await fetchProfile(userId);
+    } catch (err) {
+      console.error('Failed to delete task from member profile:', err);
+    } finally {
+      setIsDeletingTask(false);
+      setTaskToDelete(null);
+    }
+  };
 
   const fetchProfile = async (id: string) => {
     setLoading(true);
@@ -145,7 +165,7 @@ export function MemberProfileModal({
   const isLeader = currentRole === 'leader';
   const canChangeRank = isLeader && !isSelf;
   const canDeleteMember = isLeader && !isSelf;
-  const canAwardBonus = isLeader;
+  const canAwardBonus = currentRole === 'leader' || currentRole === 'co-leader';
 
   const handleAwardBonus = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,10 +297,7 @@ export function MemberProfileModal({
       maxWidth="max-w-2xl"
     >
       {loading ? (
-        <div className="py-16 flex flex-col items-center justify-center gap-3 text-slate-400 font-mono text-xs">
-          <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-          <span>Retrieving member credentials and profile...</span>
-        </div>
+        <MemberProfileSkeleton />
       ) : error || !user ? (
         <div className="p-8 text-center space-y-3">
           <p className="text-rose-400 text-sm font-medium">{error || 'User profile not found'}</p>
@@ -403,7 +420,7 @@ export function MemberProfileModal({
                       setIsAwardBonusOpen(true);
                     }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-950/40 transition-all cursor-pointer hover:scale-105 active:scale-95"
-                    title={isSelf ? 'Award leadership bonus points to yourself' : `Award bonus points to ${user.name} (Leader exclusive)`}
+                    title={isSelf ? 'Award leadership bonus points to yourself' : `Award bonus points to ${user.name} (Leader & Co-Leader authorized)`}
                   >
                     <Award className="w-3.5 h-3.5 text-slate-950 icon-anim" />
                     <span>{isSelf ? 'Award Self Bonus' : 'Award Bonus'}</span>
@@ -503,13 +520,27 @@ export function MemberProfileModal({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono tabular-nums text-slate-400">
                   <span className="px-2.5 py-1 rounded-xl bg-[#030612] border border-cyan-500/20">
                     Tasks: <strong className="text-cyan-300">+{profileData.score.breakdown.tasksScore}</strong>
                   </span>
                   <span className="px-2.5 py-1 rounded-xl bg-[#030612] border border-cyan-500/20">
                     Proofs: <strong className="text-teal-300">+{profileData.score.breakdown.proofsScore}</strong>
                   </span>
+                  {((profileData.score.breakdown.lateDeliveries || 0) + (profileData.score.breakdown.overdueTasksCount || 0) > 0 ||
+                    (profileData.score.breakdown.latePenaltyScore || 0) > 0) && (
+                    <span
+                      className="px-2.5 py-1 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300"
+                      title="Late tasks lose 20%/day until 0 pts, then deduct directly from total merit score"
+                    >
+                      Late Penalty: <strong className="text-rose-400">-{profileData.score.breakdown.latePenaltyScore || 0} pts</strong>
+                      {(profileData.score.breakdown.memberPenaltyDeduction || 0) > 0 && (
+                        <span className="text-rose-200 ml-1">
+                          (-{profileData.score.breakdown.memberPenaltyDeduction} from total)
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -944,11 +975,11 @@ export function MemberProfileModal({
                       </div>
 
                       {/* Score Formula Breakdown */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1">
                         <div className="p-2.5 rounded-xl bg-[#030612]/90 border border-cyan-500/20 hover:border-cyan-500/40 transition-colors">
                           <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
                             <span>Tasks Done</span>
-                            <span className="text-cyan-400 font-semibold">+25 ea</span>
+                            <span className="text-cyan-400 font-semibold">Priority</span>
                           </div>
                           <div className="mt-1 flex items-baseline justify-between font-mono">
                             <span className="text-base font-bold text-slate-200">
@@ -1033,6 +1064,26 @@ export function MemberProfileModal({
                               +{profileData.score.directBonusScore || profileData.score.breakdown.directBonusScore || 0} pts
                             </span>
                           </div>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-[#030612]/90 border border-rose-500/25 hover:border-rose-500/40 transition-colors tabular-nums">
+                          <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
+                            <span>Late / Overdue</span>
+                            <span className="text-rose-400 font-semibold">-20%/d</span>
+                          </div>
+                          <div className="mt-1 flex items-baseline justify-between font-mono">
+                            <span className="text-base font-bold text-slate-200">
+                              {(profileData.score.breakdown.lateDeliveries || 0) + (profileData.score.breakdown.overdueTasksCount || 0)}
+                            </span>
+                            <span className="text-xs text-rose-300 font-medium">
+                              -{profileData.score.breakdown.latePenaltyScore || 0} pts
+                            </span>
+                          </div>
+                          {(profileData.score.breakdown.memberPenaltyDeduction || 0) > 0 && (
+                            <div className="text-[10px] font-mono text-rose-400 font-semibold mt-0.5 truncate">
+                              -{profileData.score.breakdown.memberPenaltyDeduction} pts from total
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1256,6 +1307,17 @@ export function MemberProfileModal({
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <PriorityBadge priority={task.priority} />
                           <StatusBadge status={task.status} />
+                          {canDeleteTask && (
+                            <button
+                              type="button"
+                              onClick={() => setTaskToDelete({ id: task.id, title: task.title })}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-950/70 hover:bg-rose-600 border border-rose-500/45 hover:border-rose-400 text-rose-300 hover:text-white text-[10px] font-semibold transition-all cursor-pointer shadow-sm"
+                              title="Delete task (Leader & Co-Leader only)"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
@@ -1670,7 +1732,7 @@ export function MemberProfileModal({
         isOpen={isAwardBonusOpen}
         onClose={() => setIsAwardBonusOpen(false)}
         title={`Award Bonus Points to ${user?.name || 'Member'}`}
-        subtitle="Exclusively authorized for Workspace Leaders. Grant merit points to reward excellence."
+        subtitle="Exclusively authorized for Workspace Leaders & Co-Leaders. Grant merit points to reward excellence."
         maxWidth="max-w-md"
       >
         <form onSubmit={handleAwardBonus} className="space-y-4">
@@ -1783,6 +1845,20 @@ export function MemberProfileModal({
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={handleConfirmDeleteProfileTask}
+        title="Delete Task"
+        message={
+          taskToDelete
+            ? `Are you sure you want to permanently delete "${taskToDelete.title}"? Associated proof submissions for this task will also be removed. This action cannot be undone.`
+            : ''
+        }
+        confirmLabel={isDeletingTask ? 'Deleting...' : 'Delete Task'}
+        destructive={true}
+      />
     </Modal>
   );
 }
